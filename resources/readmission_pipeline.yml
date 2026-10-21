@@ -30,6 +30,7 @@ resources:
               - cms_unplanned_visits
               - hrrp_history_pdc
               - hrrp_history_ipps
+              - acs_county
               - --work-dir
               - /tmp/readmission-fetch
         - task_key: bronze

@@ -15,6 +15,12 @@ CONSTRAINTS: dict[str, str] = {
     # CMS leaves it blank (null here) when it computes none.
     "err_positive": "excess_readmission_ratio IS NULL OR excess_readmission_ratio > 0",
     "period_order": "period_end >= period_start",
+    # State FIPS plus county FIPS. Null passes: an unmatched hospital has no county.
+    "county_fips_format": "county_fips RLIKE '^[0-9]{5}$'",
+    "acs_percent_range": (
+        "pct_below_poverty BETWEEN 0 AND 100 AND pct_uninsured BETWEEN 0 AND 100 "
+        "AND pct_age_65_plus BETWEEN 0 AND 100 AND pct_disability BETWEEN 0 AND 100"
+    ),
 }
 
 
