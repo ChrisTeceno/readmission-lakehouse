@@ -37,6 +37,11 @@ Tags on every Silver table:
 | `source` | `cms`, `mtsamples`, `census`, or a comma-separated list for tables built from several |
 | `dataset` | CMS dataset id where there is one (`9n3s-kdb3`, `xubh-q36u`, `632h-zaca`); `acs5-profile` for Census |
 
+Gold tables (`docs/gold.md`) get the same treatment from the `gold` task: table and column
+comments from their schemas, tags `layer = gold`, `contains_phi = false`, `source` and
+`dataset`, and the analyst grant. The ops tables `ops_run_log` and `ops_dq_metrics` are tagged
+`layer = ops`, `contains_phi = false`, `source = readmission_pipeline`.
+
 ## Constraints, quarantine and expectations
 
 Delta CHECK constraints (`quality/constraints.py`):

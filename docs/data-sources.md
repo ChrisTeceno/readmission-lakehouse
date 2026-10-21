@@ -25,13 +25,44 @@ was checked on 2026-10-21 with all seven IPPS years (batch `20261021T190000Z`).
 
 ## Pipeline job
 
-`databricks bundle run readmission_pipeline -t dev` runs four serverless tasks from the project
+`databricks bundle run readmission_pipeline -t dev` runs five serverless tasks from the project
 wheel (`resources/readmission_pipeline.yml`): `fetch` runs the fetch CLI for every source, then
 `bronze` (`readmission.bronze.load`) appends what is new in landing to the Bronze tables and
 copies the MTSamples notes. A second run with no source changes appends nothing. `contoso`
 (`readmission.bronze.contoso`) runs beside them: it reads Contoso's Lakebase database directly,
 not the landing volume (see the Contoso section below). `silver` (`readmission.silver.build`)
 runs after `bronze` and `contoso` and rebuilds the Silver tables (see `docs/governance.md`).
+`gold` (`readmission.gold.build`) runs last and rebuilds the Gold tables (see `docs/gold.md`).
+
+The job runs daily at 06:00 UTC; the dev target's `trigger_pause_status: PAUSED` preset keeps
+the schedule paused there. `fetch` retries twice, two minutes apart, after the HTTP client's own
+exponential backoff gives up (Jobs only retry at a fixed interval). A failed run emails the job
+owner (`${workspace.current_user.userName}`).
+
+### Run monitoring
+
+Every task wraps its work in `readmission.ops.track_run`, which appends when the task ends:
+
+| Table | One row per | Columns |
+|---|---|---|
+| `ops_run_log` | task run (a retried task has one per attempt) | `job_run_id`, `task`, `started_at`, `ended_at`, `status` (`succeeded` or `failed`), `rows_written`, `error` |
+| `ops_dq_metrics` | metric | `job_run_id`, `task`, `table_name`, `metric`, `value`, `threshold`, `passed`, `measured_at` |
+
+Metrics: `rows_written` per table from every task (per `landing/<source>` for fetch); Silver's
+`row_count` (threshold: 80 percent of the previous build), `err_null_rate` (45 percent) and
+`quarantined_rows`; Gold's `row_count_vs_silver` (must equal `silver_hrrp_history`) and
+`anomaly_rate` (5 percent, recorded but never failing). The job passes
+`--job-run-id={{job.run_id}}`; run from a laptop without it, a task logs nothing.
+
+Forced failure, to test the alert path: the job parameter `fail_task` names a task that raises
+`ForcedFailure` as soon as its run starts, which logs a failed `ops_run_log` row and fails the
+job.
+
+```
+databricks bundle run readmission_pipeline -t dev --params fail_task=gold
+```
+
+RUN_RESULTS
 
 Silver row counts from the 2026-10-21 run:
 

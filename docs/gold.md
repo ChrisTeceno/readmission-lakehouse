@@ -1,0 +1,104 @@
+# Gold layer
+
+What the Gold tables in `workspace.readmission` hold and the rules they are built on. The
+`gold` task of the `readmission_pipeline` job (`readmission.gold.build`) rebuilds them from
+Silver on every run. Code: `src/readmission/gold/`.
+
+| Table | Grain | Built from |
+|---|---|---|
+| `gold_facility_condition_year` | facility, measure, fiscal year (FY2013 to FY2027) | `silver_hrrp_history`, `silver_hospital_info` |
+| `gold_penalty_mart` | facility, fiscal year | `gold_facility_condition_year`, `silver_contoso_facilities` |
+| `gold_contoso_scorecard` | Contoso facility, measure, fiscal year | `gold_facility_condition_year`, `silver_contoso_*` |
+| `gold_features` | facility, measure, target fiscal year | `gold_facility_condition_year`, `silver_hospital_info` |
+
+ROW_COUNTS
+
+## Penalty cutoff
+
+A condition counts toward a hospital's HRRP payment reduction when its excess readmission ratio
+(ERR) is above the cutoff for that fiscal year.
+
+| Fiscal years | Cutoff | `cutoff_is_approximate` |
+|---|---|---|
+| FY2013 to FY2018 | 1.0 | false: this was the rule |
+| FY2019 to FY2026 | 1.0 | true: CMS used the median ERR of the hospital's dual-eligibility peer group, which no file in this project carries |
+| FY2027 | `peer_median_err` from the IPPS supplemental file | false (true for a row with no ERR, where CMS published no median) |
+
+For FY2019 to FY2026, 1.0 is a stand-in. Peer group medians sit close to 1.0 (the FY2027
+medians run from DATA_FY2027_MEDIANS), so most rows land on the same side of either cutoff, but a hospital
+with an ERR near 1.0 can flip. Analysis that depends on the exact cutoff (the regression
+discontinuity in task 2.3) should use FY2013 to FY2018 and FY2027, or filter on
+`cutoff_is_approximate = false`.
+
+## Non-overlapping windows
+
+Each fiscal year's ERR covers a three-year window of discharges, and consecutive years share two
+of those years, so FY t against FY t-1 mostly compares the same patients. Gold compares each
+fiscal year with its prior non-overlapping window: the latest fiscal year whose performance
+period ends before this one starts (`readmission.gold.windows.prior_window_year`).
+
+| FY | Prior window | Why |
+|---|---|---|
+| 2013 to 2015 | none | the window before it predates HRRP data |
+| 2016 to 2024, 2026 | t-3 | three-year windows; FY2022's ends 12/2019 and FY2024's starts 07/2019, so both still map to t-3 |
+| 2025 | 2022 | FY2025 starts 07/2020, after FY2022's COVID-shortened window ends |
+| 2027 | 2025 | FY2027's two-year window starts 07/2023, the day after FY2025's ends |
+
+`window_months` is 36, except 30 for FY2022 (07/2017 to 12/2019) and FY2024 (January to June
+2020 excluded) and 24 for FY2027. Discharge comparisons use discharges per month, so a shorter
+window does not look like a drop.
+
+## Anomaly flags
+
+`anomaly_flag` is true when either rule fires; `anomaly_reason` names the rules and values.
+
+- `err_change`: the ERR change from the prior window has a modified z-score above 3.5 in
+  absolute value among hospitals with the same measure and fiscal year (Iglewicz and Hoaglin:
+  0.6745 times the distance from the median, over the median absolute deviation). Median and
+  MAD are used rather than mean and standard deviation so the outliers do not widen the spread
+  that judges them.
+- `discharge_jump`: discharges per month more than doubled or fell by more than half against the
+  prior window, with at least 25 discharges in both (CMS's minimum for an ERR). A jump that size
+  is more often a merger, a CCN change or a coding change than a change in patients.
+
+The gold task records the share of flagged rows in `ops_dq_metrics` (`anomaly_rate`, threshold
+5 percent). A higher share is logged as a failed metric but does not fail the run.
+
+## Model features and the leakage rule
+
+`gold_features` has one row per facility, measure and target fiscal year T, for every fact row,
+plus scoring rows for the next cycle (FY2028) with null labels. The features for T use only
+what CMS had published before it released FY T's results:
+
+- HRRP history from fiscal years strictly before T (lags 1 to 3 of ERR, above-cutoff and
+  discharges; lag 1 of readmissions, predicted and expected rates, ERR change and anomaly flag;
+  counts and the mean and maximum ERR over all earlier years). The join condition is
+  `fiscal_year < target_fiscal_year`, so a year T row cannot reach a feature.
+- Hospital attributes that rarely change: state, hospital type, ownership, emergency services.
+  Hospital General Information is only the current snapshot here, so the star rating and the
+  readmission measure counts are left out: they are built from recent claims and would carry
+  later years into early targets.
+- Only `label_above_cutoff`, `label_err` and `label_cutoff_is_approximate` come from year T.
+
+`tests/test_gold.py::test_features_never_use_the_target_year_or_later` changes every fact row of
+year T and later and fails if any feature column for target T moves.
+
+Census ACS county features (built by a separate task, not merged yet) will join on the
+hospital's county, as of the latest ACS release before T. There are no ACS columns yet.
+
+## Contoso scorecard
+
+One row per Contoso facility, condition and fiscal year with a CMS row. The CMS columns come
+from the facts through the facility's CCN; the operational columns add up Contoso's synthetic
+monthly discharges and follow-up calls over the months of that fiscal year's performance
+window. Contoso's records start in September 2023, so only FY2026 (10 months) and FY2027 (22
+months) have operational data; `contoso_months` says how many months each row covers.
+`followup_rate` and `followup_within_72h_rate` divide completed calls by Contoso's all-payer
+discharges.
+
+## Governance
+
+Every Gold table carries a table comment and a comment on every column (from its `StructType`),
+re-applied on each run, and the tags `layer = gold`, `contains_phi = false`, `source` (`cms` or
+`cms,contoso`) and `dataset` where the table comes from CMS datasets. The analyst grant is
+issued as for Silver (see `docs/governance.md`).
