@@ -12,9 +12,9 @@ A public portfolio project that demonstrates every requirement in a Senior Forwa
 
 **What gets built:**
 
-1. A Databricks medallion lakehouse (Bronze, Silver, Gold) ingesting CMS Provider Data APIs, Census ACS, and the existing MTSamples clinical notes table.
-2. An MLflow-tracked model predicting which hospitals land above the penalty threshold (excess readmission ratio > 1.0).
-3. A causal analysis of whether being penalized changes a hospital's next-cycle readmission ratio (regression discontinuity at ERR = 1.0, with a difference-in-differences check).
+1. A Databricks medallion lakehouse (Bronze, Silver, Gold) ingesting CMS Provider Data APIs, CMS archive files, Census ACS, Contoso's own operational database (a Lakebase Postgres seeded with synthetic facility and discharge data), and the existing MTSamples clinical notes table.
+2. An MLflow-tracked model predicting which hospital-condition pairs land above the penalty cutoff next cycle, served as a scheduled batch scoring job that writes predictions to Gold.
+3. A causal analysis of whether being penalized changes a hospital's later readmission ratio (regression discontinuity at the penalty cutoff, with a difference-in-differences check), plus a designed pilot: a powered experiment Contoso could run to test a discharge follow-up intervention.
 4. An LLM step that extracts structured readmission risk factors from the clinical notes, with an evaluation against a hand-labeled sample.
 5. A Databricks AI/BI dashboard, a Genie space, and a Power BI project file on the Gold tables.
 6. Engagement documents (discovery, requirements, decisions, readout), an AI-assisted development log, a portfolio case study, and a 3 to 5 minute video.
@@ -29,20 +29,20 @@ Every job description line maps to a concrete artifact. The README carries this 
 |---|---|
 | Databricks, Spark/PySpark, Delta | `src/` pipeline code, Delta tables in Unity Catalog `workspace.readmission` |
 | Medallion architecture | `bronze/`, `silver/`, `gold/` modules and `docs/architecture.md` diagram |
-| Pipelines from APIs, databases, other sources | CMS datastore API (paginated JSON), Census ACS API, MTSamples Delta table, CMS CSV files |
+| Pipelines from APIs, databases, other sources | CMS datastore API (paginated JSON), Census ACS API, Contoso Lakebase Postgres (JDBC, incremental by watermark), CMS archive zips, MTSamples Delta table |
 | MLflow experiments | `ml/train_penalty_model.py`, experiment `/Shared/readmission-penalty`, registered model |
-| Data governance, schema enforcement, testing, quality | Explicit Silver schemas, Delta constraints, expectation checks, quarantine table, pytest suite |
-| Orchestration (Databricks Workflows, ADF) | Databricks Asset Bundle job (`databricks.yml`); one ADF pipeline that triggers it |
+| Data governance, schema enforcement, testing, quality | Explicit Silver schemas, Delta constraints, expectation checks, quarantine table, pytest suite; Unity Catalog table and column comments, tags, grants to an analyst group, lineage |
+| Orchestration and monitoring (Databricks Workflows, ADF) | Asset Bundle job with schedule, retries, task dependencies and failure notifications; `ops_run_log` and `ops_dq_metrics` tables feeding a pipeline-health dashboard page; ADF pipeline that lands external files and triggers the job |
 | Azure Data Factory, Key Vault | `infra/` Bicep: Key Vault holding the Census key and Databricks token, ADF pipeline |
 | Power BI | `powerbi/` `.pbip` project over Gold tables |
 | Dashboards, Genie | AI/BI dashboard JSON in the bundle, Genie space with documented sample questions |
-| Statistics: experimental design, hypothesis testing, causal inference | `analysis/` RDD + DiD notebook, pre-registered hypotheses in `docs/analysis-plan.md` |
+| Statistics: experimental design, hypothesis testing, causal inference | `docs/analysis-plan.md` (hypotheses before results), RDD + DiD notebook, pilot design with power calculation, explicit tests with multiple-comparison correction |
 | Exploration, anomalies, storytelling | EDA notebook, anomaly flags in Gold, the readout deck |
-| AI-assisted development and judgment | `docs/ai-assisted-dev.md` log: what AI produced, how it was checked, what was rejected |
-| LLMs in solutions | Notes extraction step with eval metrics |
+| AI-assisted development and judgment | `docs/ai-assisted-dev.md`: concrete cases tied to PRs of AI output that was accepted, corrected or rejected and why; secret scanning (gitleaks) in CI; LLM outputs schema-validated and evaluated |
+| LLMs and AI/ML product work | Notes extraction step with eval metrics; batch scoring job using the registered model's champion alias; Genie space |
 | Git workflows | PR-per-task history, CI on GitHub Actions |
-| Client communication | `engagement/` discovery notes, requirements, ADRs, readout |
-| Healthcare bonus | The domain |
+| Client communication, working with PM and design | `engagement/`: discovery notes, user stories with acceptance criteria, a low-fidelity dashboard wireframe agreed before building, ADRs, status update, readout deck, executive summary for a non-technical reader |
+| Healthcare and consulting bonus | The domain; a short PHI note (no PHI used, how real PHI would change the design); the engagement framing |
 
 ## Tech Stack
 
@@ -59,6 +59,11 @@ Every job description line maps to a concrete artifact. The README carries this 
 
 ## Data Sources
 
+**Network constraint (Free Edition).** Serverless compute on Free Edition only reaches "a limited set of trusted domains" (Databricks docs, Free Edition limitations, checked 2026-10-21). data.cms.gov, cms.gov and api.census.gov may be blocked. Ingestion is therefore split:
+- **Fetch** (pure Python, no Spark) downloads from the source and uploads raw files to the landing volume `/Volumes/workspace/readmission/landing/<source>/<batch_id>/` through the Databricks Files API. It runs wherever egress works: inside Databricks if the probe succeeds, otherwise from a scheduled GitHub Actions workflow or the ADF pipeline.
+- **Load** (Databricks job) reads the landing volume into Bronze. It never calls the internet.
+The first ingest task runs a one-line egress probe from serverless and records the result in `docs/data-sources.md`. The design works either way, so a blocked domain changes where fetch runs, not the code.
+
 | Source | Access | Bronze table |
 |---|---|---|
 | HRRP by hospital (`9n3s-kdb3`) | CMS datastore API, paginated | `bronze_hrrp` |
@@ -68,6 +73,7 @@ Every job description line maps to a concrete artifact. The README carries this 
 | Historical HRRP, FY2013 to FY2018 and FY2027 (wide format, ERR and discharges only) | CMS.gov IPPS Final Rule supplemental data zips | `bronze_hrrp_history_ipps` |
 | Census ACS 5-year county socioeconomics | Census API, key in Key Vault | `bronze_acs_county` |
 | MTSamples clinical notes | Existing Delta table in the workspace volume | `bronze_clinical_notes` |
+| Contoso operational DB: facility roster mapped to CCNs, monthly discharges and follow-up-call logs (synthetic, seeded by a script) | Lakebase Postgres, JDBC, incremental on `updated_at` watermark, credentials in a secret scope | `bronze_contoso_*` |
 
 Verified 2026-10-21: the three CMS datastore endpoints respond; HRRP has 18,330 rows for FY2026 (period 07/2021 to 06/2024).
 
@@ -181,38 +187,43 @@ def clean_hrrp(raw: DataFrame) -> DataFrame:
 7. CI is green; `pytest` passes locally.
 8. README opens with the requirement coverage map and a 5-line summary of findings.
 9. Engagement docs, AI-assisted dev log, case study page, and video exist and link from the README.
+10. The Contoso Lakebase source loads incrementally: a second run after inserting rows picks up only the new rows.
+11. A failed job task sends a notification and shows up on the pipeline-health page.
+12. The pilot design states sample size, power, minimum detectable effect and the analysis it commits to.
 
 ## Plan (2 to 3 days)
 
 **Day 1: data platform**
-- 1.1 Repo scaffold: uv, ruff, pytest, bundle skeleton, CI. Rotate the old Databricks token; set up a secret scope.
+- 1.1 Repo scaffold: uv, ruff, pytest, bundle skeleton, CI. (Chris rotates the old Databricks token by hand.)
 - 1.2 CMS API client with pagination and retry, plus recorded fixtures.
-- 1.3 Bronze ingestion for the 3 CMS datasets and MTSamples.
-- 1.4 Historical HRRP ingest from both sources (see Data Sources), unified in `silver_hrrp_history` with one row per facility, measure and fiscal year, FY2013 to FY2027.
-- 1.5 Silver: schemas, cleaning, constraints, quarantine, tests.
-- 1.6 Gold: facility-condition fact, penalty mart, feature table. Workflow job scheduling Bronze to Gold.
+- 1.3 Bronze ingestion for the 3 CMS datasets and MTSamples, using the fetch/load split and egress probe from Data Sources.
+- 1.4 Historical HRRP ingest from both sources (see Data Sources), same fetch/load split, unified in `silver_hrrp_history` with one row per facility, measure and fiscal year, FY2013 to FY2027.
+- 1.5 Silver: schemas, cleaning, constraints, quarantine, tests; Unity Catalog comments, tags and grants.
+- 1.5b Contoso Lakebase: seed script for synthetic facility, discharge and follow-up data (Contoso's facilities are a fixed set of real CCNs relabeled, stated in the README), JDBC incremental load to Bronze and Silver.
+- 1.6 Gold: facility-condition fact, penalty mart, feature table, anomaly flags. Job with schedule, retries, failure notifications, `ops_run_log` and `ops_dq_metrics`.
 
 **Day 2: analysis and ML**
-- 2.1 EDA notebook, analysis plan with hypotheses written before outcomes are examined.
-- 2.2 MLflow penalty model: baseline logistic regression vs gradient boosting, registration, metric gate.
+- 2.1 EDA notebook, analysis plan with hypotheses and tests (with multiple-comparison correction) written before outcomes are examined.
+- 2.2 MLflow penalty model: baseline logistic regression vs gradient boosting, time-based split, registration with a champion alias, metric gate, scheduled batch scoring into `gold_penalty_predictions`.
 - 2.3 Causal: RDD at the penalty cutoff on cycle t, outcome is the change in ERR at cycle t+3, bandwidth sensitivity, placebo cutoffs, DiD check. Two design facts the analysis plan must handle:
   - Performance windows are 3 years and overlap by 2 years between consecutive fiscal years, so t vs t+1 is mostly the same claims. Compare non-overlapping windows (t vs t+3), or say why not.
   - The cutoff is ERR = 1.0 for FY2013 to FY2018. From FY2019 CMS compares each hospital to the median ERR of its dual-eligibility peer group, so the cutoff becomes that median. Peer group assignments come from the supplemental files; confirm per year which ones carry them.
-- 2.4 LLM notes extraction plus 50-note eval.
+- 2.4 LLM notes extraction plus 50-note eval, outputs validated against a JSON schema.
+- 2.6 Pilot design: a randomized (or stepped-wedge) trial of post-discharge follow-up calls across Contoso facilities, with power calculation, primary metric, guardrails and analysis plan.
 - 2.5 Census ACS ingestion via Key Vault (needs Azure, 3.1).
 
 **Day 3: delivery surface**
-- 3.1 Bicep for Key Vault and ADF, deploy, trigger once, capture evidence, tear down.
-- 3.2 AI/BI dashboard and Genie space in the bundle; `.pbip`.
-- 3.3 Engagement docs, ADRs, readout deck.
-- 3.4 AI-assisted dev log, README with coverage map, architecture diagram.
+- 3.1 Bicep for Key Vault and ADF, deploy, run once (fetch to landing if needed, then trigger the Databricks job), capture evidence, tear down.
+- 3.2 Wireframe first (in `engagement/`), then AI/BI dashboard with a pipeline-health page and Genie space in the bundle; `.pbip`.
+- 3.3 Engagement docs: discovery, user stories, ADRs, status update, readout deck, one-page executive summary, PHI note.
+- 3.4 AI-assisted dev log, gitleaks in CI, README with coverage map, architecture diagram.
 - 3.5 Case study page on christeceno.com; video script and recording.
 
-Parallel lanes for the factory: 1.2 to 1.6 sequential; 3.1 and 3.3 independent of the pipeline; 2.4 depends only on 1.3.
+Parallel lanes for the factory: 1.2 to 1.6 sequential; 1.4 and 1.5b need only 1.1; 3.1 and 3.3 independent of the pipeline; 2.4 depends only on 1.3; 2.6 depends only on 1.5b.
 
 ## Open Questions
 
 1. ~~Historical HRRP cycles.~~ Resolved 2026-10-21: FY2013 to FY2027 are all scriptable (see Data Sources). Remaining gap: FY2013 to FY2018 have no readmission counts, so the causal outcome is ERR, which every year carries.
-2. **Free Edition limits.** Confirm Free Edition supports Genie, AI/BI dashboards, model registry in Unity Catalog, and a Foundation Model endpoint. Any gap changes 2.4 or 3.2.
-3. **Key Vault and Free Edition.** Key Vault-backed secret scopes require Azure Databricks. Plan: the ingest job reads the Census key from Key Vault via `azure-identity` with a service principal whose credentials live in a Databricks secret scope. Acceptable, or should the Azure piece run in an Azure Databricks trial instead?
-4. **Video tooling.** Screen recording plus voiceover by you, or a scripted walkthrough generated locally?
+2. **Free Edition limits.** Docs confirm: serverless only, outbound internet limited to trusted domains, 5 concurrent job tasks, one 2X-Small SQL warehouse, one Lakebase project, capped model serving endpoints. Still to confirm in the workspace: Genie, AI/BI dashboards, Unity Catalog model registry, which Foundation Model endpoints are available (decides 2.4), and egress to CMS/Census (decides where fetch runs).
+3. ~~Key Vault and Free Edition.~~ Decided 2026-10-21: the Census key lives in Key Vault, read via `azure-identity` with a service principal whose credentials sit in a Databricks secret scope. If egress to Azure is blocked from serverless, ADF reads Key Vault natively and the fetch runs there.
+4. ~~Video tooling.~~ Decided 2026-10-21: Claude generates the walkthrough (scripted screen captures plus narration), no live recording by Chris.
