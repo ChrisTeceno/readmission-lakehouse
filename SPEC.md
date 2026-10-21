@@ -64,11 +64,31 @@ Every job description line maps to a concrete artifact. The README carries this 
 | HRRP by hospital (`9n3s-kdb3`) | CMS datastore API, paginated | `bronze_hrrp` |
 | Hospital General Information (`xubh-q36u`) | CMS datastore API | `bronze_hospital_info` |
 | Unplanned Hospital Visits (`632h-zaca`) | CMS datastore API | `bronze_unplanned_visits` |
-| Historical HRRP cycles (FY2019 to FY2025) | CMS archived data zips | `bronze_hrrp_history` |
+| Historical HRRP, FY2019 to FY2026 (long format, with readmission counts) | Provider Data Catalog archive API, one fall snapshot zip per year | `bronze_hrrp_history_pdc` |
+| Historical HRRP, FY2013 to FY2018 and FY2027 (wide format, ERR and discharges only) | CMS.gov IPPS Final Rule supplemental data zips | `bronze_hrrp_history_ipps` |
 | Census ACS 5-year county socioeconomics | Census API, key in Key Vault | `bronze_acs_county` |
 | MTSamples clinical notes | Existing Delta table in the workspace volume | `bronze_clinical_notes` |
 
 Verified 2026-10-21: the three CMS datastore endpoints respond; HRRP has 18,330 rows for FY2026 (period 07/2021 to 06/2024).
+
+### Historical HRRP: how to fetch it (verified 2026-10-21)
+
+**PDC archive, FY2019 to FY2026.** Index: `https://data.cms.gov/provider-data/api/1/archive/aggregate/theme/hospitals/relative` (JSON list of `url`, `date`, `type`). Zips live at `https://data.cms.gov/provider-data/sites/default/files/dataset-archives/theme/hospitals/hospitals_<YYYY-MM-DD>.zip`. Pick the October/November snapshot per fiscal year from the index on each run, never hardcode dates. The HRRP file name inside varies by year; match it by pattern (`*Readmissions_Reduction_Program_Hospital*.csv`, `9n3s-kdb3*.csv`, or `*RRP_HOSPITAL.csv` for FY2019) and strip nested folder prefixes.
+
+| FY | Snapshot | Performance period |
+|---|---|---|
+| 2019 | 2019-10-31 | 07/2014 to 06/2017 |
+| 2020 | 2020-10-16 | 07/2015 to 06/2018 |
+| 2021 | 2021-10-27 | 07/2016 to 06/2019 |
+| 2022 | 2022-10-06 | 07/2017 to 12/2019 (COVID exclusion) |
+| 2023 | 2023-10-06 | 07/2018 to 06/2021 |
+| 2024 | 2024-10-30 | 07/2019 to 12/2019 plus 07/2020 to 06/2022 (file says 07/2019 to 06/2022) |
+| 2025 | 2025-11-26 | 07/2020 to 06/2023 |
+| 2026 | 2026-08-13 | 07/2021 to 06/2024 |
+
+**CMS.gov IPPS supplemental files, FY2013 to FY2018 and FY2027.** Index: `https://www.cms.gov/medicare/payment/prospective-payment-systems/acute-inpatient-pps/archived-supplemental-data-files`. Exact zip URLs per year are recorded in `docs/data-sources.md` (created by the historical-ingest task). Tab-separated, title rows before the header, one row per hospital with wide `<condition> cases` and `<condition> ERR` columns. No readmission counts or predicted/expected rates. FY2013 to FY2014 cover AMI, HF and pneumonia only; COPD and hip/knee arrive in FY2015, CABG in FY2017. FY2027 is not on PDC yet.
+
+**Normalization rules.** Left-pad CCN to 6 digits. Accept `Provider ID` and `Facility ID`. Normalize measure names (`READM_30_AMI_HRRP` and `READM-30-AMI-HRRP` are the same). Strip thousands separators. Treat `N/A`, `Not Available`, `Too Few to Report`, `.` and blank as null. Do not use the CMS.gov FY2023 and FY2026 links: they serve the wrong year's file.
 
 ## Commands
 
@@ -168,14 +188,16 @@ def clean_hrrp(raw: DataFrame) -> DataFrame:
 - 1.1 Repo scaffold: uv, ruff, pytest, bundle skeleton, CI. Rotate the old Databricks token; set up a secret scope.
 - 1.2 CMS API client with pagination and retry, plus recorded fixtures.
 - 1.3 Bronze ingestion for the 3 CMS datasets and MTSamples.
-- 1.4 Resolve historical HRRP access (open question 1); land `bronze_hrrp_history`.
+- 1.4 Historical HRRP ingest from both sources (see Data Sources), unified in `silver_hrrp_history` with one row per facility, measure and fiscal year, FY2013 to FY2027.
 - 1.5 Silver: schemas, cleaning, constraints, quarantine, tests.
 - 1.6 Gold: facility-condition fact, penalty mart, feature table. Workflow job scheduling Bronze to Gold.
 
 **Day 2: analysis and ML**
 - 2.1 EDA notebook, analysis plan with hypotheses written before outcomes are examined.
 - 2.2 MLflow penalty model: baseline logistic regression vs gradient boosting, registration, metric gate.
-- 2.3 Causal: RDD at ERR = 1.0 on cycle t vs ratio change in t+1, bandwidth sensitivity, placebo cutoffs, DiD check.
+- 2.3 Causal: RDD at the penalty cutoff on cycle t, outcome is the change in ERR at cycle t+3, bandwidth sensitivity, placebo cutoffs, DiD check. Two design facts the analysis plan must handle:
+  - Performance windows are 3 years and overlap by 2 years between consecutive fiscal years, so t vs t+1 is mostly the same claims. Compare non-overlapping windows (t vs t+3), or say why not.
+  - The cutoff is ERR = 1.0 for FY2013 to FY2018. From FY2019 CMS compares each hospital to the median ERR of its dual-eligibility peer group, so the cutoff becomes that median. Peer group assignments come from the supplemental files; confirm per year which ones carry them.
 - 2.4 LLM notes extraction plus 50-note eval.
 - 2.5 Census ACS ingestion via Key Vault (needs Azure, 3.1).
 
@@ -190,7 +212,7 @@ Parallel lanes for the factory: 1.2 to 1.6 sequential; 3.1 and 3.3 independent o
 
 ## Open Questions
 
-1. **Historical HRRP cycles.** The CMS archive page renders with JavaScript and did not yield scriptable zip links on first try. If archives cannot be fetched, the causal design falls back to a cross-sectional analysis (inverse probability weighting on hospital characteristics), which is weaker. Resolve in task 1.4.
+1. ~~Historical HRRP cycles.~~ Resolved 2026-10-21: FY2013 to FY2027 are all scriptable (see Data Sources). Remaining gap: FY2013 to FY2018 have no readmission counts, so the causal outcome is ERR, which every year carries.
 2. **Free Edition limits.** Confirm Free Edition supports Genie, AI/BI dashboards, model registry in Unity Catalog, and a Foundation Model endpoint. Any gap changes 2.4 or 3.2.
 3. **Key Vault and Free Edition.** Key Vault-backed secret scopes require Azure Databricks. Plan: the ingest job reads the Census key from Key Vault via `azure-identity` with a service principal whose credentials live in a Databricks secret scope. Acceptable, or should the Azure piece run in an Azure Databricks trial instead?
 4. **Video tooling.** Screen recording plus voiceover by you, or a scripted walkthrough generated locally?
