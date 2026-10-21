@@ -62,7 +62,23 @@ job.
 databricks bundle run readmission_pipeline -t dev --params fail_task=gold
 ```
 
-RUN_RESULTS
+Clean run, 2026-10-21 (job run 338286842208810): every Bronze, Silver and Gold table and
+`ops_watermarks` were dropped first; the schema, the landing volume, Lakebase and the two ops
+tables were kept, so fetch found every source already landed and downloaded nothing new. The
+run took 12 minutes 58 seconds from `bundle run` to success:
+
+| Task | Minutes | Rows written |
+|---|---|---|
+| `fetch` | 0.5 | 175,563 (landed rows counted per source) |
+| `contoso` | 0.8 | 11,124 |
+| `bronze` | 1.3 | 316,246 |
+| `silver` | 6.6 | 480,282 |
+| `gold` | 2.2 | 599,782 |
+
+All 50 `ops_dq_metrics` rows of that run passed. Forced failure: job run 796922301916095 with
+`fail_task=gold` (gold task only) wrote two `failed` rows for `gold` with error
+`ForcedFailure: gold: forced failure (--fail-task=gold)`; serverless retried the task once on
+its own, so there is one row per attempt.
 
 Silver row counts from the 2026-10-21 run:
 

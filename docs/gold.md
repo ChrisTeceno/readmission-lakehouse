@@ -11,7 +11,10 @@ Silver on every run. Code: `src/readmission/gold/`.
 | `gold_contoso_scorecard` | Contoso facility, measure, fiscal year | `gold_facility_condition_year`, `silver_contoso_*` |
 | `gold_features` | facility, measure, target fiscal year | `gold_facility_condition_year`, `silver_hospital_info`, `silver_hospital_county`, `silver_acs_county` |
 
-ROW_COUNTS
+Row counts from the 2026-10-21 run: `gold_facility_condition_year` 266,159 (one per
+`silver_hrrp_history` row, checked by the task), `gold_penalty_mart` 49,008,
+`gold_contoso_scorecard` 984, `gold_features` 283,631 (266,159 targets with labels plus
+17,472 FY2028 scoring rows).
 
 ## Penalty cutoff
 
@@ -25,8 +28,10 @@ A condition counts toward a hospital's HRRP payment reduction when its excess re
 | FY2027 | `peer_median_err` from the IPPS supplemental file | false (true for a row with no ERR, where CMS published no median) |
 
 For FY2019 to FY2026, 1.0 is a stand-in. Peer group medians sit close to 1.0 (the FY2027
-medians run from DATA_FY2027_MEDIANS), so most rows land on the same side of either cutoff, but a hospital
-with an ERR near 1.0 can flip. Analysis that depends on the exact cutoff (the regression
+medians run from 0.9837 to 1.0143, median 0.9955), so most rows land on the same side of
+either cutoff, but a hospital with an ERR near 1.0 can flip: in FY2027, where both are known,
+899 of the 14,575 rows with an ERR (6.2 percent) are on different sides of 1.0 and of their
+peer median. Analysis that depends on the exact cutoff (the regression
 discontinuity in task 2.3) should use FY2013 to FY2018 and FY2027, or filter on
 `cutoff_is_approximate = false`.
 
@@ -57,12 +62,15 @@ window does not look like a drop.
   0.6745 times the distance from the median, over the median absolute deviation). Median and
   MAD are used rather than mean and standard deviation so the outliers do not widen the spread
   that judges them.
-- `discharge_jump`: discharges per month more than doubled or fell by more than half against the
-  prior window, with at least 25 discharges in both (CMS's minimum for an ERR). A jump that size
-  is more often a merger, a CCN change or a coding change than a change in patients.
+- `discharge_jump`: the change in discharges per month from the prior window is more than
+  double, or under half, the median change for the same measure and fiscal year, with at least
+  25 discharges in both windows (CMS's minimum for an ERR). The median matters because whole
+  years shift: the median hospital's discharges per month fell to about 0.65 times its prior
+  window's in FY2023 to FY2025 (COVID) and rose to 2.3 times in FY2027. A jump against that is
+  more often a merger, a CCN change or a coding change than a change in patients.
 
-The gold task records the share of flagged rows in `ops_dq_metrics` (`anomaly_rate`, threshold
-5 percent). A higher share is logged as a failed metric but does not fail the run.
+On the 2026-10-21 data 3,127 rows (1.2 percent) are flagged, 2,628 of them for a discharge jump.
+The gold task records the share in `ops_dq_metrics` (`anomaly_rate`, threshold 5 percent). A higher share is logged as a failed metric but does not fail the run.
 
 ## Model features and the leakage rule
 
