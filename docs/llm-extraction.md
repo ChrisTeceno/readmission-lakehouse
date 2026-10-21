@@ -55,6 +55,6 @@ under the new prompt. `ops_dq_metrics` records each run's `first_attempt_valid_r
 `retry_rate`.
 
 ```
-uv run --with mlflow-skinny python scripts/evaluate_llm_extraction.py --without-response-format
+uv run --group ml python scripts/evaluate_llm_extraction.py --without-response-format
 databricks bundle run readmission_pipeline -t dev --only llm_extract
 ```

@@ -1,6 +1,6 @@
 """Compare Foundation Model endpoints on the 50 labelled notes and log one MLflow run per model.
 
-    uv run --with mlflow-skinny python scripts/evaluate_llm_extraction.py [--profile readmission]
+    uv run --group ml python scripts/evaluate_llm_extraction.py [--profile readmission]
 
 Each note is one `ai_query` statement on the SQL warehouse, built by the same
 `readmission.llm.extract.ai_query_sql` the `llm_extract` task uses, so the prompt, the schema
