@@ -1,0 +1,38 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.13.0/schema.json",
+  "name": "scorecard_card_4",
+  "position": {
+    "x": 785,
+    "y": 100,
+    "z": 5,
+    "height": 130,
+    "width": 240,
+    "tabOrder": 5
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "gold_contoso_scorecard"
+                    }
+                  },
+                  "Property": "Follow-up Completion Rate"
+                }
+              },
+              "queryRef": "gold_contoso_scorecard.Follow-up Completion Rate",
+              "nativeQueryRef": "Follow-up Completion Rate"
+            }
+          ]
+        }
+      }
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

@@ -1,0 +1,96 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.13.0/schema.json",
+  "name": "scorecard_err_by_facility",
+  "position": {
+    "x": 20,
+    "y": 250,
+    "z": 6,
+    "height": 450,
+    "width": 500,
+    "tabOrder": 6
+  },
+  "visual": {
+    "visualType": "clusteredBarChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "gold_contoso_scorecard"
+                    }
+                  },
+                  "Property": "contoso_facility_name"
+                }
+              },
+              "queryRef": "gold_contoso_scorecard.contoso_facility_name",
+              "nativeQueryRef": "contoso_facility_name"
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "gold_contoso_scorecard"
+                    }
+                  },
+                  "Property": "Contoso Average ERR"
+                }
+              },
+              "queryRef": "gold_contoso_scorecard.Contoso Average ERR",
+              "nativeQueryRef": "Contoso Average ERR"
+            }
+          ]
+        }
+      },
+      "sortDefinition": {
+        "sort": [
+          {
+            "field": {
+              "Measure": {
+                "Expression": {
+                  "SourceRef": {
+                    "Entity": "gold_contoso_scorecard"
+                  }
+                },
+                "Property": "Contoso Average ERR"
+              }
+            },
+            "direction": "Descending"
+          }
+        ],
+        "isDefaultSort": false
+      }
+    },
+    "drillFilterOtherVisuals": true,
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Average ERR by Contoso facility'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

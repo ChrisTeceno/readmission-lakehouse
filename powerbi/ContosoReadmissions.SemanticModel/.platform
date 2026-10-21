@@ -1,0 +1,12 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "SemanticModel",
+    "displayName": "ContosoReadmissions",
+    "description": "HRRP readmission and penalty model over the Gold tables for the fictional client Contoso Health"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "48fde522-cfd1-4a69-9c8f-b3197c9711d2"
+  }
+}

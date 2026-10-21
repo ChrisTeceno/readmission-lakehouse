@@ -1,0 +1,44 @@
+/// The six HRRP conditions, keyed by the measure code the Gold tables use.
+table Condition
+
+	/// HRRP condition code: AMI, HF, PN, COPD, HIP_KNEE or CABG
+	column measure
+		dataType: string
+		isKey
+		summarizeBy: none
+		sourceColumn: measure
+
+	/// Condition name
+	column condition_name
+		dataType: string
+		summarizeBy: none
+		sourceColumn: condition_name
+		sortByColumn: sort_order
+
+	/// Display order of the conditions
+	column sort_order
+		dataType: int64
+		isHidden
+		summarizeBy: none
+		sourceColumn: sort_order
+
+	partition Condition = m
+		mode: import
+		source =
+				let
+				    Source = #table(
+				        type table [measure = text, condition_name = text, sort_order = Int64.Type],
+				        {
+				            {"AMI", "Acute myocardial infarction", 1},
+				            {"HF", "Heart failure", 2},
+				            {"PN", "Pneumonia", 3},
+				            {"COPD", "Chronic obstructive pulmonary disease", 4},
+				            {"HIP_KNEE", "Elective hip or knee replacement", 5},
+				            {"CABG", "Coronary artery bypass graft", 6}
+				        }
+				    )
+				in
+				    Source
+
+	annotation PBI_ResultType = Table
+

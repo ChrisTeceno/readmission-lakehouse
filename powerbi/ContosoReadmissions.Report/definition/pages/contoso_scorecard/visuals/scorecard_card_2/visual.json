@@ -1,0 +1,38 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.13.0/schema.json",
+  "name": "scorecard_card_2",
+  "position": {
+    "x": 275,
+    "y": 100,
+    "z": 3,
+    "height": 130,
+    "width": 240,
+    "tabOrder": 3
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "gold_contoso_scorecard"
+                    }
+                  },
+                  "Property": "Contoso Average ERR"
+                }
+              },
+              "queryRef": "gold_contoso_scorecard.Contoso Average ERR",
+              "nativeQueryRef": "Contoso Average ERR"
+            }
+          ]
+        }
+      }
+    },
+    "drillFilterOtherVisuals": true
+  }
+}
