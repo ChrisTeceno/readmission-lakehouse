@@ -10,6 +10,8 @@ spark-warehouse/
 metastore_db/
 derby.log
 data/
+# The pilot power notebook's committed baseline extract (public CMS rows, synthetic Contoso).
+!analysis/data/
 *.zip
 .DS_Store
 dist/
