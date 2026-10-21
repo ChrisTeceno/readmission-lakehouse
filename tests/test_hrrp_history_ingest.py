@@ -7,12 +7,12 @@ from pathlib import Path
 import httpx
 import pytest
 
+from readmission.ingest.fetch import SOURCES, run
 from readmission.ingest.hrrp_history import (
     IPPS_FILES,
     PDC_INDEX_URL,
     PDC_MEMBER_PATTERNS,
     Snapshot,
-    download,
     fetch_ipps,
     fetch_pdc,
     find_member,
@@ -20,11 +20,11 @@ from readmission.ingest.hrrp_history import (
     peek_pdc_fiscal_year,
     read_ipps_rows,
     read_pdc_rows,
-    request_with_retry,
     select_pdc_snapshots,
     theme_snapshots,
 )
-from readmission.ingest.landing import LocalLander
+from readmission.ingest.http import download_zip, request_with_retry
+from readmission.ingest.landing import LocalLander, list_manifests, sha256_hex
 
 FIXTURES = Path(__file__).parent / "fixtures" / "hrrp_history"
 
@@ -47,7 +47,7 @@ def zip_bytes(members: dict[str, bytes]) -> bytes:
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
         for name, data in members.items():
-            zf.writestr(name, data)
+            zf.writestr(zipfile.ZipInfo(name, date_time=(2013, 3, 11, 13, 45, 0)), data)
     return buffer.getvalue()
 
 
@@ -216,7 +216,7 @@ def test_download_retries_truncated_zip(tmp_path):
         transport=httpx.MockTransport(lambda r: httpx.Response(200, content=next(bodies)))
     )
 
-    path = download(client, "https://example.test/a.zip", tmp_path / "a.zip")
+    path = download_zip(client, "https://example.test/a.zip", tmp_path / "a.zip")
 
     assert path.read_bytes() == body
 
@@ -249,14 +249,28 @@ def test_fetch_pdc_lands_selected_hrrp_files(tmp_path):
 
     landed = fetch_pdc(client, lander, "b1", tmp_path / "work", fiscal_years=[2019, 2022])
 
-    assert [(f.fiscal_year, f.snapshot_date, f.name) for f in landed] == [
-        (2019, "2019-07-31", "pdc_fy2019.csv"),
-        (2022, "2022-10-06", "pdc_fy2022.csv"),
+    assert [(f["fiscal_year"], f["snapshot_date"], f["name"], f["row_count"]) for f in landed] == [
+        (2019, "2019-07-31", "pdc_fy2019.csv", 8),
+        (2022, "2022-10-06", "pdc_fy2022.csv", 12),
     ]
-    assert Path(landed[1].path).read_bytes() == fy2022
-    assert landed[1].source_ref.endswith(
+    fy2022_entry = landed[1]
+    assert fy2022_entry["path"] == str(
+        tmp_path / "landing" / "hrrp_history_pdc" / "2022" / "b1" / "pdc_fy2022.csv"
+    )
+    assert Path(fy2022_entry["path"]).read_bytes() == fy2022
+    assert fy2022_entry["sha256"] == sha256_hex(fy2022)
+    assert fy2022_entry["dataset_id"] == "9n3s-kdb3"
+    assert fy2022_entry["source_ref"].endswith(
         "hospitals_2022-10-06.zip#hospitals_10_2022/FY_2022_Hospital_Readmissions_Reduction_Program_Hospital.csv"
     )
+    manifests = list_manifests(str(tmp_path / "landing"), "hrrp_history_pdc")
+    assert [(m["partition"], m["batch_id"], m["files"]) for m in manifests] == [
+        ("2019", "b1", [landed[0]]),
+        ("2022", "b1", [landed[1]]),
+    ]
+    # Only the extracted HRRP file and its manifest land, never the zip.
+    landed_names = {p.name for p in (tmp_path / "landing").rglob("*") if p.is_file()}
+    assert landed_names == {"pdc_fy2019.csv", "pdc_fy2022.csv", "_manifest.json"}
 
 
 def test_fetch_ipps_lands_readmissions_file_only(tmp_path):
@@ -276,8 +290,35 @@ def test_fetch_ipps_lands_readmissions_file_only(tmp_path):
     )
 
     assert len(landed) == 1
-    assert landed[0].member == "Readmissions PUF-FY 2013 IPPS Correction-March 2013.txt"
-    assert Path(landed[0].path).read_bytes() == fy2013
+    assert landed[0]["member"] == "Readmissions PUF-FY 2013 IPPS Correction-March 2013.txt"
+    assert landed[0]["member_modified"] == "2013-03-11"
+    assert landed[0]["row_count"] == 3
+    assert Path(landed[0]["path"]).read_bytes() == fy2013
+
+
+def test_fetch_cli_registry_runs_a_source(tmp_path):
+    fy2027 = (FIXTURES / "ipps_fy2027.txt").read_bytes()
+    url = "https://www.cms.gov" + IPPS_FILES[2027][0]
+    client = httpx.Client(
+        transport=range_server(
+            {url: zip_bytes({"FY2027_HRRP_Supplemental_File - FR FY 2027 Tab.txt": fy2027})}
+        )
+    )
+    calls = []
+
+    def only_2027(client, lander, batch_id, work_dir):
+        calls.append(batch_id)
+        return fetch_ipps(client, lander, batch_id, work_dir, [2027])
+
+    SOURCES["test_ipps_2027"] = only_2027
+    try:
+        landed = run("test_ipps_2027", LocalLander(str(tmp_path)), tmp_path / "work", client=client)
+    finally:
+        del SOURCES["test_ipps_2027"]
+
+    assert {"hrrp_history_pdc", "hrrp_history_ipps"} <= SOURCES.keys()
+    assert len(calls[0]) == len("20261021T080509Z")
+    assert landed[0]["row_count"] == 3
 
 
 def test_read_ipps_rows_skips_title_and_note_rows():

@@ -6,21 +6,28 @@ source was last checked by a real download.
 ## Network and landing
 
 Serverless compute reaches data.cms.gov and www.cms.gov (probe 2026-10-21, recorded in
-SPEC.md). Fetch steps run as the first task of the Databricks job, download with retries on
-429, 5xx and timeouts, and land raw files unchanged in
-`/Volumes/workspace/readmission/landing/<source>/<batch_id>/` through the Files API
-(`readmission.ingest.landing`). Each batch also gets a `_manifest.json` describing every file.
-Load steps read only the landing volume. Locally, `--work-dir` (default `data/hrrp_history/`,
-gitignored) holds downloads and a local landing directory.
+SPEC.md), so fetch runs as the first task of the Databricks job. Fetch downloads with retries on
+429, 5xx and timeouts and lands raw files unchanged in the managed volume
+`workspace.readmission.landing` (bundle resource `resources/landing.yml`) through the Files API.
+Layout: `/Volumes/workspace/readmission/landing/<source>/[<partition>/]<batch_id>/<file>`, with a
+`_manifest.json` per batch listing each file's source URL, dataset id, snapshot or modified
+date, inner file name, sha256 and row count. The manifest is written last, so a batch with a
+manifest is complete. Load reads only the landing volume and skips a batch whose `_batch_id`
+is already in Bronze or whose files all match a loaded sha256 (`batches_to_load`).
 
 ```
-uv run python -m readmission.ingest.hrrp_history            # land under data/hrrp_history/landing
-uv run python -m readmission.ingest.hrrp_history --volume   # land in the Databricks volume
+uv run python -m readmission.ingest.fetch hrrp_history_pdc                     # to the volume
+uv run python -m readmission.ingest.fetch hrrp_history_ipps --local data/landing
 ```
+
+`--work-dir` (default `data/fetch/`, gitignored) caches downloaded zips. Landing in the volume
+was checked on 2026-10-21 with all seven IPPS years (batch `20261021T190000Z`).
 
 ## Historical HRRP, FY2013 to FY2027
 
-Landing source `hrrp_history`. Bronze tables `bronze_hrrp_history_pdc` and
+Landing sources `hrrp_history_pdc` and `hrrp_history_ipps`, partitioned by fiscal year
+(`<source>/<fiscal_year>/<batch_id>/`); only the extracted HRRP file and its manifest land, never
+the zip. Bronze tables `bronze_hrrp_history_pdc` and
 `bronze_hrrp_history_ipps`, unified in `silver_hrrp_history` (one row per facility, measure and
 fiscal year). Code: `src/readmission/ingest/hrrp_history.py`, `bronze/hrrp_history.py`,
 `silver/hrrp_history.py`.

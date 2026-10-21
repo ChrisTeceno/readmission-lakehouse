@@ -8,10 +8,11 @@ from readmission.ingest.landing import (
     LANDING_VOLUME,
     LocalLander,
     VolumeLander,
+    batches_to_load,
     land_manifest,
     landing_path,
+    list_manifests,
     new_batch_id,
-    read_manifest,
 )
 
 
@@ -67,14 +68,57 @@ def test_volume_lander_uploads_through_files_api():
     assert workspace.files.uploads == {path: (b"x\n", True)}
 
 
+def test_partition_sits_between_source_and_batch():
+    assert (
+        landing_path("/v", "hrrp_history_pdc", "b1", "pdc_fy2019.csv", partition="2019")
+        == "/v/hrrp_history_pdc/2019/b1/pdc_fy2019.csv"
+    )
+
+
+def test_manifests_listed_oldest_first(tmp_path):
+    lander = LocalLander(str(tmp_path))
+    land_manifest(lander, "hrrp_history_pdc", "b2", [{"name": "a", "sha256": "h2"}], "2019")
+    land_manifest(lander, "hrrp_history_pdc", "b1", [{"name": "a", "sha256": "h1"}], "2020")
+    land_manifest(lander, "hrrp_history_pdc", "b1", [{"name": "a", "sha256": "h1b"}], "2019")
+
+    manifests = list_manifests(str(tmp_path), "hrrp_history_pdc")
+
+    assert [(m["batch_id"], m["partition"]) for m in manifests] == [
+        ("b1", "2019"),
+        ("b1", "2020"),
+        ("b2", "2019"),
+    ]
+    assert manifests[0]["dir"] == str(tmp_path / "hrrp_history_pdc" / "2019" / "b1")
+    assert list_manifests(str(tmp_path), "missing_source") == []
+
+
+def test_batches_to_load_skips_loaded_batches_and_unchanged_files():
+    manifests = [
+        {"batch_id": "b1", "files": [{"sha256": "h1"}]},
+        {"batch_id": "b2", "files": [{"sha256": "h1"}]},
+        {"batch_id": "b3", "files": [{"sha256": "h3"}]},
+        {"batch_id": "b4", "files": [{"sha256": "h3"}]},
+        {"batch_id": "b5", "files": [{"sha256": "h5"}]},
+    ]
+
+    pending = batches_to_load(manifests, loaded_batch_ids={"b5"}, loaded_sha256s={"h1"})
+
+    # b2 re-fetched unchanged data, b4 repeats b3 within the same run, b5 is already loaded.
+    assert [m["batch_id"] for m in pending] == ["b3"]
+
+
 def test_manifest_round_trip(tmp_path):
     lander = LocalLander(str(tmp_path))
     entries = [{"name": "pdc_fy2019.csv", "fiscal_year": 2019}]
 
     land_manifest(lander, "hrrp_history", "b1", entries)
 
-    assert read_manifest(str(tmp_path), "hrrp_history", "b1") == {
-        "source": "hrrp_history",
-        "batch_id": "b1",
-        "files": entries,
-    }
+    assert list_manifests(str(tmp_path), "hrrp_history") == [
+        {
+            "source": "hrrp_history",
+            "partition": None,
+            "batch_id": "b1",
+            "files": entries,
+            "dir": str(tmp_path / "hrrp_history" / "b1"),
+        }
+    ]

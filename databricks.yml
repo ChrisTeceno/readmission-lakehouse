@@ -15,5 +15,12 @@ variables:
 targets:
   # The workspace host comes from DATABRICKS_HOST or a CLI profile, never from this file.
   dev:
-    mode: development
+    # Not `mode: development`: it prefixes Unity Catalog names with dev_<user>_ even when
+    # name_prefix is set to "", and the schema and volume must keep the names SPEC.md uses
+    # (workspace.readmission.landing). The development presets that matter are set by hand.
     default: true
+    presets:
+      trigger_pause_status: PAUSED
+      jobs_max_concurrent_runs: 4
+      tags:
+        dev: ${workspace.current_user.short_name}

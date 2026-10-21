@@ -4,11 +4,13 @@ from pathlib import Path
 import pytest
 
 from readmission.bronze.hrrp_history import (
+    bronze_from_manifest,
     bronze_hrrp_history_ipps,
     bronze_hrrp_history_pdc,
     snake_case,
 )
 from readmission.ingest.hrrp_history import read_ipps_rows, read_pdc_rows
+from readmission.ingest.landing import LocalLander, land_manifest, list_manifests, sha256_hex
 from readmission.silver.hrrp_history import (
     SILVER_HRRP_HISTORY_SCHEMA,
     silver_from_ipps,
@@ -28,6 +30,7 @@ def pdc_bronze(spark, name, fiscal_year):
         fiscal_year=fiscal_year,
         source=f"https://data.cms.gov/x.zip#{name}",
         batch_id="b1",
+        sha256="abc",
         ingested_at=INGESTED_AT,
     )
 
@@ -40,6 +43,7 @@ def ipps_bronze(spark, name, fiscal_year):
         fiscal_year=fiscal_year,
         source=f"https://www.cms.gov/x.zip#{name}",
         batch_id="b1",
+        sha256="abc",
         ingested_at=INGESTED_AT,
     )
 
@@ -58,7 +62,7 @@ def test_bronze_keeps_strings_and_metadata(spark):
     ipps = ipps_bronze(spark, "ipps_fy2027.txt", 2027)
 
     assert pdc.columns[:3] == ["facility_name", "facility_id", "state"]
-    assert pdc.columns[-4:] == ["fiscal_year", "_ingested_at", "_source", "_batch_id"]
+    assert pdc.columns[-5:] == ["fiscal_year", "_ingested_at", "_source", "_batch_id", "_sha256"]
     assert {f.dataType.simpleString() for f in pdc.schema if not f.name.startswith("_")} == {
         "string",
         "int",
@@ -112,7 +116,13 @@ def test_ccn_padding(spark):
         }
     ]
     bronze = bronze_hrrp_history_pdc(
-        spark, rows, fiscal_year=2026, source="s", batch_id="b1", ingested_at=INGESTED_AT
+        spark,
+        rows,
+        fiscal_year=2026,
+        source="s",
+        batch_id="b1",
+        sha256="abc",
+        ingested_at=INGESTED_AT,
     )
 
     row = silver_from_pdc(bronze).first()
@@ -182,3 +192,24 @@ def test_silver_hrrp_history_schema_and_key(spark):
         silver.groupBy("facility_id", "measure", "fiscal_year").count().where("count > 1").count()
         == 0
     )
+
+
+def test_bronze_from_manifest_reads_landed_batch(spark, tmp_path):
+    lander = LocalLander(str(tmp_path))
+    data = (FIXTURES / "ipps_fy2017.txt").read_bytes()
+    lander.land_file("hrrp_history_ipps", "b7", "ipps_fy2017.txt", data, "2017")
+    entry = {
+        "name": "ipps_fy2017.txt",
+        "fiscal_year": 2017,
+        "source_ref": "https://www.cms.gov/fy2017.zip#FY 2017 IPPS Final Rule Readmissions PUF (FY17 data).txt",
+        "sha256": sha256_hex(data),
+    }
+    land_manifest(lander, "hrrp_history_ipps", "b7", [entry], "2017")
+    (manifest,) = list_manifests(str(tmp_path), "hrrp_history_ipps")
+
+    bronze = bronze_from_manifest(spark, manifest, INGESTED_AT)
+
+    assert bronze.count() == 3
+    row = bronze.first()
+    assert (row.fiscal_year, row._batch_id, row._sha256) == (2017, "b7", sha256_hex(data))
+    assert row._source == entry["source_ref"]
