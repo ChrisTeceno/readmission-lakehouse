@@ -1,0 +1,12 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Report",
+    "displayName": "ContosoReadmissions",
+    "description": "Contoso scorecard and HRRP penalty landscape for the fictional client Contoso Health"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "017c3112-c51c-4b7a-b0f1-a2705d0d4911"
+  }
+}

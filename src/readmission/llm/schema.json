@@ -1,0 +1,120 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "primary_condition",
+    "comorbidities",
+    "prior_admissions_mentioned",
+    "discharge_disposition",
+    "social_risk_factors",
+    "follow_up_planned"
+  ],
+  "properties": {
+    "primary_condition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "evidence"],
+      "properties": {
+        "value": {
+          "type": "string",
+          "enum": ["AMI", "HF", "PN", "COPD", "CABG", "HIP_KNEE", "other"]
+        },
+        "evidence": {"type": ["string", "null"]}
+      }
+    },
+    "comorbidities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["term", "evidence"],
+        "properties": {
+          "term": {
+            "type": "string",
+            "enum": [
+              "anemia",
+              "asthma",
+              "atrial_fibrillation",
+              "cancer",
+              "chronic_kidney_disease",
+              "copd",
+              "coronary_artery_disease",
+              "dementia",
+              "depression",
+              "diabetes",
+              "gerd",
+              "heart_failure",
+              "hyperlipidemia",
+              "hypertension",
+              "hypothyroidism",
+              "liver_disease",
+              "obesity",
+              "osteoarthritis",
+              "peripheral_vascular_disease",
+              "sleep_apnea",
+              "stroke",
+              "substance_use",
+              "valvular_disease"
+            ]
+          },
+          "evidence": {"type": "string"}
+        }
+      }
+    },
+    "prior_admissions_mentioned": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "evidence"],
+      "properties": {
+        "value": {"type": "boolean"},
+        "evidence": {"type": ["string", "null"]}
+      }
+    },
+    "discharge_disposition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "evidence"],
+      "properties": {
+        "value": {
+          "type": "string",
+          "enum": [
+            "home",
+            "home_with_services",
+            "skilled_nursing_facility",
+            "rehab_facility",
+            "hospice",
+            "transferred",
+            "left_against_medical_advice",
+            "expired",
+            "not_stated"
+          ]
+        },
+        "evidence": {"type": ["string", "null"]}
+      }
+    },
+    "social_risk_factors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["factor", "evidence"],
+        "properties": {
+          "factor": {
+            "type": "string",
+            "enum": ["lives_alone", "transportation", "medication_access"]
+          },
+          "evidence": {"type": "string"}
+        }
+      }
+    },
+    "follow_up_planned": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "evidence"],
+      "properties": {
+        "value": {"type": "boolean"},
+        "evidence": {"type": ["string", "null"]}
+      }
+    }
+  }
+}

@@ -3,6 +3,10 @@ Exploratory and causal analysis notebooks (RDD and difference-in-differences), i
 - `01_eda.py`: EDA over the Gold tables, testing the descriptive hypotheses pre-registered in
   `docs/analysis-plan.md`. HTML export with outputs: `docs/eda/01_eda.html`; readout summary:
   `docs/eda/what-the-data-can-answer.md`.
+- `02_causal.py`: the pre-registered causal analysis of `docs/analysis-plan.md` (RDD at the HRRP
+  penalty cutoff, validity checks, sensitivity, DiD check), using `rdrobust` and `rddensity`,
+  which the notebook installs. HTML export with outputs: `docs/causal/02_causal.html`; findings:
+  `docs/causal-findings.md`.
 - `03_power.py`: simulation-based power for the follow-up call pilot in `docs/pilot-design.md`
   (fixed seed). It also runs locally, `uv run python analysis/03_power.py`, from the baseline
   extract in `analysis/data/` (Ohio HRRP rows for FY2023 and FY2026, and Contoso's latest 12

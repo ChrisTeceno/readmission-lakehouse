@@ -1,0 +1,180 @@
+/// Contoso Health's 12 facilities (fictional names on real CCNs) per HRRP
+/// condition and fiscal year: CMS results beside Contoso's synthetic discharges
+/// and follow-up calls over the same performance window. Built from
+/// gold_facility_condition_year and the silver_contoso_* tables.
+table gold_contoso_scorecard
+
+	/// Contoso facility-condition rows whose ERR is above the penalty cutoff.
+	measure 'Contoso Conditions Above Cutoff' = CALCULATE(COUNTROWS(gold_contoso_scorecard), gold_contoso_scorecard[above_cutoff] = TRUE())
+		formatString: #,0
+
+	/// Mean excess readmission ratio across Contoso's facility-condition rows that
+	/// have one.
+	measure 'Contoso Average ERR' = AVERAGE(gold_contoso_scorecard[excess_readmission_ratio])
+		formatString: 0.0000
+
+	/// Mean of ERR minus the penalty cutoff at Contoso; above zero means above the
+	/// cutoff (1.0 stand-in for FY2019 to FY2026).
+	measure 'Contoso ERR vs Peer Cutoff' =
+			AVERAGEX(
+			    FILTER(gold_contoso_scorecard, NOT ISBLANK(gold_contoso_scorecard[excess_readmission_ratio])),
+			    gold_contoso_scorecard[excess_readmission_ratio] - gold_contoso_scorecard[penalty_cutoff]
+			)
+		formatString: +0.0000;-0.0000;0.0000
+
+	/// Completed post-discharge follow-up calls over Contoso's all-payer discharges
+	/// (FY2026 and FY2027 only).
+	measure 'Follow-up Completion Rate' = DIVIDE(SUM(gold_contoso_scorecard[calls_completed]), SUM(gold_contoso_scorecard[contoso_discharges]))
+		formatString: 0.0%
+
+	/// Follow-up calls completed within 72 hours of discharge over Contoso's
+	/// all-payer discharges.
+	measure 'Follow-up Within 72h Rate' = DIVIDE(SUM(gold_contoso_scorecard[calls_completed_within_72h]), SUM(gold_contoso_scorecard[contoso_discharges]))
+		formatString: 0.0%
+
+	/// Completed follow-up calls over attempted follow-up calls.
+	measure 'Calls Completed per Attempt' = DIVIDE(SUM(gold_contoso_scorecard[calls_completed]), SUM(gold_contoso_scorecard[calls_attempted]))
+		formatString: 0.0%
+
+	/// Contoso's own facility id, CH01 to CH12
+	column contoso_facility_id
+		dataType: string
+		summarizeBy: none
+		sourceColumn: contoso_facility_id
+
+	/// Contoso's name for the facility
+	column contoso_facility_name
+		dataType: string
+		summarizeBy: none
+		sourceColumn: contoso_facility_name
+
+	/// CMS Certification Number (CCN)
+	column facility_id
+		dataType: string
+		summarizeBy: none
+		sourceColumn: facility_id
+
+	/// HRRP condition: AMI, HF, PN, COPD, HIP_KNEE or CABG
+	column measure
+		dataType: string
+		summarizeBy: none
+		sourceColumn: measure
+
+	/// HRRP payment fiscal year
+	column fiscal_year
+		dataType: int64
+		summarizeBy: none
+		sourceColumn: fiscal_year
+
+	/// First discharge date of the performance period
+	column period_start
+		dataType: dateTime
+		formatString: Short Date
+		summarizeBy: none
+		sourceColumn: period_start
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	/// Last discharge date of the performance period
+	column period_end
+		dataType: dateTime
+		formatString: Short Date
+		summarizeBy: none
+		sourceColumn: period_end
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	/// Medicare fee-for-service discharges CMS counted; null if suppressed
+	column cms_discharges
+		dataType: int64
+		summarizeBy: sum
+		sourceColumn: cms_discharges
+
+	/// CMS excess readmission ratio
+	column excess_readmission_ratio
+		dataType: double
+		summarizeBy: none
+		sourceColumn: excess_readmission_ratio
+
+	/// ERR above which the condition was penalized
+	column penalty_cutoff
+		dataType: double
+		summarizeBy: none
+		sourceColumn: penalty_cutoff
+
+	/// The cutoff is the 1.0 stand-in for a peer group median (FY2019 to FY2026)
+	column cutoff_is_approximate
+		dataType: boolean
+		summarizeBy: none
+		sourceColumn: cutoff_is_approximate
+
+	/// ERR above penalty_cutoff
+	column above_cutoff
+		dataType: boolean
+		summarizeBy: none
+		sourceColumn: above_cutoff
+
+	/// ERR change from the prior non-overlapping window
+	column err_change
+		dataType: double
+		summarizeBy: none
+		sourceColumn: err_change
+
+	/// Flagged in gold_facility_condition_year
+	column anomaly_flag
+		dataType: boolean
+		summarizeBy: none
+		sourceColumn: anomaly_flag
+
+	/// Months of Contoso operational data inside the performance window
+	column contoso_months
+		dataType: int64
+		summarizeBy: none
+		sourceColumn: contoso_months
+
+	/// All-payer discharges in Contoso's own records over those months
+	column contoso_discharges
+		dataType: int64
+		summarizeBy: sum
+		sourceColumn: contoso_discharges
+
+	/// Post-discharge follow-up calls attempted
+	column calls_attempted
+		dataType: int64
+		summarizeBy: sum
+		sourceColumn: calls_attempted
+
+	/// Post-discharge follow-up calls completed
+	column calls_completed
+		dataType: int64
+		summarizeBy: sum
+		sourceColumn: calls_completed
+
+	/// Completed follow-up calls made within 72 hours of discharge
+	column calls_completed_within_72h
+		dataType: int64
+		summarizeBy: sum
+		sourceColumn: calls_completed_within_72h
+
+	/// calls_completed over contoso_discharges (ratio)
+	column followup_rate
+		dataType: double
+		summarizeBy: none
+		sourceColumn: followup_rate
+
+	/// calls_completed_within_72h over contoso_discharges (ratio)
+	column followup_within_72h_rate
+		dataType: double
+		summarizeBy: none
+		sourceColumn: followup_within_72h_rate
+
+	partition gold_contoso_scorecard = m
+		mode: import
+		source =
+				let
+				    Source = DatabricksGold{[Name = "gold_contoso_scorecard", Kind = "Table"]}[Data]
+				in
+				    Source
+
+	annotation PBI_ResultType = Table
+

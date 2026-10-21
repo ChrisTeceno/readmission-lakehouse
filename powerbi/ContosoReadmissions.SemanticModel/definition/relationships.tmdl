@@ -1,0 +1,44 @@
+relationship e930ac6f-2faa-4f9c-ab81-4e53ac9662d4
+	fromColumn: gold_facility_condition_year.fiscal_year
+	toColumn: 'Fiscal Year'.fiscal_year
+
+relationship 8e55a586-7bbc-473a-8e3d-2a18babf71ec
+	fromColumn: gold_facility_condition_year.facility_id
+	toColumn: Facility.facility_id
+
+relationship d41e8927-b5d7-4735-a848-e2c668f11e04
+	fromColumn: gold_facility_condition_year.measure
+	toColumn: Condition.measure
+
+relationship 67e154a0-9610-4e3d-b763-0d5badec8e48
+	fromColumn: gold_penalty_mart.fiscal_year
+	toColumn: 'Fiscal Year'.fiscal_year
+
+relationship ce23d440-9d68-459c-b5a1-edab35b1cfb2
+	fromColumn: gold_penalty_mart.facility_id
+	toColumn: Facility.facility_id
+
+relationship 763b6caa-aa0a-4ce4-b614-26b7f111b945
+	fromColumn: gold_contoso_scorecard.fiscal_year
+	toColumn: 'Fiscal Year'.fiscal_year
+
+relationship 499b04ab-d68b-49c6-b92c-9aaaff22cd1e
+	fromColumn: gold_contoso_scorecard.facility_id
+	toColumn: Facility.facility_id
+
+relationship 9c727886-a6e9-4de8-8935-ec32f9a5f47e
+	fromColumn: gold_contoso_scorecard.measure
+	toColumn: Condition.measure
+
+relationship 681905ca-380a-41d7-8bf2-e7d2c4e0c5ee
+	fromColumn: gold_penalty_predictions.target_fiscal_year
+	toColumn: 'Fiscal Year'.fiscal_year
+
+relationship 864c1f5f-4daf-4a43-aac8-1e9f542fda2a
+	fromColumn: gold_penalty_predictions.facility_id
+	toColumn: Facility.facility_id
+
+relationship c1798fbf-3c50-4358-84bc-8d35cb6569c7
+	fromColumn: gold_penalty_predictions.measure
+	toColumn: Condition.measure
+

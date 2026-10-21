@@ -1,0 +1,103 @@
+/// Penalty model predictions for the next HRRP fiscal year, one row per
+/// facility and condition: the champion model's probability that the
+/// condition's ERR lands above the penalty cutoff, its rank and decile, and the
+/// model version. Rebuilt by the score task from gold_features with the version
+/// of penalty_model that holds the champion alias. See docs/model-card.md for
+/// the model's metrics and limits.
+table gold_penalty_predictions
+
+	/// Facility-condition rows the champion model scores at 0.5 or higher for the
+	/// target fiscal year.
+	measure 'Predicted Conditions Above Cutoff' = CALCULATE(COUNTROWS(gold_penalty_predictions), gold_penalty_predictions[predicted_above_cutoff] = TRUE())
+		formatString: #,0
+
+	/// Mean predicted probability that a condition's ERR lands above the cutoff in
+	/// the target year.
+	measure 'Average Penalty Probability' = AVERAGE(gold_penalty_predictions[penalty_probability])
+		formatString: 0.0%
+
+	/// CMS Certification Number (CCN)
+	column facility_id
+		dataType: string
+		summarizeBy: none
+		sourceColumn: facility_id
+
+	/// HRRP condition: AMI, HF, PN, COPD, HIP_KNEE or CABG
+	column measure
+		dataType: string
+		summarizeBy: none
+		sourceColumn: measure
+
+	/// Fiscal year predicted, from data published before it
+	column target_fiscal_year
+		dataType: int64
+		summarizeBy: none
+		sourceColumn: target_fiscal_year
+
+	/// Predicted probability that the ERR is above the cutoff in the target year
+	column penalty_probability
+		dataType: double
+		summarizeBy: none
+		sourceColumn: penalty_probability
+
+	/// penalty_probability is at least 0.5
+	column predicted_above_cutoff
+		dataType: boolean
+		summarizeBy: none
+		sourceColumn: predicted_above_cutoff
+
+	/// Rank by penalty_probability within the target year, 1 is the highest
+	column risk_rank
+		dataType: int64
+		summarizeBy: none
+		sourceColumn: risk_rank
+
+	/// Decile of penalty_probability within the target year, 1 is the top 10
+	/// percent
+	column risk_decile
+		dataType: int64
+		summarizeBy: none
+		sourceColumn: risk_decile
+
+	/// Whether the ERR was above the cutoff in the year before, the naive
+	/// prediction
+	column above_cutoff_lag1
+		dataType: boolean
+		summarizeBy: none
+		sourceColumn: above_cutoff_lag1
+
+	/// Unity Catalog model that scored the row
+	column model_name
+		dataType: string
+		summarizeBy: none
+		sourceColumn: model_name
+
+	/// Version of model_name used
+	column model_version
+		dataType: string
+		summarizeBy: none
+		sourceColumn: model_version
+
+	/// MLflow run that trained the version
+	column model_run_id
+		dataType: string
+		summarizeBy: none
+		sourceColumn: model_run_id
+
+	/// When the row was scored (UTC)
+	column scored_at
+		dataType: dateTime
+		formatString: General Date
+		summarizeBy: none
+		sourceColumn: scored_at
+
+	partition gold_penalty_predictions = m
+		mode: import
+		source =
+				let
+				    Source = DatabricksGold{[Name = "gold_penalty_predictions", Kind = "Table"]}[Data]
+				in
+				    Source
+
+	annotation PBI_ResultType = Table
+

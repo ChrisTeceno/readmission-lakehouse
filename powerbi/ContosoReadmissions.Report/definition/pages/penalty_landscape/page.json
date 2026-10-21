@@ -1,0 +1,15 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/page/2.1.0/schema.json",
+  "name": "penalty_landscape",
+  "displayName": "Penalty landscape",
+  "displayOption": "FitToPage",
+  "height": 720,
+  "width": 1280,
+  "visualInteractions": [
+    {
+      "source": "landscape_fiscal_year_slicer",
+      "target": "landscape_fy2028_risk_table",
+      "type": "NoFilter"
+    }
+  ]
+}
