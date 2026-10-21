@@ -36,6 +36,8 @@ from readmission.silver.acs_county import (
     silver_hospital_county,
     vintage_for_fiscal_year,
 )
+from readmission.silver.build import SILVER_TABLES, build_table, ensure_table
+from readmission.silver.quarantine import QUARANTINE_TABLE, SILVER_QUARANTINE_SCHEMA
 
 # Real ACS responses cut to a few states (see test_county_match.py), recorded 2026-10-21.
 FIXTURES = Path(__file__).parent / "fixtures" / "acs_county"
@@ -414,6 +416,37 @@ def test_match_report_lists_unmatched_hospitals(spark):
         "silver_hospital_county vintage 2024: 1 of 2 hospitals matched (50.00%)",
         "  unmatched: 2024 010001 AL 'HOUSTON'",
     ]
+
+
+@pytest.fixture
+def acs_db(spark):
+    spark.sql("CREATE DATABASE IF NOT EXISTS acs_test")
+    yield "spark_catalog.acs_test"
+    spark.sql("DROP DATABASE IF EXISTS acs_test CASCADE")
+
+
+def test_build_writes_both_tables_through_their_delta_constraints(spark, landed, acs_db):
+    """Nulls (2011 uninsured and disability, unmatched hospitals) must pass the CHECKs."""
+    bronze_frame(spark, landed).write.format("delta").saveAsTable(f"{acs_db}.bronze_acs_county")
+    unmatched = [("010001", "AL", "HOUSTON", "DOTHAN", "b1")]
+    many = [(f"07{i + 100:04d}", "CT", "WINDHAM", "WILLIMANTIC", "b1") for i in range(60)]
+    spark.createDataFrame(HOSPITALS + many + unmatched, HOSPITAL_INFO_SCHEMA).write.format(
+        "delta"
+    ).saveAsTable(f"{acs_db}.silver_hospital_info")
+    ensure_table(spark, f"{acs_db}.{QUARANTINE_TABLE}", SILVER_QUARANTINE_SCHEMA, [])
+    tables = {t.name: t for t in SILVER_TABLES}
+
+    acs = build_table(spark, tables["silver_acs_county"], acs_db)
+    hospitals = build_table(spark, tables["silver_hospital_county"], acs_db)
+
+    assert (acs, hospitals) == ((315 + 553, 0), (65 * 2, 0))
+    table = f"{acs_db}.silver_hospital_county"
+    assert spark.table(table).where("county_fips IS NULL").count() == 2
+    with pytest.raises(Exception, match="county_fips_format"):
+        spark.sql(
+            f"INSERT INTO {table} (facility_id, vintage, county_fips, match_method, _batch_id) "
+            "VALUES ('010001', 2024, '1001', 'exact', 'b')"
+        )
 
 
 def test_manifest_records_the_query_not_the_key(landed):
