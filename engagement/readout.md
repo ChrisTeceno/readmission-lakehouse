@@ -241,8 +241,8 @@ facilities at a time (one larger, one smaller) every three months in an order dr
 - The causal null applies to hospitals near the cutoff, and carries the retention caveat.
 - The notes extraction metrics are provisional until the labels are reviewed.
 - No penalty dollars: the work says where to look, not how much is at stake.
-- **Pending:** the Azure Key Vault and Data Factory evidence run, workspace screenshots of the
-  dashboard (local renders only in `docs/evidence/`), the label review, and the pilot's merge.
+- **Pending:** workspace screenshots of the dashboard (local renders only in `docs/evidence/`),
+  the label review, and the pilot's merge.
 
 ---
 
@@ -256,7 +256,8 @@ facilities at a time (one larger, one smaller) every three months in an order dr
    provisional.
 4. **Peer group medians**: point us to FY2019 to FY2026 medians if Contoso has them; without
    them those years' labels stay approximate.
-5. **Approve the short-lived Azure resources** for the Key Vault and Data Factory run.
+5. **Azure:** the Key Vault and Data Factory run is done
+   ([evidence](../docs/evidence/azure.md)); the resources are torn down after the readout.
 6. **Ask the DBA** whether the operational database sets `updated_at` on update; the incremental
    load depends on it.
 
