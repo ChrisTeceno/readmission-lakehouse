@@ -39,7 +39,12 @@ so no real hospital's own data is altered or implied (README).
    them for the period the agreement requires, and review access to PHI-tagged tables.
 5. **No external LLM calls.** Notes would be sent only to Databricks-hosted endpoints inside the
    workspace through `ai_query`, as ADR 0002 does for the public notes, never to an external API.
-   Prompts and outputs would be logged only to stores with the same controls as the notes.
+   Prompts and outputs would be logged only to stores with the same controls as the notes. If the
+   client's security review will not accept a vendor-hosted model at all, a model served inside the
+   client's own network keeps note text on its machines. ADR 0002 measured one on the public notes
+   (Gemma 4 26B A4B on a Mac, mean field F1 0.85 against 0.81 for the Databricks model), so the
+   cost of that choice is hosting and operating it, not accuracy; serverless compute cannot call
+   it, so it would need a private endpoint into the workspace.
 6. **Minimum necessary.** Load only the columns a question needs; keep date granularity at month
    or year where day is not needed; drop notes sections that carry no risk factor; set retention
    on Bronze and landing volume files; keep PHI out of MLflow artifacts, logs, error messages

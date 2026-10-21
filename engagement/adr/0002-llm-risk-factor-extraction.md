@@ -20,6 +20,11 @@ of them (decision on the task card, 2026-10-21), all READY on the workspace that
 `databricks-meta-llama-3-1-8b-instruct`. No external API is used, so no note leaves the
 workspace.
 
+A fourth candidate was added the same day at Chris's request: Gemma 4 26B A4B (8-bit, from
+`mlx-community/gemma-4-26b-a4b-it-8bit`) served on the Mac by omlx. It is the local option for a
+client whose notes must stay inside its own network (`engagement/phi-note.md`). It is not part of
+the Databricks job, because serverless cannot reach the Mac.
+
 ## How the models were compared
 
 - **Same call as the job.** Each model got the same prompt (`PROMPT_VERSION` v1), temperature 0,
@@ -39,6 +44,10 @@ workspace.
   disposition other than `not_stated`, or a true flag); list fields per term after
   normalization (lowercase, spaces to underscores, synonyms to the vocabulary term),
   micro-averaged. Details in `src/readmission/llm/metrics.py`.
+- **Local candidate.** The same prompt, schema, checks and retry, sent as OpenAI-compatible chat
+  completions to omlx on 127.0.0.1:8000 with `response_format` set to the same JSON schema, two
+  requests in flight. Note text was read from `silver_clinical_notes` through the SQL warehouse;
+  inference stayed on the Mac. It ran once, directly against the reviewed labels.
 - **MLflow.** One run per model in `/Users/chris.teceno@gmail.com/readmission-llm-extraction`,
   with each note's answer as a `predictions/` artifact. The first runs were tagged
   `labels_status=draft` and `metrics_provisional=true`; the rescored runs are tagged
@@ -50,27 +59,30 @@ Label support (positives across the 50 notes): primary condition 4 (3 HF, 1 CABG
 comorbidities 55 terms, prior admissions 3, discharge disposition 8, social risk factors 2,
 follow-up planned 13.
 
-| Metric | gpt-oss-120b | llama-3.3-70b | llama-3.1-8b |
-|---|---|---|---|
-| Mean field F1 | **0.81** | 0.70 | 0.54 |
-| Schema-valid rate, first answer | 1.00 | 1.00 | 0.96 |
-| Valid (schema and quotes), first answer | 0.88 | 0.96 | 0.64 |
-| Retry rate | 0.12 | 0.04 | 0.36 |
-| Reject rate after retry | 0.04 | 0.04 | 0.28 |
-| Schema-valid without `responseFormat` | 1.00 | 0.92 | 0.52 |
-| Latency per note, median / p90 (s) | 9.6 / 18.2 | 4.3 / 6.6 | 2.3 / 3.2 |
-| primary_condition P / R | 0.60 / 0.75 | 1.00 / 0.50 | 1.00 / 0.50 |
-| comorbidities P / R | 1.00 / 0.76 | 0.85 / 0.75 | 0.49 / 0.44 |
-| prior_admissions_mentioned P / R | 0.60 / 1.00 | 0.25 / 0.67 | 0.33 / 0.33 |
-| discharge_disposition P / R | 0.73 / 1.00 | 0.78 / 0.88 | 0.71 / 0.62 |
-| social_risk_factors P / R | 0.67 / 1.00 | 1.00 / 0.50 | 0.33 / 0.50 |
-| follow_up_planned P / R | 1.00 / 0.92 | 0.76 / 1.00 | 0.75 / 0.69 |
+| Metric | gpt-oss-120b | llama-3.3-70b | llama-3.1-8b | gemma-4-26b-a4b (local) |
+|---|---|---|---|---|
+| Mean field F1 | **0.81** | 0.70 | 0.54 | **0.85** |
+| Schema-valid rate, first answer | 1.00 | 1.00 | 0.96 | 1.00 |
+| Valid (schema and quotes), first answer | 0.88 | 0.96 | 0.64 | 0.96 |
+| Retry rate | 0.12 | 0.04 | 0.36 | 0.04 |
+| Reject rate after retry | 0.04 | 0.04 | 0.28 | 0.00 |
+| Schema-valid without `responseFormat` | 1.00 | 0.92 | 0.52 | not run |
+| Latency per note, median / p90 (s) | 9.6 / 18.2 | 4.3 / 6.6 | 2.3 / 3.2 | 9.3 / 12.7 |
+| primary_condition P / R | 0.60 / 0.75 | 1.00 / 0.50 | 1.00 / 0.50 | 1.00 / 1.00 |
+| comorbidities P / R | 1.00 / 0.76 | 0.85 / 0.75 | 0.49 / 0.44 | 1.00 / 0.87 |
+| prior_admissions_mentioned P / R | 0.60 / 1.00 | 0.25 / 0.67 | 0.33 / 0.33 | 0.75 / 1.00 |
+| discharge_disposition P / R | 0.73 / 1.00 | 0.78 / 0.88 | 0.71 / 0.62 | 0.57 / 1.00 |
+| social_risk_factors P / R | 0.67 / 1.00 | 1.00 / 0.50 | 0.33 / 0.50 | 0.50 / 1.00 |
+| follow_up_planned P / R | 1.00 / 0.92 | 0.76 / 1.00 | 0.75 / 0.69 | 0.81 / 1.00 |
 
 MLflow runs (rescored on the reviewed labels): gpt-oss-120b `e18026f5a77b444db0ecc9fb8163c8bf`,
 llama-3.3-70b `321fafc2509d4fc09edc42476355f193`, llama-3.1-8b
-`0fe0fa0c99ce40e4a4232a139c9ecd70`. Latency is
-the statement's wall time from a laptop with four statements in flight, warehouse overhead
-included, so it compares the models rather than predicting the job's throughput.
+`0fe0fa0c99ce40e4a4232a139c9ecd70`; gemma-4-26b-a4b (scored directly on the reviewed labels,
+tagged `backend=local`) `9248f5286c1f4c6ea33f86020243a289`. The Databricks latencies are the
+statement's wall time from a laptop with four statements in flight, warehouse overhead
+included, so they compare the models rather than predict the job's throughput. The local
+latency is one chat completion on the Mac with two in flight, about 20 output tokens a second
+per request.
 
 `responseFormat` with a JSON schema works through `ai_query` for all three models. It keeps
 answers on the schema (the only schema failures were two llama-3.1-8b replies that ran to the
@@ -87,6 +99,25 @@ mean field F1 (0.81 against 0.70), and the margin comes from the fields a readmi
 most: comorbidities with no false positive and prior admissions with full recall. Schema-valid
 rates tie at 1.00, so the tie-break rule did not come into play. It is the slowest of the three
 (median 9.6 s a note), which does not matter for a batch job of 100 notes a run.
+
+## Local model
+
+On the 50 reviewed labels gemma-4-26b-a4b scores 0.85 mean field F1 against 0.81 for the chosen
+model, with no reject after retry (two retries, both fixed), so keeping note text on the Mac cost
+no accuracy here. It reads more than gpt-oss: recall is 1.00 on every field but comorbidities
+(0.87), and precision is lower on discharge disposition (6 false positives), follow-up planned
+(3) and social risk factors (2). The difference of 0.04 rests on the same small samples as the
+rest of the table, so it shows the local model is competitive, not that it is better.
+
+What it means for Contoso: a local or on-prem model keeps note text inside the client's network
+and out of any vendor's endpoint, which is the argument in `engagement/phi-note.md`, and this run
+shows no F1 cost for it. It is not a swap for the job. Serverless compute cannot reach a Mac, so
+`llm_extract` stays on `databricks-gpt-oss-120b`; a client that wants a model it hosts would serve
+one to the workspace (a private endpoint or a self-managed serving cluster) and rerun this
+comparison on its own notes. The model was chosen on US origin (Google) and on a 2026-09-01
+measurement that the 8-bit build holds a JSON schema where the 4-bit build changes shape on
+long inputs. The 8-bit build was run once, with `response_format` sent, so whether omlx enforces
+the schema or the model keeps to it by itself is not measured.
 
 ## Label review
 
@@ -132,5 +163,5 @@ rejected notes are retried automatically under the new prompt.
   model name, prompt version, prompt hash and extraction time with each row. A silent model
   update would show up as a change in the job's `first_attempt_valid_rate` in `ops_dq_metrics`.
 - **No PHI.** MTSamples is public transcription data. With real notes the same design holds,
-  since `ai_query` keeps the text inside the workspace, but the Gold table would carry PHI in
+  since `ai_query` keeps the text inside the workspace (a local model keeps it on the machine), but the Gold table would carry PHI in
   its evidence spans, needing PHI tags, restricted grants and a BAA covering the endpoint.
