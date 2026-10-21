@@ -5,8 +5,11 @@ description = "Hospital readmission lakehouse for the fictional client Contoso H
 readme = "README.md"
 requires-python = ">=3.11,<3.12"
 dependencies = [
+    "azure-identity>=1.26.0",
+    "azure-keyvault-secrets>=4.11.3",
     "databricks-sdk>=0.155.0",
     "httpx>=0.28.1",
+    "jsonschema>=4.23",
 ]
 
 # Entry points for the readmission_pipeline job's python_wheel_task tasks.
@@ -18,6 +21,7 @@ readmission-silver = "readmission.silver.build:main"
 readmission-gold = "readmission.gold.build:main"
 readmission-train = "readmission.ml.train:main"
 readmission-score = "readmission.ml.score:main"
+readmission-llm-extract = "readmission.llm.build:main"
 
 [dependency-groups]
 # PySpark is provided by the Databricks runtime, so it stays dev-only.

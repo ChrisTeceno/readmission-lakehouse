@@ -1,0 +1,144 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.13.0/schema.json",
+  "name": "scorecard_detail_table",
+  "position": {
+    "x": 540,
+    "y": 250,
+    "z": 7,
+    "height": 450,
+    "width": 720,
+    "tabOrder": 7
+  },
+  "visual": {
+    "visualType": "tableEx",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "gold_contoso_scorecard"
+                    }
+                  },
+                  "Property": "contoso_facility_name"
+                }
+              },
+              "queryRef": "gold_contoso_scorecard.contoso_facility_name",
+              "nativeQueryRef": "contoso_facility_name"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Condition"
+                    }
+                  },
+                  "Property": "condition_name"
+                }
+              },
+              "queryRef": "Condition.condition_name",
+              "nativeQueryRef": "condition_name"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "gold_contoso_scorecard"
+                    }
+                  },
+                  "Property": "excess_readmission_ratio"
+                }
+              },
+              "queryRef": "gold_contoso_scorecard.excess_readmission_ratio",
+              "nativeQueryRef": "excess_readmission_ratio"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "gold_contoso_scorecard"
+                    }
+                  },
+                  "Property": "penalty_cutoff"
+                }
+              },
+              "queryRef": "gold_contoso_scorecard.penalty_cutoff",
+              "nativeQueryRef": "penalty_cutoff"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "gold_contoso_scorecard"
+                    }
+                  },
+                  "Property": "above_cutoff"
+                }
+              },
+              "queryRef": "gold_contoso_scorecard.above_cutoff",
+              "nativeQueryRef": "above_cutoff"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "gold_contoso_scorecard"
+                    }
+                  },
+                  "Property": "cutoff_is_approximate"
+                }
+              },
+              "queryRef": "gold_contoso_scorecard.cutoff_is_approximate",
+              "nativeQueryRef": "cutoff_is_approximate"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "gold_contoso_scorecard"
+                    }
+                  },
+                  "Property": "Follow-up Completion Rate"
+                }
+              },
+              "queryRef": "gold_contoso_scorecard.Follow-up Completion Rate",
+              "nativeQueryRef": "Follow-up Completion Rate"
+            }
+          ]
+        }
+      }
+    },
+    "drillFilterOtherVisuals": true,
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Contoso facilities by condition'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

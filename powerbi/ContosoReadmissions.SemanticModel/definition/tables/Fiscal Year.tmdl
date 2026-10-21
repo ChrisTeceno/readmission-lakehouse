@@ -1,0 +1,83 @@
+/// One row per HRRP payment fiscal year, FY2013 to FY2028 (FY2028 holds only predictions). A
+/// federal fiscal year T runs from October 1 of T-1 to September 30 of T.
+table 'Fiscal Year'
+
+	/// HRRP payment fiscal year
+	column fiscal_year
+		dataType: int64
+		isKey
+		summarizeBy: none
+		sourceColumn: fiscal_year
+
+	/// Label such as FY2026, sorted by fiscal_year
+	column fiscal_year_label
+		dataType: string
+		summarizeBy: none
+		sourceColumn: fiscal_year_label
+		sortByColumn: fiscal_year
+
+	/// First day of the federal fiscal year (October 1 of the year before)
+	column fiscal_year_start
+		dataType: dateTime
+		formatString: Short Date
+		summarizeBy: none
+		sourceColumn: fiscal_year_start
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	/// Last day of the federal fiscal year (September 30)
+	column fiscal_year_end
+		dataType: dateTime
+		formatString: Short Date
+		summarizeBy: none
+		sourceColumn: fiscal_year_end
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	/// True for FY2019 to FY2026, where 1.0 stands in for the peer group median cutoff
+	column cutoff_is_approximate
+		dataType: boolean
+		summarizeBy: none
+		sourceColumn: cutoff_is_approximate
+
+	/// How that year's penalty cutoff is set in the Gold tables
+	column cutoff_rule
+		dataType: string
+		summarizeBy: none
+		sourceColumn: cutoff_rule
+
+	partition 'Fiscal Year' = m
+		mode: import
+		source =
+				let
+				    Years = {2013..2028},
+				    Rows = List.Transform(
+				        Years,
+				        each {
+				            _,
+				            "FY" & Text.From(_),
+				            #date(_ - 1, 10, 1),
+				            #date(_, 9, 30),
+				            _ >= 2019 and _ <= 2026,
+				            if _ <= 2018 then "1.0, the rule at the time"
+				            else if _ <= 2026 then "1.0 stand-in for the peer group median (approximate)"
+				            else if _ = 2027 then "Published peer group median"
+				            else "Not published yet"
+				        }
+				    ),
+				    Source = #table(
+				        type table [
+				            fiscal_year = Int64.Type,
+				            fiscal_year_label = text,
+				            fiscal_year_start = date,
+				            fiscal_year_end = date,
+				            cutoff_is_approximate = logical,
+				            cutoff_rule = text
+				        ],
+				        Rows
+				    )
+				in
+				    Source
+
+	annotation PBI_ResultType = Table
+

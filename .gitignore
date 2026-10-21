@@ -15,3 +15,5 @@ data/
 *.zip
 .DS_Store
 dist/
+scripts/tmdl_check/bin/
+scripts/tmdl_check/obj/

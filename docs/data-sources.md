@@ -170,9 +170,9 @@ the first run the source makes no API calls until a new vintage is added to
 
 **API key.** api.census.gov stopped answering keyless data queries: since at least 2026-10-21
 every one is redirected to `/data/missing_key.html` (only `variables.json` metadata still works
-without a key). The key lives in the Databricks secret scope `readmission`, key
-`census_api_key`, read through `readmission.secrets.get_secret`, which the Azure task will point
-at Key Vault. With no key, fetch logs that it is calling keyless and fails with an error naming
+without a key). The key is read through `readmission.secrets.get_secret`: from Key Vault
+(`census-api-key`) while the Azure resources are deployed, otherwise from the Databricks secret
+scope `readmission`, key `census_api_key` (see `docs/azure.md`). With no key, fetch logs that it is calling keyless and fails with an error naming
 the scope and key once Census redirects. The key is never written to a manifest, a landed file,
 `_source` or an error message: manifests record the query without it. Census also redirects a
 keyed query to `missing_key.html` now and then (once during recording on 2026-10-21); fetch

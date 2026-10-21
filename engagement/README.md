@@ -1,1 +1,16 @@
-Engagement documents for Contoso Health: discovery notes, requirements, ADRs and the readout.
+Engagement documents for Contoso Health, a fictional regional hospital network: discovery notes, user stories, ADRs, status update, the dashboard wireframe, a PHI note, the readout deck and the executive summary.
+
+| Document | What it is |
+|---|---|
+| [discovery.md](discovery.md) | The client's question, stakeholders by role, current state, data, constraints, success measures and risks |
+| [user-stories.md](user-stories.md) | Twelve stories, each with acceptance criteria that link to a file or name the pending card |
+| [wireframe.md](wireframe.md) | The five client questions and the dashboard pages, agreed before the dashboard was built |
+| [adr/README.md](adr/README.md) | Index of decisions 0001 to 0007 |
+| [status-update.md](status-update.md) | Status for 2026-10-21: done, next, risks, decisions needed |
+| [phi-note.md](phi-note.md) | No PHI is used; what would change with real PHI |
+| [readout.md](readout.md) ([PDF](readout.pdf)) | The client readout: 14 slides, with the source of every number on the last |
+| [executive-summary.md](executive-summary.md) | One page for a non-technical executive, with three recommendations |
+
+Supporting analysis lives in `docs/`: [causal findings](../docs/causal-findings.md), [model
+card](../docs/model-card.md), [what the data can answer](../docs/eda/what-the-data-can-answer.md),
+[Genie and dashboard tests](../docs/genie.md) and [LLM extraction](../docs/llm-extraction.md).
