@@ -1,0 +1,237 @@
+{
+  "version": 2,
+  "config": {
+    "sample_questions": [
+      {
+        "id": "5ac78e11881dc0bf887d0742bbf0bbd8",
+        "question": [
+          "Which of our facilities and conditions are above the penalty cutoff this year?"
+        ]
+      },
+      {
+        "id": "7f6f79e244460f5c50b0ee6c79fb9ce7",
+        "question": [
+          "Is the data pipeline healthy: did the last run succeed, how long did it take, and which quality checks failed?"
+        ]
+      },
+      {
+        "id": "8ae503fb0768c5199ff790b47973e99c",
+        "question": [
+          "How does our readmission ratio trend compare with Ohio and national hospitals?"
+        ]
+      },
+      {
+        "id": "967626faecc4529a80b474493c17013c",
+        "question": [
+          "Which of our facility and condition pairs does the model expect above the cutoff next cycle?"
+        ]
+      },
+      {
+        "id": "feb1ccd13b3d92b8cb8f12a8bdb960ca",
+        "question": [
+          "Where is follow-up call completion lowest, and is it where we are penalized?"
+        ]
+      }
+    ]
+  },
+  "data_sources": {
+    "tables": [
+      {
+        "identifier": "workspace.readmission.gold_contoso_scorecard",
+        "column_configs": [
+          {
+            "column_name": "above_cutoff",
+            "synonyms": [
+              "penalized condition",
+              "over the cutoff"
+            ]
+          },
+          {
+            "column_name": "contoso_facility_name",
+            "synonyms": [
+              "facility",
+              "hospital"
+            ]
+          },
+          {
+            "column_name": "excess_readmission_ratio",
+            "synonyms": [
+              "ERR",
+              "readmission ratio"
+            ]
+          },
+          {
+            "column_name": "followup_rate",
+            "synonyms": [
+              "follow-up completion",
+              "call completion rate"
+            ]
+          },
+          {
+            "column_name": "measure",
+            "synonyms": [
+              "condition"
+            ]
+          }
+        ]
+      },
+      {
+        "identifier": "workspace.readmission.gold_facility_condition_year",
+        "column_configs": [
+          {
+            "column_name": "excess_readmission_ratio",
+            "synonyms": [
+              "ERR",
+              "readmission ratio"
+            ]
+          },
+          {
+            "column_name": "measure",
+            "synonyms": [
+              "condition"
+            ]
+          },
+          {
+            "column_name": "state",
+            "synonyms": [
+              "state code"
+            ]
+          }
+        ]
+      },
+      {
+        "identifier": "workspace.readmission.gold_penalty_mart",
+        "column_configs": [
+          {
+            "column_name": "is_contoso",
+            "synonyms": [
+              "our facilities",
+              "Contoso"
+            ]
+          },
+          {
+            "column_name": "penalized",
+            "synonyms": [
+              "penalised",
+              "has a penalty"
+            ]
+          }
+        ]
+      },
+      {
+        "identifier": "workspace.readmission.gold_penalty_predictions",
+        "column_configs": [
+          {
+            "column_name": "measure",
+            "synonyms": [
+              "condition"
+            ]
+          },
+          {
+            "column_name": "penalty_probability",
+            "synonyms": [
+              "risk",
+              "predicted probability",
+              "chance of penalty"
+            ]
+          },
+          {
+            "column_name": "target_fiscal_year",
+            "synonyms": [
+              "next cycle",
+              "next year"
+            ]
+          }
+        ]
+      },
+      {
+        "identifier": "workspace.readmission.ops_dq_metrics",
+        "column_configs": [
+          {
+            "column_name": "passed",
+            "synonyms": [
+              "check passed",
+              "quality check result"
+            ]
+          }
+        ]
+      },
+      {
+        "identifier": "workspace.readmission.ops_run_log",
+        "column_configs": [
+          {
+            "column_name": "status",
+            "synonyms": [
+              "run status",
+              "task status"
+            ]
+          },
+          {
+            "column_name": "task",
+            "synonyms": [
+              "job task",
+              "step"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "instructions": {
+    "text_instructions": [
+      {
+        "id": "cbde2df6a7c89370edc449dc5705d30c",
+        "content": [
+          "Contoso Health is a fictional regional hospital network, the client of this project. Its 12 facilities are real public Ohio CMS Certification Numbers relabeled with invented names (Contoso facility ids CH01 to CH12). Say that Contoso is fictional when an answer is about Contoso. \"We\", \"us\" and \"our\" in a question mean Contoso Health.\n\nContoso facilities: gold_contoso_scorecard has one row per Contoso facility, condition and fiscal year. gold_penalty_mart marks them with is_contoso = true. To find Contoso rows in gold_facility_condition_year or gold_penalty_predictions, join facility_id to gold_contoso_scorecard.facility_id. Show facilities as contoso_facility_id and contoso_facility_name. gold_contoso_scorecard has one row per fiscal year, so join other tables to it through (SELECT DISTINCT contoso_facility_id, contoso_facility_name, facility_id FROM gold_contoso_scorecard), never to the table itself, or every row repeats once per year. Filter on contoso_months > 0 only for follow-up call questions: penalty questions use every row, including conditions with no Contoso operational data.\n\nHRRP basics: each hospital gets an excess readmission ratio (ERR) per condition (measure: AMI, HF, PN, COPD, HIP_KNEE, CABG) per fiscal year. A condition counts toward the penalty when above_cutoff is true (ERR above penalty_cutoff). A hospital is penalized when at least one condition is above the cutoff (gold_penalty_mart.penalized). \"Penalized for a condition\" means above_cutoff on that facility, condition and year; gold_penalty_mart.penalized is per hospital and says nothing about a single condition. The tables carry no dollar amounts or payment adjustment factors; never estimate a penalty's size.\n\n\"This year\" means the latest fiscal year in the data, FY2027 (MAX(fiscal_year)), not the calendar year. \"Next cycle\" means the fiscal year in gold_penalty_predictions (target_fiscal_year, FY2028).\n\nApproximate cutoffs: for FY2019 to FY2026 the real cutoff was the median ERR of the hospital's dual-eligibility peer group, which no table here carries, so 1.0 stands in and cutoff_is_approximate is true. Whenever an answer counts or lists rows above the cutoff for any of FY2019 to FY2026, include the cutoff_is_approximate column and say in the answer that those cutoffs are approximate. FY2013 to FY2018 (1.0) and FY2027 (the published peer group median) are exact.\n\nTrends: compare mean excess_readmission_ratio by fiscal_year. \"Peers\" means Ohio hospitals (state = 'OH') and all hospitals in gold_facility_condition_year; compute Contoso's line from gold_contoso_scorecard. Return one row per fiscal year with Contoso, Ohio and national means side by side and Contoso's difference from each. When summarizing, give two separate lists, the years where contoso_minus_ohio is positive and the years where contoso_minus_national is positive, read from those columns; never merge them into \"above both\".\n\nPredictions: penalty_probability is a probability from a LightGBM model, not a certainty. When answering about predictions, sort by penalty_probability descending and add that the model's test AUC was 0.874 on FY2026 (approximate cutoff) but 0.678 on FY2027 (exact cutoff), so FY2028 predictions are less reliable than the first figure suggests.\n\nFollow-up calls: Contoso's operational data is synthetic and covers only FY2026 (10 months) and FY2027 (22 months); use rows with contoso_months > 0. The follow-up rate is calls_completed over contoso_discharges (followup_rate), per facility and condition. A facility's rate across its conditions is SUM(calls_completed) / SUM(contoso_discharges), never the minimum or mean of the condition rates. Default to FY2027. A low rate beside a penalty is not evidence the calls change the ERR.\n\nPipeline health: ops_run_log has one row per task attempt of the readmission_pipeline job; a job run is a job_run_id. The last run is the job_run_id with the latest started_at. A run can cover only some tasks, so report the last run and also the latest attempt of each task. Duration is ended_at minus started_at in minutes. Failed data quality checks are ops_dq_metrics rows with passed = false; list the ones in the last run and also every failed check in earlier runs, with its job_run_id, value and threshold."
+        ]
+      }
+    ],
+    "example_question_sqls": [
+      {
+        "id": "462f1c38bff4e63d89259d545b7cb7af",
+        "question": [
+          "Which of our facility and condition pairs does the model expect above the cutoff next cycle?"
+        ],
+        "sql": [
+          "SELECT c.contoso_facility_id, c.contoso_facility_name, p.measure,\n  p.target_fiscal_year, p.penalty_probability, p.above_cutoff_lag1, p.risk_decile\nFROM workspace.readmission.gold_penalty_predictions p\nJOIN (\n  SELECT DISTINCT contoso_facility_id, contoso_facility_name, facility_id\n  FROM workspace.readmission.gold_contoso_scorecard\n) c ON p.facility_id = c.facility_id\nWHERE p.predicted_above_cutoff\nORDER BY p.penalty_probability DESC"
+        ]
+      },
+      {
+        "id": "560390d06c86e5488b602ac8e7fd6f70",
+        "question": [
+          "Is the data pipeline healthy: did the last run succeed, how long did it take, and which quality checks failed?"
+        ],
+        "sql": [
+          "WITH latest AS (\n  SELECT *, ROW_NUMBER() OVER (PARTITION BY task ORDER BY ended_at DESC) AS attempt_rank\n  FROM workspace.readmission.ops_run_log\n)\nSELECT 'latest attempt' AS kind, job_run_id, task, status,\n  ROUND((unix_timestamp(ended_at) - unix_timestamp(started_at)) / 60, 1) AS minutes,\n  CAST(NULL AS STRING) AS metric, CAST(NULL AS DOUBLE) AS value,\n  CAST(NULL AS DOUBLE) AS threshold\nFROM latest\nWHERE attempt_rank = 1\nUNION ALL\nSELECT 'failed check', job_run_id, task, 'failed', NULL, metric, value, threshold\nFROM workspace.readmission.ops_dq_metrics\nWHERE NOT passed"
+        ]
+      },
+      {
+        "id": "803a50b8e58a3f5ef8d48ce6f9ed31de",
+        "question": [
+          "Which of our facilities and conditions are above the penalty cutoff this year?"
+        ],
+        "sql": [
+          "SELECT contoso_facility_id, contoso_facility_name, measure, fiscal_year,\n  excess_readmission_ratio, penalty_cutoff, cutoff_is_approximate\nFROM workspace.readmission.gold_contoso_scorecard\nWHERE fiscal_year = (SELECT MAX(fiscal_year) FROM workspace.readmission.gold_contoso_scorecard)\n  AND above_cutoff\nORDER BY contoso_facility_id, excess_readmission_ratio DESC"
+        ]
+      },
+      {
+        "id": "a74b7ef69b15af694fd726cc50d32508",
+        "question": [
+          "How does our readmission ratio trend compare with Ohio and national hospitals?"
+        ],
+        "sql": [
+          "WITH contoso AS (\n  SELECT fiscal_year, AVG(excess_readmission_ratio) AS contoso_mean_err\n  FROM workspace.readmission.gold_contoso_scorecard\n  GROUP BY fiscal_year\n),\npeers AS (\n  SELECT fiscal_year,\n    AVG(CASE WHEN state = 'OH' THEN excess_readmission_ratio END) AS ohio_mean_err,\n    AVG(excess_readmission_ratio) AS national_mean_err\n  FROM workspace.readmission.gold_facility_condition_year\n  GROUP BY fiscal_year\n)\nSELECT c.fiscal_year,\n  ROUND(c.contoso_mean_err, 4) AS contoso_mean_err,\n  ROUND(p.ohio_mean_err, 4) AS ohio_mean_err,\n  ROUND(p.national_mean_err, 4) AS national_mean_err,\n  ROUND(c.contoso_mean_err - p.ohio_mean_err, 4) AS contoso_minus_ohio,\n  ROUND(c.contoso_mean_err - p.national_mean_err, 4) AS contoso_minus_national\nFROM contoso c\nJOIN peers p ON c.fiscal_year = p.fiscal_year\nORDER BY c.fiscal_year"
+        ]
+      },
+      {
+        "id": "d4376d177cd780fef8cf8459b317f97c",
+        "question": [
+          "Where is follow-up call completion lowest, and is it where we are penalized?"
+        ],
+        "sql": [
+          "SELECT contoso_facility_id, contoso_facility_name, measure, fiscal_year,\n  contoso_months, contoso_discharges, calls_completed, followup_rate,\n  followup_within_72h_rate, above_cutoff\nFROM workspace.readmission.gold_contoso_scorecard\nWHERE fiscal_year = (SELECT MAX(fiscal_year) FROM workspace.readmission.gold_contoso_scorecard)\n  AND contoso_months > 0\nORDER BY followup_rate ASC\nLIMIT 10"
+        ]
+      }
+    ]
+  }
+}

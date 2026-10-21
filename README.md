@@ -14,7 +14,7 @@ A portfolio project framed as a delivery engagement for the fictional client Con
 | Orchestration (Databricks Workflows, ADF) | Databricks Asset Bundle job (`databricks.yml`); one ADF pipeline that triggers it |
 | Azure Data Factory, Key Vault | `infra/` Bicep: Key Vault holding the Census key and Databricks token, ADF pipeline |
 | Power BI | `powerbi/` `.pbip` project over Gold tables |
-| Dashboards, Genie | AI/BI dashboard JSON in the bundle, Genie space with documented sample questions |
+| Dashboards, Genie | AI/BI dashboard (`src/dashboards/`) and Genie space (`src/genie/`) as bundle resources, built from the wireframe and five client questions in `engagement/wireframe.md`; each question tested in Genie in `docs/genie.md` |
 | Statistics: experimental design, hypothesis testing, causal inference | `analysis/` RDD + DiD notebook, pre-registered hypotheses in `docs/analysis-plan.md` |
 | Exploration, anomalies, storytelling | EDA notebook, anomaly flags in Gold, the readout deck |
 | AI-assisted development and judgment | `docs/ai-assisted-dev.md` log: what AI produced, how it was checked, what was rejected |

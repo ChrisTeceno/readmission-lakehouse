@@ -1,0 +1,15 @@
+# The AI/BI dashboard on the Gold and ops tables, laid out from engagement/wireframe.md: Contoso
+# scorecard, national penalty landscape, predictions, follow-up operations and pipeline health.
+# Datasets name tables without a catalog or schema; dataset_catalog and dataset_schema point
+# them at the bundle's. Queries run on the workspace's 2X-Small serverless SQL warehouse (Free
+# Edition has one), looked up by name. Edits made in the UI stay in the workspace until
+# `databricks bundle generate dashboard --resource readmission_dashboard` writes them back to
+# src/dashboards/readmission.lvdash.json.
+resources:
+  dashboards:
+    readmission_dashboard:
+      display_name: Contoso Health readmissions
+      file_path: ../src/dashboards/readmission.lvdash.json
+      warehouse_id: ${var.warehouse_id}
+      dataset_catalog: ${var.catalog}
+      dataset_schema: ${var.schema}

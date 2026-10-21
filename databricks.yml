@@ -20,6 +20,10 @@ variables:
   schema:
     description: Schema for the Bronze, Silver and Gold tables
     default: readmission
+  warehouse_id:
+    description: SQL warehouse the dashboard and the Genie space run on
+    lookup:
+      warehouse: Serverless Starter Warehouse
 
 targets:
   # The workspace host comes from DATABRICKS_HOST or a CLI profile, never from this file.

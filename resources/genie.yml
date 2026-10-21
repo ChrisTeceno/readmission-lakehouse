@@ -1,0 +1,14 @@
+# The Genie space over the Gold and ops tables, on the same SQL warehouse as the dashboard. The
+# space's instructions, table synonyms, sample questions (the five client questions from
+# engagement/wireframe.md) and example SQL live in src/genie/readmission.geniespace.json; what
+# Genie answered and which instructions fixed its mistakes is in docs/genie.md.
+resources:
+  genie_spaces:
+    readmission_genie:
+      title: Contoso Health readmissions
+      description: >-
+        Ask about Contoso Health's HRRP penalty position, peer trends, FY2028 predictions,
+        follow-up calls and pipeline health. Contoso Health is a fictional client on relabeled
+        public CMS data.
+      warehouse_id: ${var.warehouse_id}
+      file_path: ../src/genie/readmission.geniespace.json
