@@ -9,7 +9,7 @@ A portfolio project framed as a delivery engagement for the fictional client Con
 | Databricks, Spark/PySpark, Delta | `src/` pipeline code, Delta tables in Unity Catalog `workspace.readmission` |
 | Medallion architecture | `bronze/`, `silver/`, `gold/` modules and `docs/architecture.md` diagram |
 | Pipelines from APIs, databases, other sources | CMS datastore API (paginated JSON), Census ACS API, Contoso's Lakebase Postgres (JDBC, incremental on an `updated_at` watermark), MTSamples Delta table, CMS CSV files |
-| MLflow experiments | `ml/train_penalty_model.py`, experiment `/Shared/readmission-penalty`, registered model |
+| MLflow experiments | `ml/train.py`, experiment `/Shared/readmission-penalty`, Unity Catalog model `penalty_model` with a `champion` alias, `docs/model-card.md` |
 | Data governance, schema enforcement, testing, quality | Explicit Silver schemas, Delta constraints, expectation checks, quarantine table, pytest suite |
 | Orchestration (Databricks Workflows, ADF) | Databricks Asset Bundle job (`databricks.yml`); one ADF pipeline that triggers it |
 | Azure Data Factory, Key Vault | `infra/` Bicep: Key Vault holding the Census key and Databricks token, ADF pipeline |

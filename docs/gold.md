@@ -10,6 +10,7 @@ Silver on every run. Code: `src/readmission/gold/`.
 | `gold_penalty_mart` | facility, fiscal year | `gold_facility_condition_year`, `silver_contoso_facilities` |
 | `gold_contoso_scorecard` | Contoso facility, measure, fiscal year | `gold_facility_condition_year`, `silver_contoso_*` |
 | `gold_features` | facility, measure, target fiscal year | `gold_facility_condition_year`, `silver_hospital_info`, `silver_hospital_county`, `silver_acs_county` |
+| `gold_penalty_predictions` | facility, measure, next fiscal year (FY2028) | `gold_features` and the `penalty_model` champion; written by the `score` task, see `docs/model-card.md` |
 
 Row counts from the 2026-10-21 run: `gold_facility_condition_year` 266,159 (one per
 `silver_hrrp_history` row, checked by the task), `gold_penalty_mart` 49,008,
