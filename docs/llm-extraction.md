@@ -32,8 +32,11 @@ The labels were drafted from the note text before any model was run and are all 
 `needs_review: true`; `labeler_note` records the judgment calls a reviewer should check first.
 A label changes only to fix a labelling error, in its own commit, recorded below.
 
-Label changes: none. The three-model run (2026-10-21) was reviewed for labelling errors among the
-disagreements and none was found; the disagreements are listed in ADR 0002.
+Label changes:
+
+- 2026-10-21, note 3360, `comorbidities`: added `valvular_disease` (evidence "Moderate tricuspid
+  regurgitation."). Moderate tricuspid regurgitation on echo counts as valve disease; decided by
+  Chris during the label review.
 
 ## Evaluation and model choice
 
