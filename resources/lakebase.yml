@@ -1,0 +1,16 @@
+# Contoso Health's operational database: a Lakebase Autoscaling project (Free Edition allows
+# one). Creating the project also creates its `production` branch, a read-write compute on it
+# (`primary`) and the `databricks_postgres` database; scripts/seed_contoso.py creates the
+# `contoso` schema inside that database. Compute is the smallest Free Edition grants: a request
+# for 0.5 CU came back as 1 CU, so the range is pinned at 1 to keep deploys free of drift.
+# Scale to zero after 5 idle minutes.
+resources:
+  postgres_projects:
+    contoso:
+      project_id: contoso-ops
+      display_name: Contoso Health operational database
+      pg_version: 17
+      default_endpoint_settings:
+        autoscaling_limit_min_cu: 1
+        autoscaling_limit_max_cu: 1
+        suspend_timeout_duration: 300s
