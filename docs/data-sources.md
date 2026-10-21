@@ -23,6 +23,42 @@ uv run python -m readmission.ingest.fetch hrrp_history_ipps --local data/landing
 `--work-dir` (default `data/fetch/`, gitignored) caches downloaded zips. Landing in the volume
 was checked on 2026-10-21 with all seven IPPS years (batch `20261021T190000Z`).
 
+## Pipeline job
+
+`databricks bundle run readmission_pipeline -t dev` runs two serverless tasks from the project
+wheel (`resources/readmission_pipeline.yml`): `fetch` runs the fetch CLI for every source, then
+`bronze` (`readmission.bronze.load`) appends what is new in landing to the Bronze tables and
+copies the MTSamples notes. A second run with no source changes appends nothing.
+
+## Current CMS datasets (verified 2026-10-21)
+
+| Source | Dataset | Bronze table | Landed file | Rows | CMS `modified` |
+|---|---|---|---|---|---|
+| `cms_hrrp` | `9n3s-kdb3` | `bronze_hrrp` | `FY_2026_Hospital_Readmissions_Reduction_Program_Hospital.csv` | 18,330 | 2026-01-26 |
+| `cms_hospital_info` | `xubh-q36u` | `bronze_hospital_info` | `Hospital_General_Information.csv` | 5,419 | 2026-07-22 |
+| `cms_unplanned_visits` | `632h-zaca` | `bronze_unplanned_visits` | `Unplanned_Hospital_Visits-Hospital.csv` | 67,060 | 2026-09-10 |
+
+Fetch reads the dataset metadata (`/metastore/schemas/dataset/items/<id>`) and lands the CSV its
+`downloadURL` names, unchanged, under `<source>/<batch_id>/`. The CSV is used rather than paging
+the datastore: one request takes 1 to 3 seconds where the datastore takes 40 to 55 seconds per
+1,500-row page, and the landed bytes are exactly what CMS publishes. If the latest manifest for
+the source has the same `modified`, fetch lands nothing. Code: `ingest/cms_current.py`,
+`bronze/cms.py`.
+
+Bronze keeps every column as a string as received, named by snake_casing the CSV header. The
+datastore API names two columns differently (`citytown` and `countyparish` where Bronze has
+`city_town` and `county_parish`). Metadata columns: `_ingested_at`, `_source` (download URL),
+`_batch_id`, `_sha256`, `_source_modified` (CMS `modified`).
+
+## MTSamples clinical notes
+
+`bronze_clinical_notes` copies the Delta table `/Volumes/workspace/default/raw-data/mtsamples_clean`
+(columns `id`, `description`, `medical_specialty`, `sample_name`, `transcription`, `keywords`;
+partitioned by `medical_specialty`, whose values keep a leading space). There is no fetch. The
+load reads the latest Delta version, never writes to the source, and stores that version in
+`_source_modified`; a run whose version is already in Bronze copies nothing. Code:
+`bronze/clinical_notes.py`.
+
 ## Historical HRRP, FY2013 to FY2027
 
 Landing sources `hrrp_history_pdc` and `hrrp_history_ipps`, partitioned by fiscal year
