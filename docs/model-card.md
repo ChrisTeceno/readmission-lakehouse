@@ -2,7 +2,9 @@
 
 `workspace.readmission.penalty_model`, alias `champion`. Code: `src/readmission/ml/`. MLflow
 experiment: `/Shared/readmission-penalty`. Numbers below are from the 2026-10-21 job run
-778506961171423 (model version 3, LightGBM, MLflow run `879bc11e37044684be16733ab5ba598d`).
+303222482315557 (model version 4, LightGBM, MLflow run `17d90d5cf89543f7b0e286cfb930ff4d`);
+the earlier runs that day (versions 3 and back) trained on the same data with the same seeds
+and logged the same metrics.
 
 ## Intended use
 
