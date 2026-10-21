@@ -14,6 +14,7 @@ dependencies = [
 readmission-fetch = "readmission.ingest.fetch:main"
 readmission-bronze = "readmission.bronze.load:main"
 readmission-contoso = "readmission.bronze.contoso:main"
+readmission-silver = "readmission.silver.build:main"
 
 [dependency-groups]
 # PySpark is provided by the Databricks runtime, so it stays dev-only.

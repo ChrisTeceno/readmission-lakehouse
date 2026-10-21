@@ -1,5 +1,7 @@
 # The pipeline job: fetch every source into the landing volume, then load landing into Bronze.
 # The contoso task reads Contoso's Lakebase database directly, so it runs beside fetch.
+# The silver task runs after bronze and contoso: it builds the CMS and MTSamples Silver tables
+# and quarantines the Contoso rows the contoso task left out of Silver.
 # All tasks run the project wheel (the `readmission` artifact in databricks.yml) on serverless.
 # No schedule yet; run it with `databricks bundle run readmission_pipeline -t dev`.
 resources:
@@ -28,6 +30,7 @@ resources:
               - cms_unplanned_visits
               - hrrp_history_pdc
               - hrrp_history_ipps
+              - acs_county
               - --work-dir
               - /tmp/readmission-fetch
         - task_key: bronze
@@ -49,6 +52,20 @@ resources:
           python_wheel_task:
             package_name: readmission
             entry_point: readmission-contoso
+            parameters:
+              - --catalog
+              - ${var.catalog}
+              - --schema
+              - ${var.schema}
+        - task_key: silver
+          depends_on:
+            - task_key: bronze
+            - task_key: contoso
+          environment_key: readmission
+          timeout_seconds: 1800
+          python_wheel_task:
+            package_name: readmission
+            entry_point: readmission-silver
             parameters:
               - --catalog
               - ${var.catalog}
