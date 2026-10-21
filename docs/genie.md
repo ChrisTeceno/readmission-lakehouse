@@ -188,10 +188,7 @@ job runs of that day.
 
 ## Screenshots
 
-`docs/evidence/dashboard-<n>-<page>-local-render.png` are local renders, not workspace
-screenshots. The workspace UI needs Chris's interactive login, which neither headless Chrome nor
-the API can reuse, and the Lakeview API has no image export (published snapshots go out only as
-email subscriptions). The renders run each page's own dataset SQL from the deployed
-`readmission.lvdash.json` on the same warehouse, with `fiscal_year` at its default of 2027, and
-draw the same widgets with matplotlib. Workspace screenshots of the five pages still need to be
-taken by hand from the published dashboard.
+Workspace screenshots of the five dashboard pages and the answer to question 1 are in
+`docs/evidence/dashboard.md`. The answer's "Condition Breakdown" sentence miscounts (HIP_KNEE 10,
+HF 3, AMI 3 sums to 24; its own facility list gives 9, 4 and 4, which sums to 25), another case of
+a wrong summary over a right table.

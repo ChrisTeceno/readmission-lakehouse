@@ -51,4 +51,5 @@ its penalty, what would reduce it, and whether being penalized makes hospitals i
 ## Limits
 
 Contoso's operations data are synthetic, the work ranks where to look but does not estimate
-dollar amounts, and the dashboard screenshots are still pending.
+dollar amounts, and the extraction labels were reviewed by the project lead and Chris, not by a
+clinician.

@@ -606,7 +606,15 @@
               "encodings": {
                 "value": {
                   "fieldName": "avg(mean_err)",
-                  "displayName": "Mean ERR across Contoso pairs"
+                  "displayName": "Mean ERR across Contoso pairs",
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "none",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 3
+                    }
+                  }
                 }
               },
               "frame": {
@@ -760,7 +768,7 @@
               }
             ],
             "spec": {
-              "version": 1,
+              "version": 2,
               "widgetType": "table",
               "encodings": {
                 "columns": [
@@ -869,7 +877,11 @@
                       "true"
                     ]
                   }
-                ]
+                ],
+                "itemsPerPage": 25,
+                "paginationSize": "default",
+                "condensed": true,
+                "withRowNumber": false
               },
               "frame": {
                 "showTitle": true,
@@ -1163,7 +1175,7 @@
               }
             ],
             "spec": {
-              "version": 1,
+              "version": 2,
               "widgetType": "table",
               "encodings": {
                 "columns": [
@@ -1219,7 +1231,11 @@
                     "allowSearch": false,
                     "numberFormat": "0.000"
                   }
-                ]
+                ],
+                "itemsPerPage": 25,
+                "paginationSize": "default",
+                "condensed": true,
+                "withRowNumber": false
               },
               "frame": {
                 "showTitle": true,
@@ -1535,7 +1551,7 @@
               }
             ],
             "spec": {
-              "version": 1,
+              "version": 2,
               "widgetType": "table",
               "encodings": {
                 "columns": [
@@ -1615,7 +1631,11 @@
                     "allowSearch": false,
                     "dateTimeFormat": "YYYY-MM-DD HH:mm"
                   }
-                ]
+                ],
+                "itemsPerPage": 25,
+                "paginationSize": "default",
+                "condensed": true,
+                "withRowNumber": false
               },
               "frame": {
                 "showTitle": true,
@@ -1950,7 +1970,7 @@
               }
             ],
             "spec": {
-              "version": 1,
+              "version": 2,
               "widgetType": "table",
               "encodings": {
                 "columns": [
@@ -2075,7 +2095,11 @@
                       "true"
                     ]
                   }
-                ]
+                ],
+                "itemsPerPage": 25,
+                "paginationSize": "default",
+                "condensed": true,
+                "withRowNumber": false
               },
               "frame": {
                 "showTitle": true,
@@ -2285,7 +2309,7 @@
               }
             ],
             "spec": {
-              "version": 1,
+              "version": 2,
               "widgetType": "table",
               "encodings": {
                 "columns": [
@@ -2341,7 +2365,11 @@
                     "alignContent": "right",
                     "allowSearch": false
                   }
-                ]
+                ],
+                "itemsPerPage": 25,
+                "paginationSize": "default",
+                "condensed": true,
+                "withRowNumber": false
               },
               "frame": {
                 "showTitle": true,
@@ -2405,7 +2433,7 @@
               }
             ],
             "spec": {
-              "version": 1,
+              "version": 2,
               "widgetType": "table",
               "encodings": {
                 "columns": [
@@ -2481,7 +2509,11 @@
                     "alignContent": "left",
                     "allowSearch": true
                   }
-                ]
+                ],
+                "itemsPerPage": 25,
+                "paginationSize": "default",
+                "condensed": true,
+                "withRowNumber": false
               },
               "frame": {
                 "showTitle": true,
@@ -2619,7 +2651,7 @@
               }
             ],
             "spec": {
-              "version": 1,
+              "version": 2,
               "widgetType": "table",
               "encodings": {
                 "columns": [
@@ -2696,7 +2728,11 @@
                     "allowSearch": false,
                     "dateTimeFormat": "YYYY-MM-DD HH:mm"
                   }
-                ]
+                ],
+                "itemsPerPage": 25,
+                "paginationSize": "default",
+                "condensed": true,
+                "withRowNumber": false
               },
               "frame": {
                 "showTitle": true,

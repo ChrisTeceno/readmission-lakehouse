@@ -243,8 +243,7 @@ facilities at a time (one larger, one smaller) every three months in an order dr
 - The causal null applies to hospitals near the cutoff, and carries the retention caveat.
 - The notes extraction labels were reviewed by the project lead and Chris, not by a clinician.
 - No penalty dollars: the work says where to look, not how much is at stake.
-- **Pending:** workspace screenshots of the dashboard (local renders only in `docs/evidence/`),
-  and the pilot's merge.
+- **Pending:** a clinical review of the extraction labels.
 
 ---
 
