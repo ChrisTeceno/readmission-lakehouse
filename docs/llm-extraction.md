@@ -28,12 +28,18 @@ flag, every list item) and null otherwise.
 
 `tests/fixtures/llm_labels.jsonl` holds 50 notes drawn by `readmission.llm.sample` (seed
 20261021, stratified by specialty with proportional allocation, so 20 of the 50 are Surgery).
-The labels were drafted from the note text before any model was run and are all marked
-`needs_review: true`; `labeler_note` records the judgment calls a reviewer should check first.
+The labels were drafted from the note text before any model was run. On 2026-10-21 the project
+lead checked all 50 against the rules above and Chris decided the four judgment calls, after
+which `needs_review` was cleared on every row; `labeler_note` still records the calls that were
+checked. No clinician has reviewed them.
 A label changes only to fix a labelling error, in its own commit, recorded below.
 
-Label changes: none. The three-model run (2026-10-21) was reviewed for labelling errors among the
-disagreements and none was found; the disagreements are listed in ADR 0002.
+Label changes (the other 49 labels were checked and kept, including cancer in notes 2854 and 12
+and tobacco not counted as `substance_use` in note 1262, which Chris decided):
+
+- 2026-10-21, note 3360, `comorbidities`: added `valvular_disease` (evidence "Moderate tricuspid
+  regurgitation."). Moderate tricuspid regurgitation on echo counts as valve disease; decided by
+  Chris during the label review.
 
 ## Evaluation and model choice
 
@@ -41,7 +47,10 @@ disagreements and none was found; the disagreements are listed in ADR 0002.
 job's prompt, schema and checks, and logs one MLflow run per model to
 `/Users/chris.teceno@gmail.com/readmission-llm-extraction`. The comparison and the choice of
 `databricks-gpt-oss-120b` are in `engagement/adr/0002-llm-risk-factor-extraction.md`. All metrics
-are provisional until the labels are confirmed (0 of 50 so far).
+were first measured against the drafts and then rescored on the reviewed labels from the saved
+predictions (`--rescore-run`, no model called again); the rescored MLflow runs are tagged
+`labels_status=reviewed`. The ranking did not change: mean field F1 is 0.81 for gpt-oss-120b
+(0.82 on the drafts), 0.70 and 0.54.
 
 ## The job task
 

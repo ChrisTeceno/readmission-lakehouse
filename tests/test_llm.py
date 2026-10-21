@@ -1,3 +1,4 @@
+import importlib.util
 import json
 import random
 from pathlib import Path
@@ -81,8 +82,8 @@ def test_label_fixture_is_the_draft_sample():
     rows = [json.loads(line) for line in LABELS.read_text().splitlines()]
     assert len(rows) == SAMPLE_SIZE
     assert len({r["note_id"] for r in rows}) == SAMPLE_SIZE
-    # Labels are drafts until Chris confirms them; metrics against them are provisional.
-    assert all(r["needs_review"] for r in rows)
+    # The lead checked every label against the written rules; Chris decided the judgment calls.
+    assert not any(r["needs_review"] for r in rows)
     enums = SCHEMA["properties"]
     for r in rows:
         g = r["labels"]
@@ -309,3 +310,67 @@ def test_build_llm_retries_once_then_rejects(spark, llm_db):
 
 def test_retry_suffix_names_the_reason():
     assert "rejected: not JSON" in retry_suffix("not JSON")
+
+
+# Rescoring a logged evaluation run
+
+
+def load_evaluate_script():
+    path = Path(__file__).parent.parent / "scripts" / "evaluate_llm_extraction.py"
+    spec = importlib.util.spec_from_file_location("evaluate_llm_extraction", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def saved_result(note_id: int, reply: dict | None) -> dict:
+    return {
+        "note_id": note_id,
+        "latency_s": 2.0,
+        "schema_valid": reply is not None,
+        "first_valid": reply is not None,
+        "first_reason": None,
+        "first_raw": None,
+        "valid": reply is not None,
+        "answer": reply,
+    }
+
+
+def test_rescore_run_scores_saved_predictions_on_the_current_labels(tmp_path):
+    import mlflow
+
+    evaluate = load_evaluate_script()
+    mlflow.set_tracking_uri(f"file://{tmp_path / 'mlruns'}")
+    results = [saved_result(1, answer()), saved_result(2, None)]
+    saved = tmp_path / "databricks-x.json"
+    saved.write_text(json.dumps(results))
+    with mlflow.start_run() as source:
+        mlflow.log_param("model_endpoint", "databricks-x")
+        mlflow.log_artifact(str(saved), "predictions")
+
+    labels = [
+        {"note_id": 1, "needs_review": False, "labels": label(comorbidities=["hypertension"])},
+        {"note_id": 2, "needs_review": False, "labels": label(follow_up_planned=True)},
+    ]
+    endpoint, metrics, loaded = evaluate.rescore_run(source.info.run_id, labels)
+    assert endpoint == "databricks-x"
+    assert loaded == results
+    assert metrics == evaluate.summarize(results, labels, False)
+    assert metrics["comorbidities_tp"] == 1 and metrics["comorbidities_fp"] == 1
+    assert metrics["follow_up_planned_fn"] == 1
+    assert metrics["reject_rate"] == 0.5
+
+    # A relabelled note changes the label-dependent metrics and nothing else.
+    labels[0]["labels"]["comorbidities"] = ["hypertension", "heart_failure"]
+    relabelled = evaluate.rescore(loaded, labels)
+    assert relabelled["comorbidities_fp"] == 0
+    assert relabelled["reject_rate"] == metrics["reject_rate"]
+    assert relabelled["latency_p50_s"] == metrics["latency_p50_s"]
+
+    run_id = evaluate.log_run(
+        endpoint, relabelled, loaded, labels, tmp_path, source_run_id=source.info.run_id
+    )
+    tags = mlflow.get_run(run_id).data.tags
+    assert tags["labels_status"] == "reviewed"
+    assert tags["rescored_from_run"] == source.info.run_id
+    assert "metrics_provisional" not in tags

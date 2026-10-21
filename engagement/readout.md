@@ -195,11 +195,13 @@ workspace.
 
 | | gpt-oss-120b (chosen) | llama-3.3-70b | llama-3.1-8b |
 |---|---|---|---|
-| Mean field F1 on 50 labelled notes | **0.82** | 0.70 | 0.54 |
+| Mean field F1 on 50 labelled notes | **0.81** | 0.70 | 0.54 |
 | Rejected after one retry | 4 percent | 4 percent | 28 percent |
 
-- **Provisional:** the 50 labels are drafts, 0 of 50 confirmed by a clinical reviewer. With 4
-  primary-condition positives, one note moves a field's precision or recall by 0.25 or more.
+- **Label review:** the project lead checked all 50 labels against the written rules and Chris
+  decided the four judgment calls; one label changed and the ranking held. No clinician has
+  reviewed them. With 4 primary-condition positives, one note moves a field's precision or recall
+  by 0.25 or more.
 - First production batch: 100 notes, 14 rejected; the fix is a prompt change, re-evaluated on the
   same 50 notes before use.
 - What it enables: patient-level risk factors for targeting follow-up calls. Notes are MTSamples
@@ -239,10 +241,10 @@ facilities at a time (one larger, one smaller) every three months in an order dr
   them; the causal analysis uses exact years only.
 - The model is a ranking with AUC 0.678 on the exact-cutoff year and is overconfident there.
 - The causal null applies to hospitals near the cutoff, and carries the retention caveat.
-- The notes extraction metrics are provisional until the labels are reviewed.
+- The notes extraction labels were reviewed by the project lead and Chris, not by a clinician.
 - No penalty dollars: the work says where to look, not how much is at stake.
 - **Pending:** workspace screenshots of the dashboard (local renders only in `docs/evidence/`),
-  the label review, and the pilot's merge.
+  and the pilot's merge.
 
 ---
 
@@ -252,8 +254,8 @@ facilities at a time (one larger, one smaller) every three months in an order dr
    hip/knee across the network. The dashboard and Genie space answer the five agreed questions.
 2. **Approve the pilot**: confirm staged rollout is possible, which facilities cannot be
    randomized, and the 2-point smallest reduction worth the program (finance).
-3. **Name a clinical reviewer** for the 50 extraction labels, or accept the model choice as
-   provisional.
+3. **Name a clinical reviewer** for the 50 extraction labels, or accept that they were checked by
+   the project lead and Chris only.
 4. **Peer group medians**: point us to FY2019 to FY2026 medians if Contoso has them; without
    them those years' labels stay approximate.
 5. **Azure:** the Key Vault and Data Factory run is done
@@ -275,7 +277,7 @@ All files are on `main` unless marked; Gold tables and notebook runs are from 20
 - `docs/genie.md` (Q1 and reworded check): FY2027 10 facilities, 25 of 67 pairs, mean ERR 0.999; FY2026 31 pairs. (Q2): FY2027 mean 0.9992, 0.0092 below Ohio, 0.0029 below national; years above national and Ohio. (Q3): 28 pairs at 0.5 or more, Oak (CH11) hip/knee 0.995 and HF 0.992, Hawthorn (CH07) CABG 0.983, model version 4. Facility ids to names: `src/readmission/ingest/contoso.py`.
 - `docs/model-card.md` (Metrics, Calibration, What the model uses, Metric gate; MLflow experiment `/Shared/readmission-penalty`, run `17d90d5cf89543f7b0e286cfb930ff4d`, job run 303222482315557, model version 4): AUC 0.772, 0.869, 0.874 (FY2026) and 0.633, 0.675, 0.678 (FY2027); 22 and 76 percent calibration; 0.80 gate.
 - `docs/causal-findings.md` (The answer; Validity checks; Sensitivity; Difference-in-differences; Limitations), from `docs/causal/02_causal.html`: +0.0004, -0.0027 to +0.0047, MDE 0.0053, bandwidth 0.061, 0.5x to 2x, threshold 0.02, 1.02 read as 2 percent more readmissions than expected, placebo cutoffs 0.90, 0.95, 1.05 and 1.10 with BH p 0.61 to 0.75, 69,163 rows, 3,268 hospitals, density p 0.009 and 0.91, retention 3.5 points, DiD -0.0030 (-0.0058 to -0.0002).
-- `engagement/adr/0002-llm-risk-factor-extraction.md` (Results; First job run; MLflow runs `be62bfe0fe594eb6b11ce41c1cce84df`, `473bfbc34f5f4494b99b999adc500231`, `cd4da7ea378d4bb8b8a7d2607aa2f9f4`): F1 0.82, 0.70, 0.54; reject rates 4, 4, 28 percent; 4 primary-condition positives, 0.25 swing; 100 notes, 14 rejected. `docs/llm-extraction.md`: 0 of 50 labels confirmed.
+- `engagement/adr/0002-llm-risk-factor-extraction.md` (Results; First job run; MLflow runs rescored on the reviewed labels `e18026f5a77b444db0ecc9fb8163c8bf`, `321fafc2509d4fc09edc42476355f193`, `0fe0fa0c99ce40e4a4232a139c9ecd70`): F1 0.81, 0.70, 0.54; reject rates 4, 4, 28 percent; 4 primary-condition positives, 0.25 swing; 100 notes, 14 rejected. `docs/llm-extraction.md`: all 50 labels checked by the lead, four judgment calls decided by Chris, one label changed.
 - `docs/pilot-design.md` (on branch `pf/pilot-experiment-design-post-discharge-follow-up`, PR #13, open; Summary and For the COO; `analysis/03_power.py`, seed 20261021): 72-hour call, 12 facilities, 6 steps of 2 every three months, 21 months plus one month, about 17,885 (17,900) discharges, 16.9 percent usual care, MDE 3.82 points to about 13.1 percent, 30 percent power at 2 points, smaller than about 4 points, 2-point decision threshold. The MDE of 3.82 is also on `main` in `engagement/status-update.md`.
 - `engagement/status-update.md` (Next; Decisions needed): pending Azure run, screenshots, label review; the six decisions.
 - `engagement/executive-summary.md` rounds the figures above: about 9 in 10 hospitals (90.7 percent); over half (17 of 31 pairs); 87 and 68 times in 100 (AUC 0.874 and 0.678); a quarter of the size that would matter (0.0053 against 0.02); about 18,000 discharges (17,885); about 17 to 13 percent (16.9 percent less 3.82 points).
