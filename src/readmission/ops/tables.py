@@ -25,7 +25,7 @@ OPS_RUN_LOG_SCHEMA = T.StructType(
         field(
             "task",
             T.StringType(),
-            "Job task: fetch, bronze, contoso, silver or gold",
+            "Job task: fetch, bronze, contoso, silver, gold, train, score or llm_extract",
             nullable=False,
         ),
         field("started_at", T.TimestampType(), "When the task's run started (UTC)", nullable=False),
