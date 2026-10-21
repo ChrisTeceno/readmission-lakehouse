@@ -18,7 +18,7 @@ A portfolio project framed as a delivery engagement for the fictional client Con
 | Statistics: experimental design, hypothesis testing, causal inference | `analysis/` RDD + DiD notebook, pre-registered hypotheses in `docs/analysis-plan.md` |
 | Exploration, anomalies, storytelling | EDA notebook, anomaly flags in Gold, the readout deck |
 | AI-assisted development and judgment | `docs/ai-assisted-dev.md` log: what AI produced, how it was checked, what was rejected |
-| LLMs in solutions | Notes extraction step with eval metrics |
+| LLMs in solutions | `llm/` notes extraction through `ai_query`, schema- and quote-validated, three models compared on 50 labelled notes in MLflow (`docs/llm-extraction.md`, ADR 0002) |
 | Git workflows | PR-per-task history, CI on GitHub Actions |
 | Client communication | `engagement/` discovery notes, requirements, ADRs, readout |
 | Healthcare bonus | The domain |
