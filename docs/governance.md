@@ -13,6 +13,8 @@ shared. Code: `src/readmission/silver/governance.py`, `src/readmission/quality/`
 | `silver_hospital_info` | facility | `bronze_hospital_info` |
 | `silver_unplanned_visits` | facility, measure id | `bronze_unplanned_visits` |
 | `silver_clinical_notes` | note id | `bronze_clinical_notes` |
+| `silver_acs_county` | county FIPS, ACS vintage (2011 to 2024) | `bronze_acs_county` |
+| `silver_hospital_county` | facility, ACS vintage | `silver_hospital_info`, `bronze_acs_county` |
 | `silver_quarantine` | one row per rejected Bronze row | all of the above |
 
 Every run rebuilds each table from Bronze. Each table has an explicit `StructType` in
@@ -32,8 +34,8 @@ Tags on every Silver table:
 |---|---|
 | `layer` | `silver` |
 | `contains_phi` | `false`: CMS data is facility level, and MTSamples notes are public de-identified samples |
-| `source` | `cms`, `mtsamples`, or both for `silver_quarantine` |
-| `dataset` | CMS dataset id where there is one (`9n3s-kdb3`, `xubh-q36u`, `632h-zaca`) |
+| `source` | `cms`, `mtsamples`, `census`, or a comma-separated list for tables built from several |
+| `dataset` | CMS dataset id where there is one (`9n3s-kdb3`, `xubh-q36u`, `632h-zaca`); `acs5-profile` for Census |
 
 ## Constraints, quarantine and expectations
 
@@ -43,20 +45,30 @@ Delta CHECK constraints (`quality/constraints.py`):
 |---|---|---|
 | `ccn_format` | `facility_id RLIKE '^[0-9A-Z]{6}$'` | all CMS tables |
 | `err_positive` | `excess_readmission_ratio IS NULL OR excess_readmission_ratio > 0` | `silver_hrrp`, `silver_hrrp_history` |
-| `period_order` | `period_end >= period_start` | `silver_hrrp`, `silver_hrrp_history`, `silver_unplanned_visits` |
+| `period_order` | `period_end >= period_start` | `silver_hrrp`, `silver_hrrp_history`, `silver_unplanned_visits`, `silver_acs_county` |
+| `county_fips_format` | `county_fips IS NULL OR county_fips RLIKE '^[0-9]{5}$'` | `silver_acs_county`, `silver_hospital_county` |
+| `acs_percent_range` | each percent column `IS NULL OR BETWEEN 0 AND 100` | `silver_acs_county` |
+
+Delta rejects a row whose CHECK expression evaluates to null (the first ACS run on 2026-10-21
+failed on the 2011 vintage's null uninsured percent), so a constraint on a nullable column
+must say `IS NULL OR` explicitly. Changing a constraint's expression on an existing table needs
+`ALTER TABLE ... DROP CONSTRAINT` first: the build adds only constraints missing by name.
 
 The build evaluates the same expressions before writing. A row that breaks one, misses a key,
 or holds a value that does not parse (anything other than a number, date or CMS suppression
 code where one is expected) goes to `silver_quarantine` with its table, business key, Bronze row
 as JSON, the rule it broke and its batch id. Quarantine never fails the run.
 
-Two expectations do fail the run (`quality/expectations.py`), before the table is overwritten,
+Three expectations fail the run (`quality/expectations.py`), before the table is overwritten,
 so the previous version stays in place:
 
 - Row count: more than a 20 percent drop from the previous build. No fiscal year of HRRP lost 5
   percent of its hospitals, so a larger drop means a truncated file or a format change.
 - ERR null rate above 45 percent, on `silver_hrrp` and `silver_hrrp_history`. CMS leaves the
   ratio blank for hospitals under 25 cases: 36.1 percent of FY2026 rows, the most of any year.
+- County match rate below 98 percent of hospitals in the latest ACS vintage, on
+  `silver_hospital_county`. Every hospital matched on 2026-10-21, so a drop means new county
+  spellings or a Census geography change that needs a rule in `silver/county_match.py`.
 
 ## Analyst access
 
