@@ -7,6 +7,8 @@
 # task then writes gold_penalty_predictions with the champion. Both stay in this job rather than
 # a separate one so the predictions always come from the features this run built, and a failed
 # gate skips scoring instead of scoring with a model that did not pass.
+# The llm_extract task, beside gold, asks a Foundation Model endpoint for the risk factors in
+# the next batch of MTSamples notes (readmission.llm.build).
 # All tasks run the project wheel (the `readmission` artifact in databricks.yml) on serverless,
 # and each logs its run to ops_run_log and ops_dq_metrics (readmission.ops).
 # Run it with `databricks bundle run readmission_pipeline -t dev`; add
@@ -160,6 +162,22 @@ resources:
           python_wheel_task:
             package_name: readmission
             entry_point: readmission-score
+            parameters:
+              - --catalog
+              - ${var.catalog}
+              - --schema
+              - ${var.schema}
+              - --job-run-id={{job.run_id}}
+              - --fail-task={{job.parameters.fail_task}}
+        - task_key: llm_extract
+          depends_on:
+            - task_key: silver
+          environment_key: readmission
+          # A 100-note batch is two ai_query passes (first answers, then retries).
+          timeout_seconds: 1800
+          python_wheel_task:
+            package_name: readmission
+            entry_point: readmission-llm-extract
             parameters:
               - --catalog
               - ${var.catalog}

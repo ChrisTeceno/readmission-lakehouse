@@ -1,0 +1,105 @@
+# ADR 0002: Extract note risk factors with gpt-oss-120b through `ai_query`
+
+Status: accepted (2026-10-21). The metrics below are provisional: they are measured against 50
+draft labels, 0 of 50 confirmed by a reviewer yet.
+
+## Context
+
+Contoso wants readmission risk factors that CMS data does not carry: comorbidities, prior
+admissions, discharge disposition, social risk and follow-up plans. They sit in free-text notes.
+The lakehouse stands in for Contoso's notes with MTSamples, public transcription samples with no
+PHI (`silver_clinical_notes`, 2,357 notes). The extraction has to keep the notes inside the
+workspace, return structured values with a quote for each, and be measured before the job relies
+on it. Field definitions and labelling rules are in `docs/llm-extraction.md`.
+
+Free Edition serves Foundation Model API endpoints on pay-per-token. Chris chose to compare three
+of them (decision on the task card, 2026-10-21), all READY on the workspace that day:
+`databricks-gpt-oss-120b`, `databricks-meta-llama-3-3-70b-instruct` and
+`databricks-meta-llama-3-1-8b-instruct`. No external API is used, so no note leaves the
+workspace.
+
+## How the models were compared
+
+- **Same call as the job.** Each model got the same prompt (`PROMPT_VERSION` v1), temperature 0,
+  4,096 max tokens and the JSON schema as `ai_query`'s `responseFormat`, one note per statement
+  on the SQL warehouse (`scripts/evaluate_llm_extraction.py`).
+- **Same checks as the job.** An answer is valid when it parses, matches `schema.json` after term
+  normalization, and every evidence span is a quote from the note (whitespace runs and case are
+  ignored, nothing else). An invalid first answer is asked once more with the reason; a second
+  failure is a reject, which scores as predicting nothing.
+- **Labels.** 50 notes, seed 20261021, stratified by specialty with proportional allocation. The
+  labels were drafted from the note text (AI-assisted) and committed before any model ran; none
+  has been changed since. Every row is `needs_review: true`.
+- **Scoring.** Scalar fields as slot filling (a positive is a condition other than `other`, a
+  disposition other than `not_stated`, or a true flag); list fields per term after
+  normalization (lowercase, spaces to underscores, synonyms to the vocabulary term),
+  micro-averaged. Details in `src/readmission/llm/metrics.py`.
+- **MLflow.** One run per model in `/Users/chris.teceno@gmail.com/readmission-llm-extraction`,
+  tagged `labels_status=draft` and `metrics_provisional=true`, with each note's answer as a
+  `predictions/` artifact.
+
+## Results
+
+Label support (positives across the 50 notes): primary condition 4 (3 HF, 1 CABG),
+comorbidities 54 terms, prior admissions 3, discharge disposition 8, social risk factors 2,
+follow-up planned 13.
+
+| Metric | gpt-oss-120b | llama-3.3-70b | llama-3.1-8b |
+|---|---|---|---|
+| Mean field F1 | **0.82** | 0.70 | 0.54 |
+| Schema-valid rate, first answer | 1.00 | 1.00 | 0.96 |
+| Valid (schema and quotes), first answer | 0.88 | 0.96 | 0.64 |
+| Retry rate | 0.12 | 0.04 | 0.36 |
+| Reject rate after retry | 0.04 | 0.04 | 0.28 |
+| Schema-valid without `responseFormat` | 1.00 | 0.92 | 0.52 |
+| Latency per note, median / p90 (s) | 9.6 / 18.2 | 4.3 / 6.6 | 2.3 / 3.2 |
+| primary_condition P / R | 0.60 / 0.75 | 1.00 / 0.50 | 1.00 / 0.50 |
+| comorbidities P / R | 1.00 / 0.78 | 0.85 / 0.76 | 0.49 / 0.44 |
+| prior_admissions_mentioned P / R | 0.60 / 1.00 | 0.25 / 0.67 | 0.33 / 0.33 |
+| discharge_disposition P / R | 0.73 / 1.00 | 0.78 / 0.88 | 0.71 / 0.62 |
+| social_risk_factors P / R | 0.67 / 1.00 | 1.00 / 0.50 | 0.33 / 0.50 |
+| follow_up_planned P / R | 1.00 / 0.92 | 0.76 / 1.00 | 0.75 / 0.69 |
+
+MLflow runs: gpt-oss-120b `be62bfe0fe594eb6b11ce41c1cce84df`, llama-3.3-70b
+`473bfbc34f5f4494b99b999adc500231`, llama-3.1-8b `cd4da7ea378d4bb8b8a7d2607aa2f9f4`. Latency is
+the statement's wall time from a laptop with four statements in flight, warehouse overhead
+included, so it compares the models rather than predicting the job's throughput.
+
+`responseFormat` with a JSON schema works through `ai_query` for all three models. It keeps
+answers on the schema (the only schema failures were two llama-3.1-8b replies that ran to the
+token limit and were cut off mid-string), but it cannot say that evidence must be quoted from
+the note. Every first-answer failure of the two larger models was an evidence problem: a span
+paraphrased, joined from two places with "...", or longer than 300 characters. llama-3.1-8b
+added evidence-less list items and long spans. The validate, retry once, reject path is what
+catches those, and it stays for every model.
+
+## Decision
+
+`databricks-gpt-oss-120b`, named in `readmission.llm.build.MODEL_ENDPOINT`. It has the highest
+mean field F1 (0.82 against 0.70), and the margin comes from the fields a readmission model needs
+most: comorbidities with no false positive and prior admissions with full recall. Schema-valid
+rates tie at 1.00, so the tie-break rule did not come into play. It is the slowest of the three
+(median 9.6 s a note), which does not matter for a batch job of 100 notes a run.
+
+## Consequences
+
+- **The numbers are provisional.** With 4 primary-condition positives, 3 prior admissions and 2
+  social risk factors, one note moves those fields' precision or recall by 0.25 or more. The
+  comparison is decided by comorbidities (54 terms) and follow-up (13), where the sample is
+  larger. Once Chris reviews the labels, the evaluation reruns and the tag changes to
+  `labels_status=confirmed`; a label he changes is recorded in `docs/llm-extraction.md`.
+- **Proportional sampling** makes the 50 notes look like the population the job processes (20
+  are Surgery operative notes), so most notes are negative for most fields. A sample enriched
+  for discharge summaries would measure recall on rare fields better; that is a second sample,
+  not a replacement.
+- **Disagreements worth a reviewer's look** (gpt-oss): it calls a note's main problem HF when
+  heart failure is a background condition (an admission for syncope, a pacemaker for
+  tachy-brady), counts a later admission as a prior one, and reads a previous emergency visit's
+  "discharged home" as this encounter's disposition.
+- **No version pin.** Pay-per-token endpoints report the foundation model
+  (`system.ai.gpt-oss-120b`) but no version, so `gold_note_risk_factors` stores the endpoint,
+  model name, prompt version, prompt hash and extraction time with each row. A silent model
+  update would show up as a change in the job's `first_attempt_valid_rate` in `ops_dq_metrics`.
+- **No PHI.** MTSamples is public transcription data. With real notes the same design holds,
+  since `ai_query` keeps the text inside the workspace, but the Gold table would carry PHI in
+  its evidence spans, needing PHI tags, restricted grants and a BAA covering the endpoint.

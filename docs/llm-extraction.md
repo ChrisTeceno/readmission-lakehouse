@@ -32,4 +32,29 @@ The labels were drafted from the note text before any model was run and are all 
 `needs_review: true`; `labeler_note` records the judgment calls a reviewer should check first.
 A label changes only to fix a labelling error, in its own commit, recorded below.
 
-Label changes: none yet.
+Label changes: none. The three-model run (2026-10-21) was reviewed for labelling errors among the
+disagreements and none was found; the disagreements are listed in ADR 0002.
+
+## Evaluation and model choice
+
+`scripts/evaluate_llm_extraction.py` runs each candidate endpoint over the 50 notes with the
+job's prompt, schema and checks, and logs one MLflow run per model to
+`/Users/chris.teceno@gmail.com/readmission-llm-extraction`. The comparison and the choice of
+`databricks-gpt-oss-120b` are in `engagement/adr/0002-llm-risk-factor-extraction.md`. All metrics
+are provisional until the labels are confirmed (0 of 50 so far).
+
+## The job task
+
+`llm_extract` runs after `silver`, beside `gold`. Each run takes the next `BATCH_SIZE` (100)
+notes with no row in `gold_note_risk_factors` and no reject under the current endpoint and
+prompt, lowest note id first, so the 2,357 notes are covered in 24 runs. Valid answers append to
+`gold_note_risk_factors` with the endpoint, model name, prompt version and hash, and attempt
+count; notes that fail twice append to `silver_llm_rejects` with the reason and the raw reply.
+A prompt or model change leaves extracted notes as they are; rejected notes are tried again
+under the new prompt. `ops_dq_metrics` records each run's `first_attempt_valid_rate` and
+`retry_rate`.
+
+```
+uv run --with mlflow-skinny python scripts/evaluate_llm_extraction.py --without-response-format
+databricks bundle run readmission_pipeline -t dev --only llm_extract
+```
