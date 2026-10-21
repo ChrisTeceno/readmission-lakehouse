@@ -1,0 +1,215 @@
+{
+  "results": [
+    {
+      "facility_id": "010001",
+      "facility_name": "SOUTHEAST HEALTH MEDICAL CENTER",
+      "address": "1108 ROSS CLARK CIRCLE",
+      "citytown": "DOTHAN",
+      "state": "AL",
+      "zip_code": "36301",
+      "countyparish": "HOUSTON",
+      "telephone_number": "(334) 793-8701",
+      "measure_id": "EDAC_30_AMI",
+      "measure_name": "Hospital return days for heart attack patients",
+      "compared_to_national": "Not Available",
+      "denominator": "242",
+      "score": "-2.6",
+      "lower_estimate": "Not Available",
+      "higher_estimate": "Not Available",
+      "number_of_patients": "235",
+      "number_of_patients_returned": "Not Available",
+      "footnote": "",
+      "start_date": "07/01/2022",
+      "end_date": "06/30/2025"
+    },
+    {
+      "facility_id": "010001",
+      "facility_name": "SOUTHEAST HEALTH MEDICAL CENTER",
+      "address": "1108 ROSS CLARK CIRCLE",
+      "citytown": "DOTHAN",
+      "state": "AL",
+      "zip_code": "36301",
+      "countyparish": "HOUSTON",
+      "telephone_number": "(334) 793-8701",
+      "measure_id": "EDAC_30_HF",
+      "measure_name": "Hospital return days for heart failure patients",
+      "compared_to_national": "Not Available",
+      "denominator": "659",
+      "score": "-14.4",
+      "lower_estimate": "Not Available",
+      "higher_estimate": "Not Available",
+      "number_of_patients": "540",
+      "number_of_patients_returned": "Not Available",
+      "footnote": "",
+      "start_date": "07/01/2022",
+      "end_date": "06/30/2025"
+    },
+    {
+      "facility_id": "010001",
+      "facility_name": "SOUTHEAST HEALTH MEDICAL CENTER",
+      "address": "1108 ROSS CLARK CIRCLE",
+      "citytown": "DOTHAN",
+      "state": "AL",
+      "zip_code": "36301",
+      "countyparish": "HOUSTON",
+      "telephone_number": "(334) 793-8701",
+      "measure_id": "EDAC_30_PN",
+      "measure_name": "Hospital return days for pneumonia patients",
+      "compared_to_national": "Not Available",
+      "denominator": "586",
+      "score": "0.7",
+      "lower_estimate": "Not Available",
+      "higher_estimate": "Not Available",
+      "number_of_patients": "530",
+      "number_of_patients_returned": "Not Available",
+      "footnote": "",
+      "start_date": "07/01/2022",
+      "end_date": "06/30/2025"
+    }
+  ],
+  "count": 67060,
+  "schema": {
+    "650435c7-2ba0-581a-929c-203f92af3800": {
+      "fields": {
+        "facility_id": {
+          "type": "text",
+          "mysql_type": "text",
+          "description": "Facility ID"
+        },
+        "facility_name": {
+          "type": "text",
+          "mysql_type": "text",
+          "description": "Facility Name"
+        },
+        "address": {
+          "type": "text",
+          "mysql_type": "text",
+          "description": "Address"
+        },
+        "citytown": {
+          "type": "text",
+          "mysql_type": "text",
+          "description": "City/Town"
+        },
+        "state": {
+          "type": "text",
+          "mysql_type": "text",
+          "description": "State"
+        },
+        "zip_code": {
+          "type": "text",
+          "mysql_type": "text",
+          "description": "ZIP Code"
+        },
+        "countyparish": {
+          "type": "text",
+          "mysql_type": "text",
+          "description": "County/Parish"
+        },
+        "telephone_number": {
+          "type": "text",
+          "mysql_type": "text",
+          "description": "Telephone Number"
+        },
+        "measure_id": {
+          "type": "text",
+          "mysql_type": "text",
+          "description": "Measure ID"
+        },
+        "measure_name": {
+          "type": "text",
+          "mysql_type": "text",
+          "description": "Measure Name"
+        },
+        "compared_to_national": {
+          "type": "text",
+          "mysql_type": "text",
+          "description": "Compared to National"
+        },
+        "denominator": {
+          "type": "text",
+          "mysql_type": "text",
+          "description": "Denominator"
+        },
+        "score": {
+          "type": "text",
+          "mysql_type": "text",
+          "description": "Score"
+        },
+        "lower_estimate": {
+          "type": "text",
+          "mysql_type": "text",
+          "description": "Lower Estimate"
+        },
+        "higher_estimate": {
+          "type": "text",
+          "mysql_type": "text",
+          "description": "Higher Estimate"
+        },
+        "number_of_patients": {
+          "type": "text",
+          "mysql_type": "text",
+          "description": "Number of Patients"
+        },
+        "number_of_patients_returned": {
+          "type": "text",
+          "mysql_type": "text",
+          "description": "Number of Patients Returned"
+        },
+        "footnote": {
+          "type": "text",
+          "mysql_type": "text",
+          "description": "Footnote"
+        },
+        "start_date": {
+          "type": "text",
+          "mysql_type": "text",
+          "description": "Start Date"
+        },
+        "end_date": {
+          "type": "text",
+          "mysql_type": "text",
+          "description": "End Date"
+        }
+      }
+    }
+  },
+  "query": {
+    "limit": 3,
+    "offset": 0,
+    "resources": [
+      {
+        "id": "650435c7-2ba0-581a-929c-203f92af3800",
+        "alias": "t"
+      }
+    ],
+    "count": true,
+    "results": true,
+    "schema": true,
+    "keys": true,
+    "format": "json",
+    "rowIds": false,
+    "properties": [
+      "facility_id",
+      "facility_name",
+      "address",
+      "citytown",
+      "state",
+      "zip_code",
+      "countyparish",
+      "telephone_number",
+      "measure_id",
+      "measure_name",
+      "compared_to_national",
+      "denominator",
+      "score",
+      "lower_estimate",
+      "higher_estimate",
+      "number_of_patients",
+      "number_of_patients_returned",
+      "footnote",
+      "start_date",
+      "end_date"
+    ]
+  }
+}
