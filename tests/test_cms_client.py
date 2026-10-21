@@ -35,7 +35,21 @@ def test_pagination_stops_at_count_and_concatenates():
     assert records == [{"n": i} for i in range(5)]
 
 
-def test_pagination_stops_on_empty_page_when_count_is_wrong():
+def test_pagination_advances_by_rows_received_when_page_is_capped():
+    offsets = []
+
+    def handler(request):
+        offset = int(request.url.params["offset"])
+        offsets.append(offset)
+        rows = [{"n": i} for i in range(offset, min(offset + 2, 5))]
+        return httpx.Response(200, json={"results": rows, "count": 5})
+
+    records = cms.fetch_records(cms.HRRP, page_size=3, client=client_for(handler))
+    assert offsets == [0, 2, 4]
+    assert records == [{"n": i} for i in range(5)]
+
+
+def test_empty_page_before_count_raises_instead_of_looping():
     calls = []
 
     def handler(request):
@@ -44,8 +58,8 @@ def test_pagination_stops_on_empty_page_when_count_is_wrong():
         rows = [{"n": 0}, {"n": 1}] if offset == 0 else []
         return httpx.Response(200, json={"results": rows, "count": 999})
 
-    records = cms.fetch_records(cms.HRRP, page_size=2, client=client_for(handler))
-    assert records == [{"n": 0}, {"n": 1}]
+    with pytest.raises(cms.CmsApiError, match="returned 2 rows but reported count 999"):
+        cms.fetch_records(cms.HRRP, page_size=2, client=client_for(handler))
     assert len(calls) == 2
 
 
@@ -59,15 +73,16 @@ def test_pagination_stops_on_empty_page_when_count_is_wrong():
 )
 def test_recorded_first_page_is_parsed(dataset_id, name):
     page = fixture(name)
+    # The fixture is trimmed to 3 rows but keeps the real count; serve it as a complete dataset.
+    assert page["count"] > len(page["results"])
+    complete = {**page, "count": len(page["results"])}
 
     def handler(request):
         assert request.url.path == f"/provider-data/api/1/datastore/query/{dataset_id}/0"
-        return httpx.Response(200, json=page)
+        return httpx.Response(200, json=complete)
 
     records = cms.fetch_records(dataset_id, page_size=1500, client=client_for(handler))
-    # The fixture is trimmed to 3 rows but keeps the real count, so one page is not the end.
-    assert page["count"] > len(page["results"])
-    assert records[: len(page["results"])] == page["results"]
+    assert records == page["results"]
 
 
 def test_429_then_200_succeeds_and_honors_retry_after():

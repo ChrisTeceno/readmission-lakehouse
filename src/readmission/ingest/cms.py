@@ -119,10 +119,17 @@ def fetch_records(
             )
             results = page["results"]
             records.extend(results)
-            offset += page_size
+            # Advance by rows received, so a page capped below the requested limit loses nothing.
+            offset += len(results)
             # An empty page also ends the loop, so a wrong count cannot spin forever.
             if not results or offset >= page["count"]:
-                return records
+                break
+        if len(records) != page["count"]:
+            raise CmsApiError(
+                f"dataset {dataset_id} returned {len(records)} rows but reported count "
+                f"{page['count']}"
+            )
+        return records
     finally:
         if owned:
             client.close()
