@@ -1,0 +1,38 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.13.0/schema.json",
+  "name": "landscape_card_penalized",
+  "position": {
+    "x": 20,
+    "y": 100,
+    "z": 2,
+    "height": 130,
+    "width": 330,
+    "tabOrder": 2
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "gold_penalty_mart"
+                    }
+                  },
+                  "Property": "Hospitals Penalized"
+                }
+              },
+              "queryRef": "gold_penalty_mart.Hospitals Penalized",
+              "nativeQueryRef": "Hospitals Penalized"
+            }
+          ]
+        }
+      }
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

@@ -1,0 +1,238 @@
+/// HRRP results per facility, condition and fiscal year, FY2013 to FY2027, with
+/// the penalty cutoff, the change from the prior non-overlapping window and
+/// anomaly flags. Cutoff: 1.0 for FY2013 to FY2018 (exact), the peer group
+/// median ERR for FY2027 (exact), and 1.0 as a stand-in for FY2019 to FY2026,
+/// where CMS used the peer group median but no file here carries it
+/// (cutoff_is_approximate = true). Hospital attributes are the current Hospital
+/// General Information snapshot. Built from silver_hrrp_history and
+/// silver_hospital_info.
+table gold_facility_condition_year
+
+	/// Facility-condition rows with an excess readmission ratio (CMS suppresses it
+	/// under 25 discharges).
+	measure 'Conditions Reported' = CALCULATE(COUNTROWS(gold_facility_condition_year), NOT ISBLANK(gold_facility_condition_year[excess_readmission_ratio]))
+		formatString: #,0
+
+	/// Facility-condition rows whose ERR is above that fiscal year's penalty
+	/// cutoff.
+	measure 'Conditions Above Cutoff' = CALCULATE(COUNTROWS(gold_facility_condition_year), gold_facility_condition_year[above_cutoff] = TRUE())
+		formatString: #,0
+
+	/// Conditions Above Cutoff over Conditions Reported.
+	measure 'Share Above Cutoff' = DIVIDE([Conditions Above Cutoff], [Conditions Reported])
+		formatString: 0.0%
+
+	/// Mean excess readmission ratio over the rows that have one.
+	measure 'Average ERR' = AVERAGE(gold_facility_condition_year[excess_readmission_ratio])
+		formatString: 0.0000
+
+	/// Mean of ERR minus the penalty cutoff; above zero means above the cutoff (1.0
+	/// stand-in for FY2019 to FY2026).
+	measure 'ERR vs Peer Cutoff' =
+			AVERAGEX(
+			    FILTER(gold_facility_condition_year, NOT ISBLANK(gold_facility_condition_year[excess_readmission_ratio])),
+			    gold_facility_condition_year[excess_readmission_ratio] - gold_facility_condition_year[penalty_cutoff]
+			)
+		formatString: +0.0000;-0.0000;0.0000
+
+	/// Facility-condition rows flagged by the err_change or discharge_jump rule.
+	measure 'Anomalies Flagged' = CALCULATE(COUNTROWS(gold_facility_condition_year), gold_facility_condition_year[anomaly_flag] = TRUE())
+		formatString: #,0
+
+	/// CMS Certification Number (CCN)
+	column facility_id
+		dataType: string
+		summarizeBy: none
+		sourceColumn: facility_id
+
+	/// HRRP condition: AMI, HF, PN, COPD, HIP_KNEE or CABG
+	column measure
+		dataType: string
+		summarizeBy: none
+		sourceColumn: measure
+
+	/// HRRP payment fiscal year
+	column fiscal_year
+		dataType: int64
+		summarizeBy: none
+		sourceColumn: fiscal_year
+
+	/// Hospital name; null if no longer in CMS's list
+	column facility_name
+		dataType: string
+		summarizeBy: none
+		sourceColumn: facility_name
+
+	/// Two-letter state code, from Hospital General Information
+	column state
+		dataType: string
+		summarizeBy: none
+		sourceColumn: state
+
+	/// County or parish, from Hospital General Information
+	column county
+		dataType: string
+		summarizeBy: none
+		sourceColumn: county
+
+	/// CMS hospital type
+	column hospital_type
+		dataType: string
+		summarizeBy: none
+		sourceColumn: hospital_type
+
+	/// CMS ownership category
+	column hospital_ownership
+		dataType: string
+		summarizeBy: none
+		sourceColumn: hospital_ownership
+
+	/// First discharge date of the performance period
+	column period_start
+		dataType: dateTime
+		formatString: Short Date
+		summarizeBy: none
+		sourceColumn: period_start
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	/// Last discharge date of the performance period
+	column period_end
+		dataType: dateTime
+		formatString: Short Date
+		summarizeBy: none
+		sourceColumn: period_end
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	/// Months of discharges in the window: 36, or 30 (FY2022, FY2024), or 24
+	/// (FY2027)
+	column window_months
+		dataType: int64
+		summarizeBy: none
+		sourceColumn: window_months
+
+	/// Eligible discharges in the period; null if suppressed
+	column discharges
+		dataType: int64
+		summarizeBy: sum
+		sourceColumn: discharges
+
+	/// Unplanned readmissions within 30 days; null if suppressed and for IPPS years
+	column readmissions
+		dataType: int64
+		summarizeBy: sum
+		sourceColumn: readmissions
+
+	/// Predicted over expected readmission rate (ratio); null when CMS computed
+	/// none
+	column excess_readmission_ratio
+		dataType: double
+		summarizeBy: none
+		sourceColumn: excess_readmission_ratio
+
+	/// Risk-adjusted predicted readmission rate, percent; null for IPPS years
+	column predicted_rate
+		dataType: double
+		summarizeBy: none
+		sourceColumn: predicted_rate
+
+	/// Risk-adjusted expected readmission rate, percent; null for IPPS years
+	column expected_rate
+		dataType: double
+		summarizeBy: none
+		sourceColumn: expected_rate
+
+	/// Dual-eligibility peer group quintile, 1 to 5; FY2027 only
+	column peer_group
+		dataType: int64
+		summarizeBy: none
+		sourceColumn: peer_group
+
+	/// ERR above which the condition counted toward the penalty that year (ratio)
+	column penalty_cutoff
+		dataType: double
+		summarizeBy: none
+		sourceColumn: penalty_cutoff
+
+	/// True for FY2019 to FY2026: the real cutoff was the peer group median, not in
+	/// this data, and 1.0 stands in
+	column cutoff_is_approximate
+		dataType: boolean
+		summarizeBy: none
+		sourceColumn: cutoff_is_approximate
+
+	/// ERR above penalty_cutoff; null when there is no ERR
+	column above_cutoff
+		dataType: boolean
+		summarizeBy: none
+		sourceColumn: above_cutoff
+
+	/// Latest fiscal year whose performance period ends before this one starts
+	column prior_window_fiscal_year
+		dataType: int64
+		summarizeBy: none
+		sourceColumn: prior_window_fiscal_year
+
+	/// ERR in the prior non-overlapping window
+	column prior_window_err
+		dataType: double
+		summarizeBy: none
+		sourceColumn: prior_window_err
+
+	/// ERR minus prior_window_err; null unless both windows have a ratio
+	column err_change
+		dataType: double
+		summarizeBy: none
+		sourceColumn: err_change
+
+	/// Modified z-score of err_change among hospitals with the same measure and
+	/// year
+	column err_change_robust_z
+		dataType: double
+		summarizeBy: none
+		sourceColumn: err_change_robust_z
+
+	/// Discharges per month over the prior window's; null under 25 discharges in
+	/// either
+	column discharge_ratio
+		dataType: double
+		summarizeBy: none
+		sourceColumn: discharge_ratio
+
+	/// discharge_ratio over the median discharge_ratio for the same measure and
+	/// year
+	column discharge_ratio_vs_median
+		dataType: double
+		summarizeBy: none
+		sourceColumn: discharge_ratio_vs_median
+
+	/// True when err_change or discharge_ratio is anomalous (see anomaly_reason)
+	column anomaly_flag
+		dataType: boolean
+		summarizeBy: none
+		sourceColumn: anomaly_flag
+
+	/// Rules that fired: err_change beyond robust z 3.5, discharge_jump beyond x2
+	/// or x0.5 of the median
+	column anomaly_reason
+		dataType: string
+		summarizeBy: none
+		sourceColumn: anomaly_reason
+
+	/// pdc (Provider Data Catalog archive) or ipps (CMS.gov IPPS supplemental file)
+	column source
+		dataType: string
+		summarizeBy: none
+		sourceColumn: source
+
+	partition gold_facility_condition_year = m
+		mode: import
+		source =
+				let
+				    Source = DatabricksGold{[Name = "gold_facility_condition_year", Kind = "Table"]}[Data]
+				in
+				    Source
+
+	annotation PBI_ResultType = Table
+

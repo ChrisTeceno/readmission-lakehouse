@@ -1,0 +1,64 @@
+/// One row per hospital (CCN) in the Gold tables, with the Contoso flag. Built from
+/// gold_penalty_mart, whose hospital attributes are the current Hospital General Information
+/// snapshot and so do not change across fiscal years. Contoso Health is fictional: its 12
+/// facilities are relabeled public CCNs.
+table Facility
+
+	/// CMS Certification Number (CCN)
+	column facility_id
+		dataType: string
+		isKey
+		summarizeBy: none
+		sourceColumn: facility_id
+
+	/// Hospital name; null if no longer in CMS's list
+	column facility_name
+		dataType: string
+		summarizeBy: none
+		sourceColumn: facility_name
+
+	/// Two-letter state code
+	column state
+		dataType: string
+		summarizeBy: none
+		sourceColumn: state
+
+	/// CMS hospital type
+	column hospital_type
+		dataType: string
+		summarizeBy: none
+		sourceColumn: hospital_type
+
+	/// One of Contoso Health's facilities
+	column is_contoso
+		dataType: boolean
+		summarizeBy: none
+		sourceColumn: is_contoso
+
+	/// Contoso's own facility id, CH01 to CH12
+	column contoso_facility_id
+		dataType: string
+		summarizeBy: none
+		sourceColumn: contoso_facility_id
+
+	/// Contoso's name for the facility
+	column contoso_facility_name
+		dataType: string
+		summarizeBy: none
+		sourceColumn: contoso_facility_name
+
+	partition Facility = m
+		mode: import
+		source =
+				let
+				    Mart = DatabricksGold{[Name = "gold_penalty_mart", Kind = "Table"]}[Data],
+				    Columns = Table.SelectColumns(
+				        Mart,
+				        {"facility_id", "facility_name", "state", "hospital_type", "is_contoso", "contoso_facility_id", "contoso_facility_name"}
+				    ),
+				    Source = Table.Distinct(Columns, {"facility_id"})
+				in
+				    Source
+
+	annotation PBI_ResultType = Table
+

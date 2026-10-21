@@ -1,0 +1,120 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.13.0/schema.json",
+  "name": "landscape_fy2028_risk_table",
+  "position": {
+    "x": 850,
+    "y": 250,
+    "z": 7,
+    "height": 450,
+    "width": 410,
+    "tabOrder": 7
+  },
+  "visual": {
+    "visualType": "tableEx",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "gold_penalty_predictions"
+                    }
+                  },
+                  "Property": "risk_rank"
+                }
+              },
+              "queryRef": "gold_penalty_predictions.risk_rank",
+              "nativeQueryRef": "risk_rank"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Facility"
+                    }
+                  },
+                  "Property": "facility_name"
+                }
+              },
+              "queryRef": "Facility.facility_name",
+              "nativeQueryRef": "facility_name"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Condition"
+                    }
+                  },
+                  "Property": "condition_name"
+                }
+              },
+              "queryRef": "Condition.condition_name",
+              "nativeQueryRef": "condition_name"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "gold_penalty_predictions"
+                    }
+                  },
+                  "Property": "penalty_probability"
+                }
+              },
+              "queryRef": "gold_penalty_predictions.penalty_probability",
+              "nativeQueryRef": "penalty_probability"
+            }
+          ]
+        }
+      },
+      "sortDefinition": {
+        "sort": [
+          {
+            "field": {
+              "Column": {
+                "Expression": {
+                  "SourceRef": {
+                    "Entity": "gold_penalty_predictions"
+                  }
+                },
+                "Property": "risk_rank"
+              }
+            },
+            "direction": "Ascending"
+          }
+        ],
+        "isDefaultSort": false
+      }
+    },
+    "drillFilterOtherVisuals": true,
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'FY2028 predicted penalty risk (ignores the year slicer)'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

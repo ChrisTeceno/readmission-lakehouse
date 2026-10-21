@@ -1,0 +1,78 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.13.0/schema.json",
+  "name": "landscape_share_by_year",
+  "position": {
+    "x": 20,
+    "y": 250,
+    "z": 5,
+    "height": 450,
+    "width": 410,
+    "tabOrder": 5
+  },
+  "visual": {
+    "visualType": "lineChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Fiscal Year"
+                    }
+                  },
+                  "Property": "fiscal_year_label"
+                }
+              },
+              "queryRef": "Fiscal Year.fiscal_year_label",
+              "nativeQueryRef": "fiscal_year_label"
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "gold_facility_condition_year"
+                    }
+                  },
+                  "Property": "Share Above Cutoff"
+                }
+              },
+              "queryRef": "gold_facility_condition_year.Share Above Cutoff",
+              "nativeQueryRef": "Share Above Cutoff"
+            }
+          ]
+        }
+      }
+    },
+    "drillFilterOtherVisuals": true,
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Share of conditions above the cutoff by fiscal year'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

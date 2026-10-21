@@ -1,0 +1,160 @@
+/// HRRP penalty view per hospital and fiscal year, FY2013 to FY2027: conditions
+/// above the cutoff, worst ERR, trend against the prior non-overlapping window
+/// and the Contoso flag. Cutoffs for FY2019 to FY2026 are the 1.0 stand-in for
+/// the peer group median (see gold_facility_condition_year). Built from
+/// gold_facility_condition_year and silver_contoso_facilities.
+table gold_penalty_mart
+
+	/// Distinct hospitals in the penalty mart for the current filters.
+	measure Hospitals = DISTINCTCOUNT(gold_penalty_mart[facility_id])
+		formatString: #,0
+
+	/// Distinct hospitals with at least one condition above the cutoff, which
+	/// triggers an HRRP payment reduction.
+	measure 'Hospitals Penalized' = CALCULATE(DISTINCTCOUNT(gold_penalty_mart[facility_id]), gold_penalty_mart[penalized] = TRUE())
+		formatString: #,0
+
+	/// Hospitals Penalized over Hospitals.
+	measure 'Share of Hospitals Penalized' = DIVIDE([Hospitals Penalized], [Hospitals])
+		formatString: 0.0%
+
+	/// CMS Certification Number (CCN)
+	column facility_id
+		dataType: string
+		summarizeBy: none
+		sourceColumn: facility_id
+
+	/// HRRP payment fiscal year
+	column fiscal_year
+		dataType: int64
+		summarizeBy: none
+		sourceColumn: fiscal_year
+
+	/// Hospital name; null if no longer in CMS's list
+	column facility_name
+		dataType: string
+		summarizeBy: none
+		sourceColumn: facility_name
+
+	/// Two-letter state code
+	column state
+		dataType: string
+		summarizeBy: none
+		sourceColumn: state
+
+	/// CMS hospital type
+	column hospital_type
+		dataType: string
+		summarizeBy: none
+		sourceColumn: hospital_type
+
+	/// Conditions with an ERR this year
+	column conditions_reported
+		dataType: int64
+		summarizeBy: sum
+		sourceColumn: conditions_reported
+
+	/// Conditions whose ERR was above the penalty cutoff
+	column conditions_above_cutoff
+		dataType: int64
+		summarizeBy: sum
+		sourceColumn: conditions_above_cutoff
+
+	/// The conditions above the cutoff, comma separated; null if none
+	column measures_above_cutoff
+		dataType: string
+		summarizeBy: none
+		sourceColumn: measures_above_cutoff
+
+	/// At least one condition above the cutoff, which is what triggers an HRRP
+	/// payment reduction
+	column penalized
+		dataType: boolean
+		summarizeBy: none
+		sourceColumn: penalized
+
+	/// Condition with the highest ERR
+	column worst_measure
+		dataType: string
+		summarizeBy: none
+		sourceColumn: worst_measure
+
+	/// Highest ERR across the hospital's conditions
+	column worst_err
+		dataType: double
+		summarizeBy: none
+		sourceColumn: worst_err
+
+	/// Mean ERR across the conditions with one
+	column mean_err
+		dataType: double
+		summarizeBy: none
+		sourceColumn: mean_err
+
+	/// Any condition's cutoff is the 1.0 stand-in for a peer group median (FY2019
+	/// to FY2026)
+	column cutoff_is_approximate
+		dataType: boolean
+		summarizeBy: none
+		sourceColumn: cutoff_is_approximate
+
+	/// Latest fiscal year whose performance period ends before this one starts
+	column prior_window_fiscal_year
+		dataType: int64
+		summarizeBy: none
+		sourceColumn: prior_window_fiscal_year
+
+	/// conditions_above_cutoff in the prior window; null if the hospital was not in
+	/// it
+	column prior_conditions_above_cutoff
+		dataType: int64
+		summarizeBy: none
+		sourceColumn: prior_conditions_above_cutoff
+
+	/// Mean ERR change from the prior window, over conditions with a ratio in both
+	column mean_err_change
+		dataType: double
+		summarizeBy: none
+		sourceColumn: mean_err_change
+
+	/// worse or better when mean_err_change is beyond 0.02 either way, else flat;
+	/// null without a prior window
+	column trend
+		dataType: string
+		summarizeBy: none
+		sourceColumn: trend
+
+	/// Conditions flagged as anomalous this year
+	column anomalies
+		dataType: int64
+		summarizeBy: sum
+		sourceColumn: anomalies
+
+	/// One of Contoso Health's facilities
+	column is_contoso
+		dataType: boolean
+		summarizeBy: none
+		sourceColumn: is_contoso
+
+	/// Contoso's own facility id, CH01 to CH12
+	column contoso_facility_id
+		dataType: string
+		summarizeBy: none
+		sourceColumn: contoso_facility_id
+
+	/// Contoso's name for the facility
+	column contoso_facility_name
+		dataType: string
+		summarizeBy: none
+		sourceColumn: contoso_facility_name
+
+	partition gold_penalty_mart = m
+		mode: import
+		source =
+				let
+				    Source = DatabricksGold{[Name = "gold_penalty_mart", Kind = "Table"]}[Data]
+				in
+				    Source
+
+	annotation PBI_ResultType = Table
+
