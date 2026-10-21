@@ -1,7 +1,7 @@
-"""Expectations that fail the Silver build, unlike quarantine, which never does.
+"""Expectations that fail the Silver or Gold build, unlike quarantine, which never does.
 
-Each check runs before the table is overwritten, so a failing batch leaves the previous Silver
-table in place.
+Each check runs before the table is overwritten, so a failing batch leaves the previous table
+in place.
 """
 
 # CMS republishes each dataset whole, and its row counts move by a few percent a year as
@@ -16,6 +16,12 @@ MAX_ROW_COUNT_DROP = 0.20
 # the history row counts in docs/data-sources.md). 45 percent allows for a normal year and
 # catches a parsing break that nulls a large share of ratios.
 MAX_ERR_NULL_RATE = 0.45
+
+
+# Hospitals matched to a county FIPS in the latest ACS vintage. Every hospital matched on
+# 2026-10-21; below 98 percent means CMS changed how it writes county names, or the ACS
+# geography changed, and the new names need rules in readmission.silver.county_match.
+MIN_COUNTY_MATCH_RATE = 0.98
 
 
 class ExpectationFailed(Exception):
@@ -37,3 +43,18 @@ def check_err_null_rate(table: str, nulls: int, total: int) -> None:
             f"{table}: {nulls / total:.1%} of excess_readmission_ratio is null, above "
             f"{MAX_ERR_NULL_RATE:.0%}"
         )
+
+
+def check_match_rate(table: str, matched: int, total: int) -> None:
+    if total and matched / total < MIN_COUNTY_MATCH_RATE:
+        raise ExpectationFailed(
+            f"{table}: {matched} of {total} hospitals matched a county, below "
+            f"{MIN_COUNTY_MATCH_RATE:.0%}"
+        )
+
+
+def check_same_row_count(table: str, expected: int, current: int) -> None:
+    """A Gold table built one row per Silver row: any other count means a join fanned out or
+    dropped rows."""
+    if current != expected:
+        raise ExpectationFailed(f"{table}: {current} rows, expected {expected}, one per Silver row")

@@ -25,13 +25,60 @@ was checked on 2026-10-21 with all seven IPPS years (batch `20261021T190000Z`).
 
 ## Pipeline job
 
-`databricks bundle run readmission_pipeline -t dev` runs four serverless tasks from the project
+`databricks bundle run readmission_pipeline -t dev` runs five serverless tasks from the project
 wheel (`resources/readmission_pipeline.yml`): `fetch` runs the fetch CLI for every source, then
 `bronze` (`readmission.bronze.load`) appends what is new in landing to the Bronze tables and
 copies the MTSamples notes. A second run with no source changes appends nothing. `contoso`
 (`readmission.bronze.contoso`) runs beside them: it reads Contoso's Lakebase database directly,
 not the landing volume (see the Contoso section below). `silver` (`readmission.silver.build`)
 runs after `bronze` and `contoso` and rebuilds the Silver tables (see `docs/governance.md`).
+`gold` (`readmission.gold.build`) runs last and rebuilds the Gold tables (see `docs/gold.md`).
+
+The job runs daily at 06:00 UTC; the dev target's `trigger_pause_status: PAUSED` preset keeps
+the schedule paused there. `fetch` retries twice, two minutes apart, after the HTTP client's own
+exponential backoff gives up (Jobs only retry at a fixed interval). A failed run emails the job
+owner (`${workspace.current_user.userName}`).
+
+### Run monitoring
+
+Every task wraps its work in `readmission.ops.track_run`, which appends when the task ends:
+
+| Table | One row per | Columns |
+|---|---|---|
+| `ops_run_log` | task run (a retried task has one per attempt) | `job_run_id`, `task`, `started_at`, `ended_at`, `status` (`succeeded` or `failed`), `rows_written`, `error` |
+| `ops_dq_metrics` | metric | `job_run_id`, `task`, `table_name`, `metric`, `value`, `threshold`, `passed`, `measured_at` |
+
+Metrics: `rows_written` per table from every task (per `landing/<source>` for fetch); Silver's
+`row_count` (threshold: 80 percent of the previous build), `err_null_rate` (45 percent) and
+`quarantined_rows`; Gold's `row_count_vs_silver` (must equal `silver_hrrp_history`) and
+`anomaly_rate` (5 percent, recorded but never failing). The job passes
+`--job-run-id={{job.run_id}}`; run from a laptop without it, a task logs nothing.
+
+Forced failure, to test the alert path: the job parameter `fail_task` names a task that raises
+`ForcedFailure` as soon as its run starts, which logs a failed `ops_run_log` row and fails the
+job.
+
+```
+databricks bundle run readmission_pipeline -t dev --params fail_task=gold
+```
+
+Clean run, 2026-10-21 (job run 338286842208810): every Bronze, Silver and Gold table and
+`ops_watermarks` were dropped first; the schema, the landing volume, Lakebase and the two ops
+tables were kept, so fetch found every source already landed and downloaded nothing new. The
+run took 12 minutes 58 seconds from `bundle run` to success:
+
+| Task | Minutes | Rows written |
+|---|---|---|
+| `fetch` | 0.5 | 175,563 (landed rows counted per source) |
+| `contoso` | 0.8 | 11,124 |
+| `bronze` | 1.3 | 316,246 |
+| `silver` | 6.6 | 480,282 |
+| `gold` | 2.2 | 599,782 |
+
+All 50 `ops_dq_metrics` rows of that run passed. Forced failure: job run 796922301916095 with
+`fail_task=gold` (gold task only) wrote two `failed` rows for `gold` with error
+`ForcedFailure: gold: forced failure (--fail-task=gold)`; serverless retried the task once on
+its own, so there is one row per attempt.
 
 Silver row counts from the 2026-10-21 run:
 
@@ -43,6 +90,8 @@ Silver row counts from the 2026-10-21 run:
 | `silver_unplanned_visits` | 67,060 | 0 |
 | `silver_clinical_notes` | 2,357 | 1 (note 97 has no transcription text) |
 | `silver_contoso_discharges`, `silver_contoso_followup_calls` | built by `contoso` | 0 |
+| `silver_acs_county` | 45,091 | 0 |
+| `silver_hospital_county` | 75,866 (5,419 hospitals by 14 vintages) | 0 |
 
 Silver treats `Not Applicable` as a suppression code too: Unplanned Hospital Visits writes it for
 patient counts on rate-only measures.
@@ -99,6 +148,110 @@ in `ops_watermarks` (one row per source table) over JDBC, appends them to Bronze
 keeping the latest version of each key. Setup, credentials and the incremental test:
 `docs/lakebase.md`; connector choice: `engagement/adr/0001-contoso-lakebase-connector.md`.
 Code: `ingest/contoso.py`, `bronze/contoso.py`, `silver/contoso.py`, `scripts/seed_contoso.py`.
+
+## Census ACS county socioeconomics (verified 2026-10-21)
+
+Landing source `acs_county`, partitioned by ACS 5-year vintage
+(`acs_county/<vintage>/<batch_id>/`), Bronze table `bronze_acs_county`, Silver tables
+`silver_acs_county` and `silver_hospital_county`. Code: `ingest/acs_county.py`,
+`bronze/acs_county.py`, `silver/acs_county.py`, `silver/county_match.py`, `secrets.py`.
+
+Per vintage, fetch lands two Census API responses unchanged:
+
+- `county_<vintage>.json`: `https://api.census.gov/data/<vintage>/acs/acs5/profile?get=NAME,<codes>&for=county:*`,
+  the six measures for every county plus its name, which is also the geography list hospitals
+  are matched against.
+- `ct_county_subdivision_<vintage>.json`: `https://api.census.gov/data/<vintage>/acs/acs5?get=NAME&for=county%20subdivision:*&in=state:09`,
+  Connecticut's towns and the county or planning region each sits in.
+
+A published vintage never changes, so fetch skips a vintage that already has a manifest; after
+the first run the source makes no API calls until a new vintage is added to
+`ingest/acs_county.py` (2025 is due in December 2026).
+
+**API key.** api.census.gov stopped answering keyless data queries: since at least 2026-10-21
+every one is redirected to `/data/missing_key.html` (only `variables.json` metadata still works
+without a key). The key lives in the Databricks secret scope `readmission`, key
+`census_api_key`, read through `readmission.secrets.get_secret`, which the Azure task will point
+at Key Vault. With no key, fetch logs that it is calling keyless and fails with an error naming
+the scope and key once Census redirects. The key is never written to a manifest, a landed file,
+`_source` or an error message: manifests record the query without it. Census also redirects a
+keyed query to `missing_key.html` now and then (once during recording on 2026-10-21); fetch
+retries that.
+
+**Variables** (data profile tables, which give percentages directly). Codes move between
+vintages when Census reorders a table, so they are recorded per vintage and checked against each
+vintage's `variables.json` by `tests/test_acs_county.py -m live`:
+
+| Measure | 2011 to 2016 | 2017 to 2018 | 2019 to 2024 |
+|---|---|---|---|
+| `population` | `DP05_0001E` | `DP05_0001E` | `DP05_0001E` |
+| `pct_age_65_plus` | `DP05_0021PE` | `DP05_0024PE` | `DP05_0024PE` |
+| `median_household_income` | `DP03_0062E` | `DP03_0062E` | `DP03_0062E` |
+| `pct_below_poverty` (all people) | `DP03_0128PE` | `DP03_0128PE` | `DP03_0128PE` |
+| `pct_uninsured` (civilian noninstitutionalized) | `DP03_0099PE` | `DP03_0099PE` | `DP03_0099PE` |
+| `pct_disability` (civilian noninstitutionalized) | `DP02_0071PE` | `DP02_0071PE` | `DP02_0072PE` |
+| `pct_disability`, Puerto Rico | `DP02PR_0071PE` | `DP02PR_0071PE` | `DP02PR_0072PE` |
+
+Caveats:
+- The 2011 vintage answers `-888888888` (not applicable) for uninsured and disability in every
+  county: the 5-year health insurance and new disability estimates start with 2012. Silver
+  leaves them null for 2011.
+- Puerto Rico's 78 municipios have no `DP02_` disability value; it is in `DP02PR_`, which is null
+  everywhere else. Silver takes whichever is present.
+- Census writes annotation codes inside the estimate as large negatives (`-666666666` too few
+  sample cases, `-888888888`, `-999999999`, `-222222222`). None of the measures can be negative,
+  so Silver maps every negative to null. Median household income is suppressed this way for one
+  or two counties in most vintages (De Baca County, NM in 2024).
+- Island areas (Guam, US Virgin Islands, Northern Mariana Islands, American Samoa) are not in
+  the ACS: the API answers 204 for them.
+- Income is in dollars of each vintage's own year, not adjusted to a common year.
+
+**Vintage for each fiscal year.** A fiscal year uses the vintage whose survey midpoint
+(July 2 of vintage minus 2) is nearest the midpoint of its HRRP performance period, capped at
+the latest published vintage (`silver.acs_county.ACS_VINTAGE_BY_FISCAL_YEAR`):
+
+| FY | Performance period | ACS vintage | Survey years |
+|---|---|---|---|
+| 2013 | 07/2008 to 06/2011 | 2011 | 2007 to 2011 |
+| 2014 | 07/2009 to 06/2012 | 2012 | 2008 to 2012 |
+| 2015 | 07/2010 to 06/2013 | 2013 | 2009 to 2013 |
+| 2016 | 07/2011 to 06/2014 | 2014 | 2010 to 2014 |
+| 2017 | 07/2012 to 06/2015 | 2015 | 2011 to 2015 |
+| 2018 | 07/2013 to 06/2016 | 2016 | 2012 to 2016 |
+| 2019 | 07/2014 to 06/2017 | 2017 | 2013 to 2017 |
+| 2020 | 07/2015 to 06/2018 | 2018 | 2014 to 2018 |
+| 2021 | 07/2016 to 06/2019 | 2019 | 2015 to 2019 |
+| 2022 | 07/2017 to 12/2019 | 2020 | 2016 to 2020 |
+| 2023 | 07/2018 to 06/2021 | 2021 | 2017 to 2021 |
+| 2024 | 07/2019 to 06/2022 | 2022 | 2018 to 2022 |
+| 2025 | 07/2020 to 06/2023 | 2023 | 2019 to 2023 |
+| 2026 | 07/2021 to 06/2024 | 2024 | 2020 to 2024 |
+| 2027 | 07/2023 to 06/2025 | 2024 (2026 once published) | 2020 to 2024 |
+
+A vintage is published about a year and a half after its survey period ends, so the vintage
+matched to a fiscal year's performance period was not available when CMS announced that year's
+penalties. That is right for describing a period; a model that must predict before publication
+should lag it.
+
+**Hospital to county.** `silver_hospital_county` matches every hospital in
+`silver_hospital_info` against each vintage's county names, within its state
+(`silver/county_match.py`): exact on a normalized key (case, accents, punctuation and spacing
+ignored, Saint as St., a leading `E.` as East, "the" dropped, the county type dropped, an
+independent city keeps "city"), then a short alias table for CMS typos and the 2015 renames
+(Shannon to Oglala Lakota SD, Wade Hampton to Kusilvak AK), then the town for Connecticut
+planning regions and for Valdez-Cordova AK (split into Chugach and Copper River in 2019), then a
+fixed FIPS table for island areas, then a fuzzy match accepted only when one county is clearly
+closest.
+
+Result of the 2026-10-21 run: all 5,419 hospitals matched in all 14 vintages (target: above 98
+percent; the build fails below it). Methods in the 2024 vintage: 5,358 exact, 36 Connecticut
+town, 14 alias (10 `THE DISTRICT` for DC, `NORTH SLOPE BOROUH`, `NORTHWEST ARTIC BOROUGH`, 2
+`JEFFRSON DAVIS` LA), 6 island area, 2 Valdez-Cordova town, 3 fuzzy (2 `YELLOW MEDCINE` MN,
+`SCOTT BLUFF` NE). Island-area hospitals get a FIPS code but no `silver_acs_county` row.
+
+Row counts from the 2026-10-21 run: `bronze_acs_county` 47,516 (45,091 county rows: 3,220 to
+3,222 per vintage, including 78 Puerto Rico municipios; 2,425 Connecticut town rows),
+`silver_acs_county` 45,091, `silver_hospital_county` 75,866.
 
 ## Historical HRRP, FY2013 to FY2027
 

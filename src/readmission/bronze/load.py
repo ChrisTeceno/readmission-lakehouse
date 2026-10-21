@@ -14,10 +14,12 @@ from functools import reduce
 
 from pyspark.sql import DataFrame, SparkSession
 
-from readmission.bronze import clinical_notes, cms, hrrp_history
+from readmission.bronze import acs_county, clinical_notes, cms, hrrp_history
+from readmission.ingest import acs_county as acs_county_ingest
 from readmission.ingest import cms_current
 from readmission.ingest import hrrp_history as hrrp_history_ingest
 from readmission.ingest.landing import LANDING_VOLUME, batches_to_load, list_manifests, new_batch_id
+from readmission.ops import add_ops_arguments, track_run
 
 Builder = Callable[[SparkSession, dict, datetime], DataFrame]
 
@@ -33,6 +35,7 @@ LANDED_TABLES: dict[str, tuple[str, Builder]] = {
         "bronze_hrrp_history_ipps",
         hrrp_history.bronze_from_manifest,
     ),
+    acs_county_ingest.SOURCE: ("bronze_acs_county", acs_county.bronze_from_manifest),
 }
 NOTES_TABLE = "bronze_clinical_notes"
 
@@ -91,16 +94,20 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--schema", default="readmission")
     parser.add_argument("--landing", default=LANDING_VOLUME)
     parser.add_argument("--notes-path", default=clinical_notes.NOTES_PATH)
+    add_ops_arguments(parser)
     args = parser.parse_args(argv)
-    spark = SparkSession.builder.getOrCreate()
-    ingested_at = datetime.now(UTC)
-    for source, (table, build) in LANDED_TABLES.items():
-        name = f"{args.catalog}.{args.schema}.{table}"
-        appended = load_landed(spark, args.landing, source, name, build, ingested_at)
-        print(f"{name}: appended {appended} rows from {source}")
-    name = f"{args.catalog}.{args.schema}.{NOTES_TABLE}"
-    appended = load_clinical_notes(spark, args.notes_path, name, ingested_at)
-    print(f"{name}: appended {appended} rows from {args.notes_path}")
+    with track_run("bronze", args) as ops:
+        spark = SparkSession.builder.getOrCreate()
+        ingested_at = datetime.now(UTC)
+        for source, (table, build) in LANDED_TABLES.items():
+            name = f"{args.catalog}.{args.schema}.{table}"
+            appended = load_landed(spark, args.landing, source, name, build, ingested_at)
+            ops.wrote(name, appended)
+            print(f"{name}: appended {appended} rows from {source}")
+        name = f"{args.catalog}.{args.schema}.{NOTES_TABLE}"
+        appended = load_clinical_notes(spark, args.notes_path, name, ingested_at)
+        ops.wrote(name, appended)
+        print(f"{name}: appended {appended} rows from {args.notes_path}")
 
 
 if __name__ == "__main__":
