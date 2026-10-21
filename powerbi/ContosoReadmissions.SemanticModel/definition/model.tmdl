@@ -1,0 +1,20 @@
+model Model
+	culture: en-US
+	defaultPowerBIDataSourceVersion: powerBI_V3
+	sourceQueryCulture: en-US
+	dataAccessOptions
+		legacyRedirects
+		returnErrorValuesAsNull
+
+annotation __PBI_TimeIntelligenceEnabled = 0
+
+annotation PBI_QueryOrder = ["DatabricksServerHostname","DatabricksHttpPath","DatabricksCatalog","DatabricksSchema","DatabricksGold","gold_facility_condition_year","gold_penalty_mart","gold_contoso_scorecard","gold_penalty_predictions","Fiscal Year","Facility","Condition"]
+
+ref table gold_facility_condition_year
+ref table gold_penalty_mart
+ref table gold_contoso_scorecard
+ref table gold_penalty_predictions
+ref table 'Fiscal Year'
+ref table Facility
+ref table Condition
+

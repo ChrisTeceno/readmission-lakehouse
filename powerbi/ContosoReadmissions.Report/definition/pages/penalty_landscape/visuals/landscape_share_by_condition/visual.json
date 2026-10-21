@@ -1,0 +1,78 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.13.0/schema.json",
+  "name": "landscape_share_by_condition",
+  "position": {
+    "x": 440,
+    "y": 250,
+    "z": 6,
+    "height": 450,
+    "width": 400,
+    "tabOrder": 6
+  },
+  "visual": {
+    "visualType": "clusteredColumnChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Condition"
+                    }
+                  },
+                  "Property": "condition_name"
+                }
+              },
+              "queryRef": "Condition.condition_name",
+              "nativeQueryRef": "condition_name"
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "gold_facility_condition_year"
+                    }
+                  },
+                  "Property": "Share Above Cutoff"
+                }
+              },
+              "queryRef": "gold_facility_condition_year.Share Above Cutoff",
+              "nativeQueryRef": "Share Above Cutoff"
+            }
+          ]
+        }
+      }
+    },
+    "drillFilterOtherVisuals": true,
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Share of conditions above the cutoff by condition'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

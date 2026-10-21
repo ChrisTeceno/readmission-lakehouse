@@ -1,0 +1,31 @@
+/// Server hostname of the Databricks SQL warehouse (Connection details tab), without https://.
+expression DatabricksServerHostname = "<workspace-host>" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=true]
+
+	annotation PBI_ResultType = Text
+
+/// HTTP path of the Databricks SQL warehouse, /sql/1.0/warehouses/ followed by its id.
+expression DatabricksHttpPath = "<warehouse-http-path>" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=true]
+
+	annotation PBI_ResultType = Text
+
+/// Unity Catalog catalog that holds the Gold tables.
+expression DatabricksCatalog = "workspace" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=true]
+
+	annotation PBI_ResultType = Text
+
+/// Schema that holds the Gold tables.
+expression DatabricksSchema = "readmission" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=true]
+
+	annotation PBI_ResultType = Text
+
+/// The Gold schema through the Databricks connector; every Gold table's partition navigates from here.
+expression DatabricksGold =
+		let
+		    Source = Databricks.Catalogs(DatabricksServerHostname, DatabricksHttpPath, [Catalog = null, Database = null, EnableAutomaticProxyDiscovery = null]),
+		    Catalog = Source{[Name = DatabricksCatalog, Kind = "Database"]}[Data],
+		    Schema = Catalog{[Name = DatabricksSchema, Kind = "Schema"]}[Data]
+		in
+		    Schema
+
+	annotation PBI_ResultType = Table
+

@@ -1,0 +1,38 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.13.0/schema.json",
+  "name": "scorecard_card_3",
+  "position": {
+    "x": 530,
+    "y": 100,
+    "z": 4,
+    "height": 130,
+    "width": 240,
+    "tabOrder": 4
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "gold_contoso_scorecard"
+                    }
+                  },
+                  "Property": "Contoso ERR vs Peer Cutoff"
+                }
+              },
+              "queryRef": "gold_contoso_scorecard.Contoso ERR vs Peer Cutoff",
+              "nativeQueryRef": "Contoso ERR vs Peer Cutoff"
+            }
+          ]
+        }
+      }
+    },
+    "drillFilterOtherVisuals": true
+  }
+}
