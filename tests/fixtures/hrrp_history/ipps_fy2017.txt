@@ -1,0 +1,8 @@
+FY 2017 IPPS Final Rule: Hospital Readmissiosn Reduction Program-Supplemental Data													
+Provider	FY 2017 Readmissions Adjustment Factor	Number of Pneumonia Cases	Excess Readmission Ratio for Pneumoniuia	Number of Heart Failure Cases	Excess Readmission Ratio for Heart Failure	Number of Acute Myocardial Infarction Cases	Acute Myocardial Infarction Excess Readmission Ratio	Number of Hip/Knee Arthroplasty Cases	Hip/Knee Arthroplasty Excess Readmission Ratio	Number of Chronic Obstructive Pulmonary Disease Cases	Chronic Obstructive Pulmonary Disease Excess Readmission Ratio	Number of Coronary Artery Bypass Graft Cases	Coronary Artery Bypass Graft Excess Readmission Ratio
+010001	0.9935	664	1.089249865	983	0.950873273	781	0.983722523	335	1.119750711	709	1.045479805	273	1.061759499
+010005	0.9911	890	0.955265610	389	1.000125958	40	0.990507408	249	1.277565521	667	0.901369362	0	0.000000000
+010007	0.999	200	1.011608616	107	0.960778512	10	0.000000000	23	0.000000000	130	0.996040484	0	0.000000000
+													
+													
+													

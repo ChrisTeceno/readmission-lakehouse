@@ -1,0 +1,9 @@
+Hospital Name,Provider ID,State,Measure Name,Number of Discharges,Footnote,Excess Readmission Ratio,Predicted Readmission Rate,Expected Readmission Rate,Number of Readmissions,Start Date,End Date
+"BYRD REGIONAL HOSPITAL","190164","LA","READM_30_AMI_HRRP","Not Available","1 - The number of cases/patients is too few to report.","Not Available","Not Available","Not Available","Not Available","07/01/2014","06/30/2017"
+"BYRD REGIONAL HOSPITAL","190164","LA","READM_30_CABG_HRRP","Not Available","1 - The number of cases/patients is too few to report.","Not Available","Not Available","Not Available","Not Available","07/01/2014","06/30/2017"
+"BYRD REGIONAL HOSPITAL","190164","LA","READM_30_COPD_HRRP","217","","1.0195","20.9722","20.5712","47","07/01/2014","06/30/2017"
+"BYRD REGIONAL HOSPITAL","190164","LA","READM_30_HF_HRRP","259","","1.0773","23.9788","22.2578","67","07/01/2014","06/30/2017"
+"BYRD REGIONAL HOSPITAL","190164","LA","READM_30_HIP_KNEE_HRRP","Not Available","1 - The number of cases/patients is too few to report.","Not Available","Not Available","Not Available","Not Available","07/01/2014","06/30/2017"
+"BYRD REGIONAL HOSPITAL","190164","LA","READM_30_PN_HRRP","213","","1.1031","19.2445","17.4459","47","07/01/2014","06/30/2017"
+"SOUTHEAST ALABAMA MEDICAL CENTER","010001","AL","READM_30_AMI_HRRP","798","","1.0072","14.8575","14.7514","119","07/01/2014","06/30/2017"
+"SOUTHEAST ALABAMA MEDICAL CENTER","010001","AL","READM_30_CABG_HRRP","290","","1.1392","14.0204","12.3077","44","07/01/2014","06/30/2017"
