@@ -10,8 +10,8 @@ unchanged under `acs_county/<vintage>/<batch_id>/`:
   names do not use, so Connecticut hospitals are matched through their town instead.
 
 A published ACS vintage does not change, so fetch skips a vintage that already has a landed
-manifest. The API key comes from `get_secret` and never reaches a manifest, a URL in a log line
-or an error message.
+manifest. The API key comes from `get_secret`, which fetch calls on every run, and never reaches
+a manifest, a URL in a log line or an error message.
 """
 
 import json
@@ -152,9 +152,11 @@ def fetch_acs_county(
 ) -> list[dict]:
     """Land every vintage not landed yet: both responses, then the vintage's manifest."""
     pending = sorted(set(vintages) - landed_vintages(lander.root))
+    # Read even when nothing is pending, so every run checks the secret backend (Key Vault
+    # while the Azure resources are deployed, docs/azure.md) the next vintage will need.
+    api_key = read_secret(secrets.SCOPE, SECRET_KEY)
     if not pending:
         return []
-    api_key = read_secret(secrets.SCOPE, SECRET_KEY)
     if api_key is None:
         print(f"{SOURCE}: no secret {secrets.SCOPE}/{SECRET_KEY}, calling the Census API keyless")
     landed = []

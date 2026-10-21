@@ -5,6 +5,8 @@ description = "Hospital readmission lakehouse for the fictional client Contoso H
 readme = "README.md"
 requires-python = ">=3.11,<3.12"
 dependencies = [
+    "azure-identity>=1.26.0",
+    "azure-keyvault-secrets>=4.11.3",
     "databricks-sdk>=0.155.0",
     "httpx>=0.28.1",
     "jsonschema>=4.23",
