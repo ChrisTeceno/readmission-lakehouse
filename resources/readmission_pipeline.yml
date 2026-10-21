@@ -1,5 +1,6 @@
 # The pipeline job: fetch every source into the landing volume, then load landing into Bronze.
-# Both tasks run the project wheel (the `readmission` artifact in databricks.yml) on serverless.
+# The contoso task reads Contoso's Lakebase database directly, so it runs beside fetch.
+# All tasks run the project wheel (the `readmission` artifact in databricks.yml) on serverless.
 # No schedule yet; run it with `databricks bundle run readmission_pipeline -t dev`.
 resources:
   jobs:
@@ -37,6 +38,17 @@ resources:
           python_wheel_task:
             package_name: readmission
             entry_point: readmission-bronze
+            parameters:
+              - --catalog
+              - ${var.catalog}
+              - --schema
+              - ${var.schema}
+        - task_key: contoso
+          environment_key: readmission
+          timeout_seconds: 1800
+          python_wheel_task:
+            package_name: readmission
+            entry_point: readmission-contoso
             parameters:
               - --catalog
               - ${var.catalog}

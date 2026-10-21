@@ -13,6 +13,7 @@ dependencies = [
 [project.scripts]
 readmission-fetch = "readmission.ingest.fetch:main"
 readmission-bronze = "readmission.bronze.load:main"
+readmission-contoso = "readmission.bronze.contoso:main"
 
 [dependency-groups]
 # PySpark is provided by the Databricks runtime, so it stays dev-only.
@@ -22,6 +23,7 @@ dev = [
     "ruff",
     "pyspark==3.5.9",
     "delta-spark==3.3.3",
+    "psycopg[binary]>=3.3.6",
 ]
 
 [build-system]
