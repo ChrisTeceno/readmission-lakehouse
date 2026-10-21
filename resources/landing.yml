@@ -1,0 +1,16 @@
+# The lakehouse schema and the landing volume that fetch steps upload raw files into.
+# The volume references the schema resource, so deploy creates the schema first.
+resources:
+  schemas:
+    readmission:
+      catalog_name: ${var.catalog}
+      name: ${var.schema}
+      comment: Readmission lakehouse for the fictional client Contoso Health (Bronze, Silver, Gold)
+
+  volumes:
+    landing:
+      catalog_name: ${var.catalog}
+      schema_name: ${resources.schemas.readmission.name}
+      name: landing
+      volume_type: MANAGED
+      comment: Raw source files as downloaded, one directory per source and batch, each with a _manifest.json

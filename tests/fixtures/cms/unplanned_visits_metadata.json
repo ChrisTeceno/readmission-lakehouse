@@ -1,0 +1,52 @@
+{
+  "accessLevel": "public",
+  "landingPage": "https://data.cms.gov/provider-data/dataset/632h-zaca",
+  "bureauCode": [
+    "009:38"
+  ],
+  "issued": "2023-07-05",
+  "@type": "dcat:Dataset",
+  "modified": "2026-09-10",
+  "released": "2026-09-30",
+  "keyword": [
+    "Unplanned Hospital Visits",
+    "Readmissions",
+    "Excess Days in Acute Care",
+    "Outpatient Surgery",
+    "Outpatient",
+    "Pneumonia",
+    "Acute Myocardial Infarction",
+    "Heart Failure",
+    "Chronic Obstructive Pulmonary Disease",
+    "Coronary Artery Bypass Graft",
+    "Colonoscopy",
+    "Total Hip and/or Total Knee Arthroplasty"
+  ],
+  "contactPoint": {
+    "@type": "vcard:Contact",
+    "fn": "Hospital Compare",
+    "hasURL": "https://cmsqualitysupport.servicenowservices.com/qnet_qa"
+  },
+  "publisher": {
+    "@type": "org:Organization",
+    "name": "Centers for Medicare & Medicaid Services (CMS)"
+  },
+  "identifier": "632h-zaca",
+  "description": "Unplanned Hospital Visits: provider data. This data set includes provider data for the hospital return days (or excess days in acute care [EDAC]) measures, the unplanned readmissions measures, and measures of unplanned hospital visits after outpatient procedures.",
+  "title": "Unplanned Hospital Visits - Hospital",
+  "programCode": [
+    "009:000"
+  ],
+  "distribution": [
+    {
+      "@type": "dcat:Distribution",
+      "downloadURL": "https://data.cms.gov/provider-data/sites/default/files/resources/30edc1d0417a34b58affcc2495a02b0a_1790013959/Unplanned_Hospital_Visits-Hospital.csv",
+      "mediaType": "text/csv",
+      "describedBy": "https://data.cms.gov/provider-data/sites/default/files/data_dictionaries/hospital/HOSPITAL_Data_Dictionary.pdf",
+      "describedByType": "application/pdf"
+    }
+  ],
+  "theme": [
+    "Hospitals"
+  ]
+}
