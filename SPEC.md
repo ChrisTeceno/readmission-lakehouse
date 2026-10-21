@@ -66,8 +66,6 @@ The first ingest task runs a one-line egress probe from serverless and records t
 
 **Probe result (2026-10-21, serverless job runs from the `readmission` CLI profile):** all reachable with HTTP 200: data.cms.gov datastore and archive API, www.cms.gov, api.census.gov, login.microsoftonline.com, pypi.org. The datastore endpoint returned one transient 503 then 200 on two reruns, so fetch needs retries on 5xx. Decision: fetch runs as the first task of the Databricks job; the GitHub Actions fallback is not needed unless this changes. The fetch/load split stays, because landing raw files keeps Bronze reproducible and lets ADF reuse the fetch step.
 
-**Probe result (2026-10-21, serverless job runs from the `readmission` CLI profile):** all reachable with HTTP 200: data.cms.gov datastore and archive API, www.cms.gov, api.census.gov, login.microsoftonline.com, pypi.org. The datastore endpoint returned one transient 503 then 200 on two reruns, so fetch needs retries on 5xx. Decision: fetch runs as the first task of the Databricks job; the GitHub Actions fallback is not needed unless this changes. The fetch/load split stays, because landing raw files keeps Bronze reproducible and lets ADF reuse the fetch step.
-
 | Source | Access | Bronze table |
 |---|---|---|
 | HRRP by hospital (`9n3s-kdb3`) | CMS datastore API, paginated | `bronze_hrrp` |
