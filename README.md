@@ -20,7 +20,7 @@ A portfolio project framed as a delivery engagement for the fictional client Con
 | AI-assisted development and judgment | [`docs/ai-assisted-dev.md`](docs/ai-assisted-dev.md): cases tied to PRs of AI output that was accepted, corrected or rejected; gitleaks in CI ([`ci.yml`](.github/workflows/ci.yml)); LLM output schema-validated and evaluated |
 | LLMs in solutions | [`llm/`](src/readmission/llm/) notes extraction through `ai_query`, schema- and quote-validated, three models compared on 50 labelled notes in MLflow ([`docs/llm-extraction.md`](docs/llm-extraction.md), [ADR 0002](engagement/adr/0002-llm-risk-factor-extraction.md)) |
 | Git workflows | PR-per-task history, CI on GitHub Actions ([`ci.yml`](.github/workflows/ci.yml)) |
-| Client communication | [`engagement/`](engagement/README.md): [wireframe](engagement/wireframe.md) and [ADRs](engagement/adr/); discovery notes, requirements and readout are not on `main` yet |
+| Client communication | [`engagement/`](engagement/README.md): [discovery notes](engagement/discovery.md), [user stories](engagement/user-stories.md) with acceptance criteria, [dashboard wireframe](engagement/wireframe.md), [ADR index](engagement/adr/README.md), [status update](engagement/status-update.md), [PHI note](engagement/phi-note.md); the readout is still to come |
 | Healthcare bonus | The domain; no PHI is used |
 
 ## Contoso's data
