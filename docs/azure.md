@@ -5,8 +5,8 @@ holds the pipeline's secrets, and an Azure Data Factory pipeline starts the Data
 is defined in Bicep (`infra/main.bicep`), deployed into one resource group to capture evidence,
 and torn down afterwards. Contoso Health is fictional; nothing here belongs to a real client.
 
-Status: written and compiled offline. Not deployed yet: creating Azure resources waits for
-Chris's approval (SPEC.md, Boundaries).
+Status: deployed on 2026-10-21 with Chris's approval, and run twice from ADF; evidence in
+`docs/evidence/azure.md`. To be torn down with `infra/teardown.sh`.
 
 ## What gets deployed
 
