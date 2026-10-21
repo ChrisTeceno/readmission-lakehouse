@@ -8,7 +8,7 @@ A portfolio project framed as a delivery engagement for the fictional client Con
 |---|---|
 | Databricks, Spark/PySpark, Delta | `src/` pipeline code, Delta tables in Unity Catalog `workspace.readmission` |
 | Medallion architecture | `bronze/`, `silver/`, `gold/` modules and `docs/architecture.md` diagram |
-| Pipelines from APIs, databases, other sources | CMS datastore API (paginated JSON), Census ACS API, MTSamples Delta table, CMS CSV files |
+| Pipelines from APIs, databases, other sources | CMS datastore API (paginated JSON), Census ACS API, Contoso's Lakebase Postgres (JDBC, incremental on an `updated_at` watermark), MTSamples Delta table, CMS CSV files |
 | MLflow experiments | `ml/train_penalty_model.py`, experiment `/Shared/readmission-penalty`, registered model |
 | Data governance, schema enforcement, testing, quality | Explicit Silver schemas, Delta constraints, expectation checks, quarantine table, pytest suite |
 | Orchestration (Databricks Workflows, ADF) | Databricks Asset Bundle job (`databricks.yml`); one ADF pipeline that triggers it |
@@ -22,6 +22,10 @@ A portfolio project framed as a delivery engagement for the fictional client Con
 | Git workflows | PR-per-task history, CI on GitHub Actions |
 | Client communication | `engagement/` discovery notes, requirements, ADRs, readout |
 | Healthcare bonus | The domain |
+
+## Contoso's data
+
+Contoso Health is fictional. Its operational database (a Lakebase Postgres, `docs/lakebase.md`) is synthetic, seeded by `scripts/seed_contoso.py`. Its 12 facilities are real public CMS Certification Numbers from Ohio relabeled with invented names, so Contoso's numbers line up with the public HRRP data; no real hospital's data is altered, and no Contoso number describes a real hospital.
 
 ## Local development
 

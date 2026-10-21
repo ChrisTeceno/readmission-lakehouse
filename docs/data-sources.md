@@ -25,10 +25,12 @@ was checked on 2026-10-21 with all seven IPPS years (batch `20261021T190000Z`).
 
 ## Pipeline job
 
-`databricks bundle run readmission_pipeline -t dev` runs two serverless tasks from the project
+`databricks bundle run readmission_pipeline -t dev` runs three serverless tasks from the project
 wheel (`resources/readmission_pipeline.yml`): `fetch` runs the fetch CLI for every source, then
 `bronze` (`readmission.bronze.load`) appends what is new in landing to the Bronze tables and
-copies the MTSamples notes. A second run with no source changes appends nothing.
+copies the MTSamples notes. A second run with no source changes appends nothing. `contoso`
+(`readmission.bronze.contoso`) runs beside them: it reads Contoso's Lakebase database directly,
+not the landing volume (see the Contoso section below).
 
 ## Current CMS datasets (verified 2026-10-21)
 
@@ -58,6 +60,30 @@ partitioned by `medical_specialty`, whose values keep a leading space). There is
 load reads the latest Delta version, never writes to the source, and stores that version in
 `_source_modified`; a run whose version is already in Bronze copies nothing. Code:
 `bronze/clinical_notes.py`.
+
+## Contoso operational database (Lakebase, synthetic)
+
+Contoso Health is fictional, and so is everything in its database. The 12 facilities are real
+Ohio hospitals' public CCNs relabeled with invented names (`Contoso Health Alder` and so on), so
+Contoso's tables join to the CMS tables; no real hospital's data is altered. Monthly discharges
+by facility and HRRP condition are scaled from each CCN's FY2026 HRRP discharge counts (Medicare
+fee-for-service, 36-month window) by an all-payer factor of 2, with winter peaks for pneumonia,
+COPD and heart failure; a condition CMS reports no count for gets no rows. Follow-up call counts
+are drawn per facility, month and condition, split by whether the call came within 72 hours of
+discharge. Values are deterministic (fixed seed, one generator per row key).
+
+| Postgres table (`contoso` schema) | Key | Bronze table | Silver table | Rows (2026-10-21) |
+|---|---|---|---|---|
+| `facilities` | `facility_id` | `bronze_contoso_facilities` | `silver_contoso_facilities` | 12 |
+| `discharges` | facility, `discharge_month`, `condition` | `bronze_contoso_discharges` | `silver_contoso_discharges` | 1,850 |
+| `followup_calls` | facility, month, condition, `within_72h` | `bronze_contoso_followup_calls` | `silver_contoso_followup_calls` | 3,700 |
+
+Every table carries `updated_at`. The load reads only rows with `updated_at` after the watermark
+in `ops_watermarks` (one row per source table) over JDBC, appends them to Bronze with
+`_ingested_at`, `_source` (`lakebase:contoso.<table>`) and `_batch_id`, then rebuilds Silver,
+keeping the latest version of each key. Setup, credentials and the incremental test:
+`docs/lakebase.md`; connector choice: `engagement/adr/0001-contoso-lakebase-connector.md`.
+Code: `ingest/contoso.py`, `bronze/contoso.py`, `silver/contoso.py`, `scripts/seed_contoso.py`.
 
 ## Historical HRRP, FY2013 to FY2027
 
