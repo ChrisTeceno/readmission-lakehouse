@@ -23,9 +23,9 @@ from readmission.silver.build import apply_governance
 from readmission.silver.governance import TableDoc
 
 # The share of fact rows with an anomaly flag above which the run records a failed metric
-# without failing: on the 2026-10-21 data 2.6 percent of rows are flagged, mostly FY2022 and
-# FY2024 discharge drops from the COVID-shortened windows. A much higher share points at a
-# broken input rather than at hospitals.
+# without failing: on the 2026-10-21 data 1.2 percent of rows are flagged (3,127 of 266,159),
+# most of them discharge jumps. A share several times that points at a broken input, such as
+# a file whose discharge column changed meaning, rather than at hospitals.
 MAX_ANOMALY_RATE = 0.05
 
 
