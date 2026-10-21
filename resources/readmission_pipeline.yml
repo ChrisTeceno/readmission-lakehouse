@@ -1,14 +1,27 @@
 # The pipeline job: fetch every source into the landing volume, then load landing into Bronze.
 # The contoso task reads Contoso's Lakebase database directly, so it runs beside fetch.
 # The silver task runs after bronze and contoso: it builds the CMS and MTSamples Silver tables
-# and quarantines the Contoso rows the contoso task left out of Silver.
-# All tasks run the project wheel (the `readmission` artifact in databricks.yml) on serverless.
-# No schedule yet; run it with `databricks bundle run readmission_pipeline -t dev`.
+# and quarantines the Contoso rows the contoso task left out of Silver. The gold task builds the
+# Gold tables from Silver.
+# All tasks run the project wheel (the `readmission` artifact in databricks.yml) on serverless,
+# and each logs its run to ops_run_log and ops_dq_metrics (readmission.ops).
+# Run it with `databricks bundle run readmission_pipeline -t dev`; add
+# `--params fail_task=<task>` to make that task fail, which tests the failure email.
 resources:
   jobs:
     readmission_pipeline:
       name: readmission_pipeline
       max_concurrent_runs: 1
+      # Daily at 06:00 UTC. The dev target's trigger_pause_status preset leaves it paused.
+      schedule:
+        quartz_cron_expression: "0 0 6 * * ?"
+        timezone_id: UTC
+      email_notifications:
+        on_failure:
+          - ${workspace.current_user.userName}
+      parameters:
+        - name: fail_task
+          default: ""
       environments:
         - environment_key: readmission
           spec:
@@ -21,6 +34,12 @@ resources:
           environment_key: readmission
           # CMS datastore pages take 40 to 55 seconds each and the PDC archive zips are large.
           timeout_seconds: 3600
+          # A download that still fails after the HTTP client's own exponential backoff (5
+          # attempts, 1 to 16 seconds apart) reruns the whole task, up to twice. Jobs retry at a
+          # fixed interval, so the task-level wait is a flat two minutes.
+          max_retries: 2
+          min_retry_interval_millis: 120000
+          retry_on_timeout: false
           python_wheel_task:
             package_name: readmission
             entry_point: readmission-fetch
@@ -33,6 +52,12 @@ resources:
               - acs_county
               - --work-dir
               - /tmp/readmission-fetch
+              - --catalog
+              - ${var.catalog}
+              - --schema
+              - ${var.schema}
+              - --job-run-id={{job.run_id}}
+              - --fail-task={{job.parameters.fail_task}}
         - task_key: bronze
           depends_on:
             - task_key: fetch
@@ -46,6 +71,8 @@ resources:
               - ${var.catalog}
               - --schema
               - ${var.schema}
+              - --job-run-id={{job.run_id}}
+              - --fail-task={{job.parameters.fail_task}}
         - task_key: contoso
           environment_key: readmission
           timeout_seconds: 1800
@@ -57,6 +84,8 @@ resources:
               - ${var.catalog}
               - --schema
               - ${var.schema}
+              - --job-run-id={{job.run_id}}
+              - --fail-task={{job.parameters.fail_task}}
         - task_key: silver
           depends_on:
             - task_key: bronze
@@ -71,3 +100,20 @@ resources:
               - ${var.catalog}
               - --schema
               - ${var.schema}
+              - --job-run-id={{job.run_id}}
+              - --fail-task={{job.parameters.fail_task}}
+        - task_key: gold
+          depends_on:
+            - task_key: silver
+          environment_key: readmission
+          timeout_seconds: 1800
+          python_wheel_task:
+            package_name: readmission
+            entry_point: readmission-gold
+            parameters:
+              - --catalog
+              - ${var.catalog}
+              - --schema
+              - ${var.schema}
+              - --job-run-id={{job.run_id}}
+              - --fail-task={{job.parameters.fail_task}}

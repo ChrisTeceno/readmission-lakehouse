@@ -17,8 +17,11 @@ from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql import types as T
 
+from readmission.ops import RunRecorder, add_ops_arguments, track_run
 from readmission.quality.constraints import add_constraint_statement
 from readmission.quality.expectations import (
+    MAX_ERR_NULL_RATE,
+    MAX_ROW_COUNT_DROP,
     ExpectationFailed,
     check_err_null_rate,
     check_row_count,
@@ -135,8 +138,12 @@ def row_count(spark: SparkSession, name: str) -> int | None:
     return spark.table(name).count() if spark.catalog.tableExists(name) else None
 
 
-def build_table(spark: SparkSession, table: SilverTable, prefix: str) -> tuple[int, int]:
-    """Rebuild one Silver table and its quarantine rows; returns (rows, quarantined)."""
+def build_table(
+    spark: SparkSession, table: SilverTable, prefix: str, run: RunRecorder | None = None
+) -> tuple[int, int]:
+    """Rebuild one Silver table and its quarantine rows; returns (rows, quarantined). Each
+    expectation's value and result go to `run` for ops_dq_metrics."""
+    run = run or RunRecorder("silver")
     name = f"{prefix}.{table.name}"
     quarantine = f"{prefix}.{QUARANTINE_TABLE}"
     rows, rejected = table.build(*[spark.table(f"{prefix}.{b}") for b in table.bronze])
@@ -146,9 +153,23 @@ def build_table(spark: SparkSession, table: SilverTable, prefix: str) -> tuple[i
 
     err_null = F.count_if(F.col("excess_readmission_ratio").isNull()) if table.has_err else F.lit(0)
     stats = rows.agg(F.count(F.lit(1)).alias("total"), err_null.alias("err_null")).first()
-    check_row_count(name, row_count(spark, name), stats["total"])
+    run.metric(name, "quarantined_rows", quarantined)
+    previous = row_count(spark, name)
+    run.check(
+        name,
+        "row_count",
+        stats["total"],
+        previous * (1 - MAX_ROW_COUNT_DROP) if previous else None,
+        lambda: check_row_count(name, previous, stats["total"]),
+    )
     if table.has_err:
-        check_err_null_rate(name, stats["err_null"], stats["total"])
+        run.check(
+            name,
+            "err_null_rate",
+            stats["err_null"] / stats["total"] if stats["total"] else 0.0,
+            MAX_ERR_NULL_RATE,
+            lambda: check_err_null_rate(name, stats["err_null"], stats["total"]),
+        )
 
     ensure_table(spark, name, table.schema, table.constraints)
     rows.writeTo(name).overwrite(F.lit(True))
@@ -178,34 +199,41 @@ def apply_governance(spark: SparkSession, name: str, schema: T.StructType, doc: 
         print(f"{name}: skipped grant, no Unity Catalog group named in: {grant_statement(name)}")
 
 
-def main(argv: list[str] | None = None) -> None:
-    parser = argparse.ArgumentParser(description="Build the Silver tables from Bronze.")
-    parser.add_argument("--catalog", default="workspace")
-    parser.add_argument("--schema", default="readmission")
-    args = parser.parse_args(argv)
-    spark = SparkSession.builder.getOrCreate()
-    prefix = f"{args.catalog}.{args.schema}"
+def build_silver(spark: SparkSession, prefix: str, run: RunRecorder) -> None:
     quarantine = f"{prefix}.{QUARANTINE_TABLE}"
     ensure_table(spark, quarantine, SILVER_QUARANTINE_SCHEMA, [])
     failures = []
     for table in SILVER_TABLES:
         name = f"{prefix}.{table.name}"
         try:
-            rows, quarantined = build_table(spark, table, prefix)
+            rows, quarantined = build_table(spark, table, prefix, run)
         except ExpectationFailed as e:
             failures.append(str(e))
             print(f"{name}: expectation failed, table left as it was: {e}")
             continue
         apply_governance(spark, name, table.schema, table.doc)
+        run.wrote(name, rows)
         print(f"{name}: {rows} rows, {quarantined} quarantined")
         if table.name == acs_county.HOSPITAL_COUNTY_TABLE:
             print("\n".join(acs_county.match_report(spark.table(name))))
     for table in contoso.CHECKED_TABLES:
         quarantined = quarantine_contoso(spark, prefix, table)
+        run.metric(f"{prefix}.silver_contoso_{table}", "quarantined_rows", quarantined)
         print(f"{prefix}.silver_contoso_{table}: {quarantined} quarantined")
     apply_governance(spark, quarantine, SILVER_QUARANTINE_SCHEMA, SILVER_QUARANTINE_DOC)
     if failures:
         raise ExpectationFailed("; ".join(failures))
+
+
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(description="Build the Silver tables from Bronze.")
+    parser.add_argument("--catalog", default="workspace")
+    parser.add_argument("--schema", default="readmission")
+    add_ops_arguments(parser)
+    args = parser.parse_args(argv)
+    with track_run("silver", args) as run:
+        spark = SparkSession.builder.getOrCreate()
+        build_silver(spark, f"{args.catalog}.{args.schema}", run)
 
 
 if __name__ == "__main__":

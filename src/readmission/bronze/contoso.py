@@ -20,6 +20,7 @@ from pyspark.sql import types as T
 
 from readmission.ingest.contoso import PG_SCHEMA, TABLES, connection_params
 from readmission.ingest.landing import new_batch_id
+from readmission.ops import add_ops_arguments, track_run
 from readmission.silver import contoso as silver
 
 WATERMARK_TABLE = "ops_watermarks"
@@ -154,28 +155,33 @@ def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Load Contoso's database into Bronze and Silver.")
     parser.add_argument("--catalog", default="workspace")
     parser.add_argument("--schema", default="readmission")
+    add_ops_arguments(parser)
     args = parser.parse_args(argv)
     from databricks.sdk import WorkspaceClient
 
-    spark = SparkSession.builder.getOrCreate()
-    read = jdbc_reader(spark, connection_params(WorkspaceClient()))
-    prefix = f"{args.catalog}.{args.schema}"
-    ingested_at = datetime.now(UTC)
-    batch_id = new_batch_id(ingested_at)
-    for table in TABLES:
-        name = f"{prefix}.bronze_contoso_{table}"
-        appended = load_table(
-            spark, read, table, name, f"{prefix}.{WATERMARK_TABLE}", batch_id, ingested_at
-        )
-        print(f"{name}: appended {appended} rows from {source_name(table)}")
-    for table, build in silver.SILVER_TABLES.items():
-        name = f"{prefix}.silver_contoso_{table}"
-        df = build(spark.table(f"{prefix}.bronze_contoso_{table}"))
-        # Silver is small and rebuilt from Bronze on every run.
-        df.write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(
-            name
-        )
-        print(f"{name}: {spark.table(name).count()} rows")
+    with track_run("contoso", args) as ops:
+        spark = SparkSession.builder.getOrCreate()
+        read = jdbc_reader(spark, connection_params(WorkspaceClient()))
+        prefix = f"{args.catalog}.{args.schema}"
+        ingested_at = datetime.now(UTC)
+        batch_id = new_batch_id(ingested_at)
+        for table in TABLES:
+            name = f"{prefix}.bronze_contoso_{table}"
+            appended = load_table(
+                spark, read, table, name, f"{prefix}.{WATERMARK_TABLE}", batch_id, ingested_at
+            )
+            ops.wrote(name, appended)
+            print(f"{name}: appended {appended} rows from {source_name(table)}")
+        for table, build in silver.SILVER_TABLES.items():
+            name = f"{prefix}.silver_contoso_{table}"
+            df = build(spark.table(f"{prefix}.bronze_contoso_{table}"))
+            # Silver is small and rebuilt from Bronze on every run.
+            df.write.format("delta").mode("overwrite").option(
+                "overwriteSchema", "true"
+            ).saveAsTable(name)
+            rows = spark.table(name).count()
+            ops.wrote(name, rows)
+            print(f"{name}: {rows} rows")
 
 
 if __name__ == "__main__":

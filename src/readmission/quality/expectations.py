@@ -1,7 +1,7 @@
-"""Expectations that fail the Silver build, unlike quarantine, which never does.
+"""Expectations that fail the Silver or Gold build, unlike quarantine, which never does.
 
-Each check runs before the table is overwritten, so a failing batch leaves the previous Silver
-table in place.
+Each check runs before the table is overwritten, so a failing batch leaves the previous table
+in place.
 """
 
 # CMS republishes each dataset whole, and its row counts move by a few percent a year as
@@ -51,3 +51,10 @@ def check_match_rate(table: str, matched: int, total: int) -> None:
             f"{table}: {matched} of {total} hospitals matched a county, below "
             f"{MIN_COUNTY_MATCH_RATE:.0%}"
         )
+
+
+def check_same_row_count(table: str, expected: int, current: int) -> None:
+    """A Gold table built one row per Silver row: any other count means a join fanned out or
+    dropped rows."""
+    if current != expected:
+        raise ExpectationFailed(f"{table}: {current} rows, expected {expected}, one per Silver row")
