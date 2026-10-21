@@ -1,0 +1,19 @@
+bundle:
+  name: readmission-lakehouse
+
+include:
+  - resources/*.yml
+
+variables:
+  catalog:
+    description: Unity Catalog catalog that holds the lakehouse schema
+    default: workspace
+  schema:
+    description: Schema for the Bronze, Silver and Gold tables
+    default: readmission
+
+targets:
+  # The workspace host comes from DATABRICKS_HOST or a CLI profile, never from this file.
+  dev:
+    mode: development
+    default: true
