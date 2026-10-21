@@ -177,6 +177,26 @@ def test_fetch_skips_vintages_already_landed(tmp_path):
     assert not any("/2011/" in c.url.path for c in calls)
 
 
+def test_fetch_reads_the_key_even_when_every_vintage_is_landed(tmp_path):
+    lander = LocalLander(str(tmp_path))
+    fetch_acs_county(
+        client(census_server([])), lander, "b1", tmp_path, [2024], lambda s, k: API_KEY
+    )
+    reads: list = []
+    calls: list = []
+
+    def read_secret(scope, key):
+        reads.append((scope, key))
+        return API_KEY
+
+    landed = fetch_acs_county(
+        client(census_server(calls)), lander, "b2", tmp_path, [2024], read_secret
+    )
+
+    assert landed == [] and calls == []
+    assert reads == [("readmission", "census_api_key")]
+
+
 def test_keyless_fetch_fails_naming_the_secret(tmp_path, capsys):
     with pytest.raises(MissingCensusKey, match="scope 'readmission', key 'census_api_key'"):
         fetch_acs_county(

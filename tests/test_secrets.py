@@ -53,13 +53,16 @@ def test_vault_secret_name_swaps_underscores_for_dashes():
     assert vault_secret_name("databricks-token") == "databricks-token"
 
 
-def test_scope_without_a_key_vault_url_reads_the_scope_and_never_the_vault():
+def test_scope_without_a_key_vault_url_reads_the_scope_and_never_the_vault(capsys):
     vault = FakeVault({"census-api-key": "from-vault"})
     ws = workspace({"census_api_key": "from-scope"})
 
     assert get_secret("readmission", "census_api_key", ws, vault) == "from-scope"
     assert get_secret("readmission", "other", ws, vault) is None
     assert vault.requested == []
+    out = capsys.readouterr().out
+    assert "census_api_key read from secret scope 'readmission'" in out
+    assert "from-scope" not in out
 
 
 def test_scope_with_a_key_vault_url_reads_the_vault_first(capsys):

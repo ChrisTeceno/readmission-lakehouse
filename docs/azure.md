@@ -67,8 +67,10 @@ environment variables:
 Key Vault names allow only letters, digits and dashes, so `census_api_key` is read as
 `census-api-key`. A secret the vault does not hold falls back to the scope; a vault that refuses
 the service principal raises, so a bad credential is never mistaken for a missing key. Each read
-logs which backend answered (`secrets: census_api_key read from Key Vault https://...`), never
-the value. Tests use a fake vault client and a fake workspace (`tests/test_secrets.py`), with no
+logs which backend answered (`secrets: census_api_key read from Key Vault https://...` or
+`... read from secret scope 'readmission'`), never the value. The fetch task reads the key on
+every run, even when every ACS vintage is already landed and no Census call follows, so each
+scheduled or ADF-triggered run checks the Key Vault path and its fetch log names the backend. Tests use a fake vault client and a fake workspace (`tests/test_secrets.py`), with no
 network.
 
 Serverless egress to `login.microsoftonline.com` was confirmed by the 2026-10-21 probe (SPEC.md,

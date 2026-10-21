@@ -86,4 +86,7 @@ def get_secret(
         else:
             print(f"secrets: {key} read from Key Vault {vault_url}")
             return value
-    return scope_secret(workspace, scope, key)
+    value = scope_secret(workspace, scope, key)
+    if value is not None:
+        print(f"secrets: {key} read from secret scope '{scope}'")
+    return value
