@@ -1,7 +1,9 @@
 # ADR 0002: Extract note risk factors with gpt-oss-120b through `ai_query`
 
-Status: accepted (2026-10-21). The metrics below are provisional: they are measured against 50
-draft labels, 0 of 50 confirmed by a reviewer yet.
+Status: accepted (2026-10-21). The metrics below are measured against the 50 reviewed labels: the
+project lead checked all 50 against the written rules and Chris decided the four judgment calls.
+No clinician has reviewed them. The first figures, against the unreviewed drafts, are under
+"Label review" below.
 
 ## Context
 
@@ -28,25 +30,29 @@ workspace.
   ignored, nothing else). An invalid first answer is asked once more with the reason; a second
   failure is a reject, which scores as predicting nothing.
 - **Labels.** 50 notes, seed 20261021, stratified by specialty with proportional allocation. The
-  labels were drafted from the note text (AI-assisted) and committed before any model ran; none
-  has been changed since. Every row is `needs_review: true`.
+  labels were drafted from the note text (AI-assisted) and committed before any model ran. The
+  three models ran against those drafts; the lead then checked all 50 against the rules in
+  `docs/llm-extraction.md` and Chris decided the four judgment calls, which changed one label
+  (note 3360 gains `valvular_disease`). The runs were not repeated: the saved predictions were
+  rescored against the reviewed labels.
 - **Scoring.** Scalar fields as slot filling (a positive is a condition other than `other`, a
   disposition other than `not_stated`, or a true flag); list fields per term after
   normalization (lowercase, spaces to underscores, synonyms to the vocabulary term),
   micro-averaged. Details in `src/readmission/llm/metrics.py`.
 - **MLflow.** One run per model in `/Users/chris.teceno@gmail.com/readmission-llm-extraction`,
-  tagged `labels_status=draft` and `metrics_provisional=true`, with each note's answer as a
-  `predictions/` artifact.
+  with each note's answer as a `predictions/` artifact. The first runs were tagged
+  `labels_status=draft` and `metrics_provisional=true`; the rescored runs are tagged
+  `labels_status=reviewed` and `rescored_from_run`, without `metrics_provisional`.
 
 ## Results
 
 Label support (positives across the 50 notes): primary condition 4 (3 HF, 1 CABG),
-comorbidities 54 terms, prior admissions 3, discharge disposition 8, social risk factors 2,
+comorbidities 55 terms, prior admissions 3, discharge disposition 8, social risk factors 2,
 follow-up planned 13.
 
 | Metric | gpt-oss-120b | llama-3.3-70b | llama-3.1-8b |
 |---|---|---|---|
-| Mean field F1 | **0.82** | 0.70 | 0.54 |
+| Mean field F1 | **0.81** | 0.70 | 0.54 |
 | Schema-valid rate, first answer | 1.00 | 1.00 | 0.96 |
 | Valid (schema and quotes), first answer | 0.88 | 0.96 | 0.64 |
 | Retry rate | 0.12 | 0.04 | 0.36 |
@@ -54,14 +60,15 @@ follow-up planned 13.
 | Schema-valid without `responseFormat` | 1.00 | 0.92 | 0.52 |
 | Latency per note, median / p90 (s) | 9.6 / 18.2 | 4.3 / 6.6 | 2.3 / 3.2 |
 | primary_condition P / R | 0.60 / 0.75 | 1.00 / 0.50 | 1.00 / 0.50 |
-| comorbidities P / R | 1.00 / 0.78 | 0.85 / 0.76 | 0.49 / 0.44 |
+| comorbidities P / R | 1.00 / 0.76 | 0.85 / 0.75 | 0.49 / 0.44 |
 | prior_admissions_mentioned P / R | 0.60 / 1.00 | 0.25 / 0.67 | 0.33 / 0.33 |
 | discharge_disposition P / R | 0.73 / 1.00 | 0.78 / 0.88 | 0.71 / 0.62 |
 | social_risk_factors P / R | 0.67 / 1.00 | 1.00 / 0.50 | 0.33 / 0.50 |
 | follow_up_planned P / R | 1.00 / 0.92 | 0.76 / 1.00 | 0.75 / 0.69 |
 
-MLflow runs: gpt-oss-120b `be62bfe0fe594eb6b11ce41c1cce84df`, llama-3.3-70b
-`473bfbc34f5f4494b99b999adc500231`, llama-3.1-8b `cd4da7ea378d4bb8b8a7d2607aa2f9f4`. Latency is
+MLflow runs (rescored on the reviewed labels): gpt-oss-120b `e18026f5a77b444db0ecc9fb8163c8bf`,
+llama-3.3-70b `321fafc2509d4fc09edc42476355f193`, llama-3.1-8b
+`0fe0fa0c99ce40e4a4232a139c9ecd70`. Latency is
 the statement's wall time from a laptop with four statements in flight, warehouse overhead
 included, so it compares the models rather than predicting the job's throughput.
 
@@ -76,10 +83,20 @@ catches those, and it stays for every model.
 ## Decision
 
 `databricks-gpt-oss-120b`, named in `readmission.llm.build.MODEL_ENDPOINT`. It has the highest
-mean field F1 (0.82 against 0.70), and the margin comes from the fields a readmission model needs
+mean field F1 (0.81 against 0.70), and the margin comes from the fields a readmission model needs
 most: comorbidities with no false positive and prior admissions with full recall. Schema-valid
 rates tie at 1.00, so the tie-break rule did not come into play. It is the slowest of the three
 (median 9.6 s a note), which does not matter for a batch job of 100 notes a run.
+
+## Label review
+
+The lead checked all 50 drafted labels against the rules in `docs/llm-extraction.md`, and Chris
+decided the four judgment calls in chat: note 3360 gains `valvular_disease` (moderate tricuspid
+regurgitation on echo counts as valve disease), and the labels for cancer in notes 2854 and 12 and
+for tobacco in note 1262 stay as drafted. That one added term is the only change. Against the
+drafts the run scored gpt-oss-120b at 0.82 mean field F1 (comorbidities recall 0.78 on 54 terms)
+and llama-3.3-70b at comorbidities recall 0.76; against the reviewed labels those are 0.81 (0.76 on
+55 terms) and 0.75. Nothing else moved, and the ranking and the choice hold.
 
 ## First job run
 
@@ -97,11 +114,11 @@ rejected notes are retried automatically under the new prompt.
 
 ## Consequences
 
-- **The numbers are provisional.** With 4 primary-condition positives, 3 prior admissions and 2
+- **Small samples on three fields.** With 4 primary-condition positives, 3 prior admissions and 2
   social risk factors, one note moves those fields' precision or recall by 0.25 or more. The
-  comparison is decided by comorbidities (54 terms) and follow-up (13), where the sample is
-  larger. Once Chris reviews the labels, the evaluation reruns and the tag changes to
-  `labels_status=confirmed`; a label he changes is recorded in `docs/llm-extraction.md`.
+  comparison is decided by comorbidities (55 terms) and follow-up (13), where the sample is
+  larger. The labels are reviewed by the lead and Chris, not by a clinician; the one change is
+  recorded in `docs/llm-extraction.md`.
 - **Proportional sampling** makes the 50 notes look like the population the job processes (20
   are Surgery operative notes), so most notes are negative for most fields. A sample enriched
   for discharge summaries would measure recall on rare fields better; that is a second sample,
