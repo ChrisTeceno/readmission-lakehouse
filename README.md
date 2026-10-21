@@ -20,7 +20,7 @@ A portfolio project framed as a delivery engagement for the fictional client Con
 | AI-assisted development and judgment | [`docs/ai-assisted-dev.md`](docs/ai-assisted-dev.md): cases tied to PRs of AI output that was accepted, corrected or rejected; gitleaks in CI ([`ci.yml`](.github/workflows/ci.yml)); LLM output schema-validated and evaluated |
 | LLMs in solutions | [`llm/`](src/readmission/llm/) notes extraction through `ai_query`, schema- and quote-validated, three models compared on 50 labelled notes in MLflow ([`docs/llm-extraction.md`](docs/llm-extraction.md), [ADR 0002](engagement/adr/0002-llm-risk-factor-extraction.md)) |
 | Git workflows | PR-per-task history, CI on GitHub Actions ([`ci.yml`](.github/workflows/ci.yml)) |
-| Client communication | [`engagement/`](engagement/README.md): [discovery notes](engagement/discovery.md), [user stories](engagement/user-stories.md) with acceptance criteria, [dashboard wireframe](engagement/wireframe.md), [ADR index](engagement/adr/README.md), [status update](engagement/status-update.md), [PHI note](engagement/phi-note.md); the readout is still to come |
+| Client communication | [`engagement/`](engagement/README.md): [discovery notes](engagement/discovery.md), [user stories](engagement/user-stories.md) with acceptance criteria, [dashboard wireframe](engagement/wireframe.md), [ADR index](engagement/adr/README.md), [status update](engagement/status-update.md), [PHI note](engagement/phi-note.md), [readout deck](engagement/readout.md), [executive summary](engagement/executive-summary.md) |
 | Healthcare bonus | The domain; no PHI is used |
 
 ## Contoso's data
@@ -42,4 +42,12 @@ databricks bundle run readmission_pipeline -t dev
 The job runs `fetch`, `bronze` and `contoso`, `silver`, `gold`, then `train` and `score` and `llm_extract`. A clean run took about 13 minutes (see [`docs/data-sources.md`](docs/data-sources.md)).
 
 ## Findings
+
+The full readout is [`engagement/readout.md`](engagement/readout.md) ([PDF](engagement/readout.pdf)), with every number's source on its last slide; the one-page version is [`engagement/executive-summary.md`](engagement/executive-summary.md).
+
+1. **The penalty is concentrated.** In FY2027, 10 of Contoso's 12 facilities and 25 of its 67 reporting facility-condition pairs are above the cutoff; in FY2026 hip/knee was above 1.0 at 8 of the 9 facilities that report it ([EDA](docs/eda/what-the-data-can-answer.md), [Genie tests](docs/genie.md)).
+2. **The penalty model ranks well on approximate-cutoff years and less well on the exact one:** LightGBM test AUC 0.874 on FY2026 against 0.678 on FY2027, a small lead over logistic regression, and overconfident on FY2027 ([model card](docs/model-card.md)).
+3. **Being penalized does not change a hospital's later readmission ratio:** RDD estimate +0.0004 (95% interval -0.0027 to +0.0047, detectable effect 0.0053), a precise null, with a retention caveat and a DiD check of opposite sign reported ([causal findings](docs/causal-findings.md)).
+4. **Notes extraction:** gpt-oss-120b reaches a mean field F1 of 0.82 on 50 labelled notes against 0.70 and 0.54 for two Llama models; provisional, 0 of 50 labels confirmed ([ADR 0002](engagement/adr/0002-llm-risk-factor-extraction.md)).
+5. **Pilot:** a stepped-wedge rollout of follow-up calls across 12 facilities over 21 months (about 17,885 synthetic discharges) detects a 3.82-point drop in readmissions at 80 percent power ([readout](engagement/readout.md), design in PR #13).
 
