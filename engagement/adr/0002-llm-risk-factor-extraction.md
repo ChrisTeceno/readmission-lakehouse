@@ -81,6 +81,20 @@ most: comorbidities with no false positive and prior admissions with full recall
 rates tie at 1.00, so the tie-break rule did not come into play. It is the slowest of the three
 (median 9.6 s a note), which does not matter for a batch job of 100 notes a run.
 
+## First job run
+
+The `llm_extract` task's first run (2026-10-21, job run 648611251725236, note ids 0 to 100) took
+about 4 minutes 20 seconds end to end for 100 notes: 71 valid on the first answer, 15 more on
+the retry, 14 rejected. That reject rate (14 percent) is well above the evaluation's 4 percent,
+because the lowest note ids are mostly Urology operative notes (83 of them). In 10 of the 14
+rejects the failing span is evidence the model gave for `primary_condition: other`, where null
+was allowed, and in 7 of the 14 the only difference from the note is MTSamples' comma after a
+section heading (`PREOPERATIVE DIAGNOSIS:, Left inguinal hernia.` quoted as `PREOPERATIVE
+DIAGNOSIS: Left inguinal hernia.`). The next prompt version should ask for null evidence on
+negative values, or the quote check should ignore that heading comma; either change is
+re-evaluated on the 50 notes under a new `PROMPT_VERSION` before the job uses it, and the
+rejected notes are retried automatically under the new prompt.
+
 ## Consequences
 
 - **The numbers are provisional.** With 4 primary-condition positives, 3 prior admissions and 2
