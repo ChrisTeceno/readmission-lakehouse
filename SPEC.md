@@ -30,7 +30,7 @@ Every job description line maps to a concrete artifact. The README carries this 
 | Databricks, Spark/PySpark, Delta | `src/` pipeline code, Delta tables in Unity Catalog `workspace.readmission` |
 | Medallion architecture | `bronze/`, `silver/`, `gold/` modules and `docs/architecture.md` diagram |
 | Pipelines from APIs, databases, other sources | CMS datastore API (paginated JSON), Census ACS API, Contoso Lakebase Postgres (JDBC, incremental by watermark), CMS archive zips, MTSamples Delta table |
-| MLflow experiments | `ml/train_penalty_model.py`, experiment `/Shared/readmission-penalty`, registered model |
+| MLflow experiments | `ml/train.py`, experiment `/Shared/readmission-penalty`, Unity Catalog model `penalty_model` with a `champion` alias, `docs/model-card.md` |
 | Data governance, schema enforcement, testing, quality | Explicit Silver schemas, Delta constraints, expectation checks, quarantine table, pytest suite; Unity Catalog table and column comments, tags, grants to an analyst group, lineage |
 | Orchestration and monitoring (Databricks Workflows, ADF) | Asset Bundle job with schedule, retries, task dependencies and failure notifications; `ops_run_log` and `ops_dq_metrics` tables feeding a pipeline-health dashboard page; ADF pipeline that lands external files and triggers the job |
 | Azure Data Factory, Key Vault | `infra/` Bicep: Key Vault holding the Census key and Databricks token, ADF pipeline |
