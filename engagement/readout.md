@@ -193,15 +193,19 @@ disposition, social risk, follow-up plans. A model hosted inside the Databricks 
 each note and returns those fields, each with a quote from the note; nothing leaves the
 workspace.
 
-| | gpt-oss-120b (chosen) | llama-3.3-70b | llama-3.1-8b |
-|---|---|---|---|
-| Mean field F1 on 50 labelled notes | **0.81** | 0.70 | 0.54 |
-| Rejected after one retry | 4 percent | 4 percent | 28 percent |
+| | gpt-oss-120b (chosen) | llama-3.3-70b | llama-3.1-8b | gemma-4-26b (local) |
+|---|---|---|---|---|
+| Mean field F1 on 50 labelled notes | **0.81** | 0.70 | 0.54 | **0.85** |
+| Rejected after one retry | 4 percent | 4 percent | 28 percent | 0 percent |
 
 - **Label review:** the project lead checked all 50 labels against the written rules and Chris
   decided the four judgment calls; one label changed and the ranking held. No clinician has
   reviewed them. With 4 primary-condition positives, one note moves a field's precision or recall
   by 0.25 or more.
+- **Local option:** the fourth column is a model run on a laptop, so no note text leaves the
+  machine. On these notes it scored no lower than the hosted model, which makes keeping notes
+  inside Contoso's network a hosting question, not an accuracy one. It is not in the pipeline,
+  because the workspace's compute cannot reach it.
 - First production batch: 100 notes, 14 rejected; the fix is a prompt change, re-evaluated on the
   same 50 notes before use.
 - What it enables: patient-level risk factors for targeting follow-up calls. Notes are MTSamples

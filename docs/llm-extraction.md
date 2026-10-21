@@ -52,6 +52,15 @@ predictions (`--rescore-run`, no model called again); the rescored MLflow runs a
 `labels_status=reviewed`. The ranking did not change: mean field F1 is 0.81 for gpt-oss-120b
 (0.82 on the drafts), 0.70 and 0.54.
 
+A fourth candidate runs locally: `--local` sends the same prompt, JSON schema, checks and retry to
+Gemma 4 26B A4B (8-bit) served by omlx on the Mac, with latency and tokens per second logged and
+the run tagged `backend=local`. Only the note read touches the SQL warehouse. It scores 0.85 mean
+field F1 on the reviewed labels (MLflow run `9248f5286c1f4c6ea33f86020243a289`), 0.04 above
+gpt-oss-120b on 50 notes. A local or on-prem model keeps note text inside the client's network, the
+argument in [`engagement/phi-note.md`](../engagement/phi-note.md), and this run shows no F1 cost
+for it. It is not part of the Databricks job, because serverless cannot reach the Mac, and the
+job stays on gpt-oss-120b.
+
 ## The job task
 
 `llm_extract` runs after `silver`, beside `gold`. Each run takes the next `BATCH_SIZE` (100)
@@ -65,5 +74,6 @@ under the new prompt. `ops_dq_metrics` records each run's `first_attempt_valid_r
 
 ```
 uv run --group ml python scripts/evaluate_llm_extraction.py --without-response-format
+uv run --group ml python scripts/evaluate_llm_extraction.py --models --local --concurrency 2
 databricks bundle run readmission_pipeline -t dev --only llm_extract
 ```

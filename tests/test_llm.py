@@ -3,6 +3,7 @@ import json
 import random
 from pathlib import Path
 
+import httpx
 import pytest
 from pyspark.sql import functions as F
 
@@ -374,3 +375,77 @@ def test_rescore_run_scores_saved_predictions_on_the_current_labels(tmp_path):
     assert tags["labels_status"] == "reviewed"
     assert tags["rescored_from_run"] == source.info.run_id
     assert "metrics_provisional" not in tags
+
+
+# The local (omlx) backend, with the HTTP client stubbed
+
+
+def stub_client(handler) -> httpx.Client:
+    return httpx.Client(base_url="http://omlx.test/v1", transport=httpx.MockTransport(handler))
+
+
+def completion(content: str, tokens: int = 50) -> httpx.Response:
+    body = {"choices": [{"message": {"content": content}}], "usage": {"completion_tokens": tokens}}
+    return httpx.Response(200, json=body)
+
+
+def test_local_ask_sends_the_jobs_prompt_and_schema():
+    evaluate = load_evaluate_script()
+    seen = []
+
+    def handler(request):
+        seen.append(json.loads(request.content))
+        return completion("{}", tokens=40)
+
+    ask = evaluate.local_ask(stub_client(handler), "gemma-test")
+    reply, error, seconds, tokens = ask(1, NOTE, suffix=" RETRY")
+    ask(1, NOTE, structured=False)
+
+    structured, plain = seen
+    assert (reply, error, tokens) == ("{}", None, 40) and seconds >= 0
+    assert structured["model"] == "gemma-test" and structured["temperature"] == 0.0
+    assert structured["messages"] == [{"role": "user", "content": PROMPT + NOTE + " RETRY"}]
+    assert structured["response_format"]["json_schema"]["schema"] == SCHEMA
+    assert "response_format" not in plain
+
+
+def test_local_ask_reports_http_errors_as_endpoint_errors():
+    evaluate = load_evaluate_script()
+    ask = evaluate.local_ask(stub_client(lambda request: httpx.Response(500)), "gemma-test")
+    reply, error, _, tokens = ask(1, NOTE)
+    assert reply is None and tokens is None and "HTTPStatusError" in error
+
+
+def test_evaluate_note_retries_a_local_answer_and_summarize_adds_tokens_per_second():
+    evaluate = load_evaluate_script()
+    unquoted = json.dumps(answer(discharge_disposition={"value": "home", "evidence": "Went home."}))
+    replies = iter([unquoted, json.dumps(answer())])
+    ask = evaluate.local_ask(stub_client(lambda request: completion(next(replies), 100)), "g")
+
+    result = evaluate.evaluate_note(ask, {"note_id": 1}, NOTE, without_format=False)
+    assert (result["first_valid"], result["valid"]) == (False, True)
+    assert result["first_reason"].startswith("discharge_disposition: evidence is not a quote")
+    assert result["completion_tokens"] == 100
+
+    labels = [{"note_id": 1, "needs_review": False, "labels": label()}]
+    result["latency_s"] = 4.0
+    metrics = evaluate.summarize([result], labels, False)
+    assert metrics["tokens_per_s_mean"] == 25.0
+    assert metrics["retry_rate"] == 1.0 and metrics["reject_rate"] == 0.0
+
+
+def test_log_run_tags_a_local_model(tmp_path):
+    import mlflow
+
+    evaluate = load_evaluate_script()
+    mlflow.set_tracking_uri(f"file://{tmp_path / 'mlruns'}")
+    labels = [{"note_id": 1, "needs_review": False, "labels": label()}]
+    results = [saved_result(1, answer())]
+    run_id = evaluate.log_run(
+        evaluate.LOCAL_MODEL, evaluate.summarize(results, labels, False), results, labels, tmp_path
+    )
+    run = mlflow.get_run(run_id)
+    assert run.data.tags["backend"] == "local"
+    assert run.data.tags["model"] == "gemma-4-26b-a4b-it-8bit"
+    assert run.data.tags["labels_status"] == "reviewed"
+    assert run.data.params["model_name"] == "gemma-4-26b-a4b-it-8bit"
