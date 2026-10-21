@@ -81,8 +81,8 @@ def test_label_fixture_is_the_draft_sample():
     rows = [json.loads(line) for line in LABELS.read_text().splitlines()]
     assert len(rows) == SAMPLE_SIZE
     assert len({r["note_id"] for r in rows}) == SAMPLE_SIZE
-    # Labels are drafts until Chris confirms them; metrics against them are provisional.
-    assert all(r["needs_review"] for r in rows)
+    # The lead checked every label against the written rules; Chris decided the judgment calls.
+    assert not any(r["needs_review"] for r in rows)
     enums = SCHEMA["properties"]
     for r in rows:
         g = r["labels"]
