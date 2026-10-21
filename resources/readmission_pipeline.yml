@@ -1,0 +1,56 @@
+# The pipeline job: fetch every source into the landing volume, then load landing into Bronze.
+# The contoso task reads Contoso's Lakebase database directly, so it runs beside fetch.
+# All tasks run the project wheel (the `readmission` artifact in databricks.yml) on serverless.
+# No schedule yet; run it with `databricks bundle run readmission_pipeline -t dev`.
+resources:
+  jobs:
+    readmission_pipeline:
+      name: readmission_pipeline
+      max_concurrent_runs: 1
+      environments:
+        - environment_key: readmission
+          spec:
+            # Environment version 2 runs Python 3.11, which the package requires.
+            environment_version: "2"
+            dependencies:
+              - ../dist/*.whl
+      tasks:
+        - task_key: fetch
+          environment_key: readmission
+          # CMS datastore pages take 40 to 55 seconds each and the PDC archive zips are large.
+          timeout_seconds: 3600
+          python_wheel_task:
+            package_name: readmission
+            entry_point: readmission-fetch
+            parameters:
+              - cms_hrrp
+              - cms_hospital_info
+              - cms_unplanned_visits
+              - hrrp_history_pdc
+              - hrrp_history_ipps
+              - --work-dir
+              - /tmp/readmission-fetch
+        - task_key: bronze
+          depends_on:
+            - task_key: fetch
+          environment_key: readmission
+          timeout_seconds: 1800
+          python_wheel_task:
+            package_name: readmission
+            entry_point: readmission-bronze
+            parameters:
+              - --catalog
+              - ${var.catalog}
+              - --schema
+              - ${var.schema}
+        - task_key: contoso
+          environment_key: readmission
+          timeout_seconds: 1800
+          python_wheel_task:
+            package_name: readmission
+            entry_point: readmission-contoso
+            parameters:
+              - --catalog
+              - ${var.catalog}
+              - --schema
+              - ${var.schema}

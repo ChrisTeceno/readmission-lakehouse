@@ -4,6 +4,15 @@ bundle:
 include:
   - resources/*.yml
 
+artifacts:
+  # The project wheel the job tasks run. dynamic_version stamps each build, so a redeploy
+  # replaces the cached 0.1.0 wheel on serverless instead of reusing it.
+  readmission:
+    type: whl
+    build: uv build --wheel
+    path: .
+    dynamic_version: true
+
 variables:
   catalog:
     description: Unity Catalog catalog that holds the lakehouse schema

@@ -1,11 +1,12 @@
-"""Fetch CLI: download one source and land its raw files with manifests.
+"""Fetch CLI: download sources and land its raw files with manifests.
 
-    uv run python -m readmission.ingest.fetch <source> [--local DIR] [--batch-id ID]
+    uv run python -m readmission.ingest.fetch <source> [<source> ...] [--local DIR] [--batch-id ID]
 
 By default files land in the Databricks landing volume through the Files API (credentials from
 DATABRICKS_HOST/DATABRICKS_TOKEN or a CLI profile); `--local` lands in a directory instead.
 A source is a function taking (client, lander, batch_id, work_dir) and returning the manifest
-entries it landed; add new ones to SOURCES.
+entries it landed (none when the source is unchanged); add new ones to SOURCES. The job's fetch
+task passes every source, and each gets its own batch id unless one is given.
 """
 
 import argparse
@@ -14,13 +15,14 @@ from pathlib import Path
 
 import httpx
 
-from readmission.ingest import hrrp_history
+from readmission.ingest import cms_current, hrrp_history
 from readmission.ingest.http import make_client
 from readmission.ingest.landing import Lander, LocalLander, VolumeLander, new_batch_id
 
 Fetcher = Callable[[httpx.Client, Lander, str, Path], list[dict]]
 
 SOURCES: dict[str, Fetcher] = {
+    **cms_current.FETCHERS,
     hrrp_history.PDC_SOURCE: hrrp_history.fetch_pdc,
     hrrp_history.IPPS_SOURCE: hrrp_history.fetch_ipps,
 }
@@ -40,7 +42,7 @@ def run(
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Download a source into the landing zone.")
-    parser.add_argument("source", choices=sorted(SOURCES))
+    parser.add_argument("sources", nargs="+", choices=sorted(SOURCES), metavar="source")
     parser.add_argument("--local", type=Path, help="land in this directory, not the volume")
     parser.add_argument("--work-dir", type=Path, default=Path("data/fetch"))
     parser.add_argument("--batch-id")
@@ -52,8 +54,12 @@ def main(argv: list[str] | None = None) -> None:
         from databricks.sdk import WorkspaceClient
 
         lander = VolumeLander(WorkspaceClient(profile=args.profile))
-    for entry in run(args.source, lander, args.work_dir / args.source, args.batch_id):
-        print(f"{entry['path']} sha256={entry['sha256'][:12]} rows={entry.get('row_count')}")
+    for source in args.sources:
+        landed = run(source, lander, args.work_dir / source, args.batch_id)
+        if not landed:
+            print(f"{source}: unchanged since the last landed batch, nothing landed")
+        for entry in landed:
+            print(f"{entry['path']} sha256={entry['sha256'][:12]} rows={entry.get('row_count')}")
 
 
 if __name__ == "__main__":
