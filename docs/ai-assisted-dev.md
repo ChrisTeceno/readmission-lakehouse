@@ -87,14 +87,18 @@ The dashboard and Genie instructions repeat the caveat.
 
 Outcome: a number kept honest instead of presented as exact.
 
-### 7. Note-extraction model chosen by field F1, labels left `needs_review` (PR #12)
+### 7. Note-extraction model chosen by field F1, labels reviewed afterwards (PR #12)
 
 Chris chose three Foundation Model endpoints to compare. The choice among them was made by
-measurement: `databricks-gpt-oss-120b` scored mean field F1 0.82 against 0.70 and 0.54 on 50
+measurement: `databricks-gpt-oss-120b` scored mean field F1 0.81 against 0.70 and 0.54 on 50
 labelled notes (`engagement/adr/0002-llm-risk-factor-extraction.md`). The labels were drafted
-with AI help from the note text before any model ran, so every one is marked
-`needs_review: true`. The ADR states the metrics are provisional until a reviewer confirms them
-(0 of 50 so far), and the evaluation run is tagged `metrics_provisional=true` in MLflow.
+with AI help from the note text before any model ran, so every one was marked
+`needs_review: true` and the first metrics were tagged `metrics_provisional=true` in MLflow. The
+project lead then checked all 50 against the written rules and Chris decided the four judgment
+calls; one label changed (note 3360 gained `valvular_disease`). The saved predictions were
+rescored on the reviewed labels without calling a model again: gpt-oss-120b moved from 0.82 to
+0.81, the other two stayed at 0.70 and 0.54, and the choice held. No clinician has reviewed the
+labels, and the docs say so.
 
 Outcome: accepted on evidence, with the limit written next to the number.
 

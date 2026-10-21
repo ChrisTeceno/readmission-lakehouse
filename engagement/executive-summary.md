@@ -31,8 +31,9 @@ its penalty, what would reduce it, and whether being penalized makes hospitals i
   be returning to normal, so programs need a comparison group to show they work.
 - **Clinical notes can add risk factors Medicare data lacks.** An AI model run inside Contoso's
   data platform pulled comorbidities, prior admissions and follow-up plans from notes, scoring
-  0.82 on a 0 to 1 accuracy scale against 50 test notes, but no clinician has checked those test
-  answers yet, so that figure is provisional.
+  0.81 on a 0 to 1 accuracy scale against 50 test notes. Our project lead checked all 50 test
+  answers against the written rules and the four judgment calls were decided by Chris; no
+  clinician has reviewed them.
 
 ## Three recommendations
 
@@ -50,4 +51,5 @@ its penalty, what would reduce it, and whether being penalized makes hospitals i
 ## Limits
 
 Contoso's operations data are synthetic, the work ranks where to look but does not estimate
-dollar amounts, and the dashboard screenshots are still pending.
+dollar amounts, and the extraction labels were reviewed by the project lead and Chris, not by a
+clinician.

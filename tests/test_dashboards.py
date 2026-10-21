@@ -81,8 +81,38 @@ def test_widget_encodings_use_fields_their_query_selects(dashboard):
             selected = {f["name"] for q in w["queries"] for f in q["query"]["fields"]}
             encodings = w["spec"]["encodings"]
             used = [e["fieldName"] for e in encodings.get("columns", [])]
-            used += [e["fieldName"] for k, e in encodings.items() if k != "columns"]
+            used += [e["fieldName"] for e in encodings.values() if isinstance(e, dict)]
             assert set(used) <= selected, w["name"]
+
+
+def test_table_widgets_use_the_spec_the_importer_accepts(dashboard):
+    # Version 1 tables import as "Invalid widget definition is imported" in the published view.
+    for p in dashboard["pages"]:
+        for w in widgets(p):
+            spec = w.get("spec")
+            if not spec or spec["widgetType"] != "table":
+                continue
+            assert spec["version"] == 2, w["name"]
+            encodings = spec["encodings"]
+            assert set(encodings) == {
+                "columns",
+                "itemsPerPage",
+                "paginationSize",
+                "condensed",
+                "withRowNumber",
+            }, w["name"]
+            for column in encodings["columns"]:
+                assert {"fieldName", "type", "displayAs", "visible", "order", "title"} <= set(
+                    column
+                ), (w["name"], column["fieldName"])
+
+
+def test_mean_err_counter_shows_three_decimals(dashboard):
+    counter = next(
+        w for w in widgets(page(dashboard, "Contoso scorecard")) if w["name"] == "sc_mean_err"
+    )
+    places = counter["spec"]["encodings"]["value"]["format"]["decimalPlaces"]
+    assert places == {"type": "exact", "places": 3}
 
 
 def test_widget_names_are_unique_and_layouts_fit_the_grid(dashboard):
