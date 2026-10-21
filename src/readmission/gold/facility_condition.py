@@ -114,6 +114,11 @@ GOLD_FACILITY_CONDITION_YEAR_SCHEMA = T.StructType(
             "Discharges per month over the prior window's; null under 25 discharges in either",
         ),
         field(
+            "discharge_ratio_vs_median",
+            T.DoubleType(),
+            "discharge_ratio over the median discharge_ratio for the same measure and year",
+        ),
+        field(
             "anomaly_flag",
             T.BooleanType(),
             "True when err_change or discharge_ratio is anomalous (see anomaly_reason)",
@@ -122,7 +127,8 @@ GOLD_FACILITY_CONDITION_YEAR_SCHEMA = T.StructType(
         field(
             "anomaly_reason",
             T.StringType(),
-            "Rules that fired: err_change beyond robust z 3.5, discharge_jump beyond x2 or x0.5",
+            "Rules that fired: err_change beyond robust z 3.5, discharge_jump beyond x2 or x0.5 "
+            "of the median",
         ),
         field(
             "source",

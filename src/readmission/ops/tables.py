@@ -86,14 +86,15 @@ OPS_TABLES = [
 ]
 
 
-def create_statement(name: str, schema: T.StructType) -> str:
+def create_statement(name: str, schema: T.StructType, *, replace: bool = False) -> str:
     columns = ", ".join(
         f"`{f.name}` {f.dataType.simpleString()}"
         + ("" if f.nullable else " NOT NULL")
         + f" COMMENT {_quote(f.metadata['comment'])}"
         for f in schema
     )
-    return f"CREATE TABLE IF NOT EXISTS {name} ({columns}) USING DELTA"
+    create = "CREATE OR REPLACE TABLE" if replace else "CREATE TABLE IF NOT EXISTS"
+    return f"{create} {name} ({columns}) USING DELTA"
 
 
 def run_rows(result: RunResult, metrics: list[Metric]) -> tuple[list[tuple], list[tuple]]:

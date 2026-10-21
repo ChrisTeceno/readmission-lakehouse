@@ -19,7 +19,7 @@ from readmission.gold import contoso_scorecard, facility_condition, features, pe
 from readmission.ops import RunRecorder, add_ops_arguments, track_run
 from readmission.ops.tables import OPS_TABLES, create_statement
 from readmission.quality.expectations import check_same_row_count
-from readmission.silver.build import apply_governance, ensure_table
+from readmission.silver.build import apply_governance
 from readmission.silver.governance import TableDoc
 
 # The share of fact rows with an anomaly flag above which the run records a failed metric
@@ -37,7 +37,13 @@ def write_table(
     doc: TableDoc,
     run: RunRecorder,
 ) -> int:
-    ensure_table(spark, name, schema, [])
+    """Gold tables are rebuilt whole, so a table whose columns no longer match its schema is
+    replaced (a Delta replace, which keeps the table's history) rather than migrated."""
+    if (
+        not spark.catalog.tableExists(name)
+        or spark.table(name).schema.fieldNames() != schema.fieldNames()
+    ):
+        spark.sql(create_statement(name, schema, replace=True))
     df.writeTo(name).overwrite(F.lit(True))
     rows = spark.table(name).count()
     apply_governance(spark, name, schema, doc)

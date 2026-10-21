@@ -136,7 +136,7 @@ def test_facility_condition_year(history, facts):
     assert outlier.anomaly_reason.startswith("err_change +0.400 (robust z 17.")
     jump = rows[("010002", "HF", 2016)]
     assert (jump.discharge_ratio, jump.anomaly_flag) == (pytest.approx(3.0), True)
-    assert jump.anomaly_reason == "discharge_jump x3.00"
+    assert jump.anomaly_reason == "discharge_jump x3.00 (x3.00 of the median)"
     small = rows[("010003", "HF", 2016)]
     assert (small.discharge_ratio, small.anomaly_flag, small.anomaly_reason) == (None, False, None)
     assert rows[("010004", "HF", 2016)].anomaly_flag is False
