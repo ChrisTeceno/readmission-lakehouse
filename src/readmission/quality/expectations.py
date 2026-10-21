@@ -18,6 +18,12 @@ MAX_ROW_COUNT_DROP = 0.20
 MAX_ERR_NULL_RATE = 0.45
 
 
+# Hospitals matched to a county FIPS in the latest ACS vintage. Every hospital matched on
+# 2026-10-21; below 98 percent means CMS changed how it writes county names, or the ACS
+# geography changed, and the new names need rules in readmission.silver.county_match.
+MIN_COUNTY_MATCH_RATE = 0.98
+
+
 class ExpectationFailed(Exception):
     pass
 
@@ -36,4 +42,12 @@ def check_err_null_rate(table: str, nulls: int, total: int) -> None:
         raise ExpectationFailed(
             f"{table}: {nulls / total:.1%} of excess_readmission_ratio is null, above "
             f"{MAX_ERR_NULL_RATE:.0%}"
+        )
+
+
+def check_match_rate(table: str, matched: int, total: int) -> None:
+    if total and matched / total < MIN_COUNTY_MATCH_RATE:
+        raise ExpectationFailed(
+            f"{table}: {matched} of {total} hospitals matched a county, below "
+            f"{MIN_COUNTY_MATCH_RATE:.0%}"
         )

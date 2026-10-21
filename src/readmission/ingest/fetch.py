@@ -15,7 +15,7 @@ from pathlib import Path
 
 import httpx
 
-from readmission.ingest import cms_current, hrrp_history
+from readmission.ingest import acs_county, cms_current, hrrp_history
 from readmission.ingest.http import make_client
 from readmission.ingest.landing import Lander, LocalLander, VolumeLander, new_batch_id
 
@@ -25,6 +25,7 @@ SOURCES: dict[str, Fetcher] = {
     **cms_current.FETCHERS,
     hrrp_history.PDC_SOURCE: hrrp_history.fetch_pdc,
     hrrp_history.IPPS_SOURCE: hrrp_history.fetch_ipps,
+    acs_county.SOURCE: acs_county.fetch_acs_county,
 }
 
 

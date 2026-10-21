@@ -24,6 +24,7 @@ from readmission.quality.expectations import (
     check_row_count,
 )
 from readmission.silver import (
+    acs_county,
     clinical_notes,
     contoso,
     hospital_info,
@@ -98,6 +99,23 @@ SILVER_TABLES = [
         [],
         ["bronze_clinical_notes"],
         clinical_notes.silver_clinical_notes,
+    ),
+    SilverTable(
+        acs_county.TABLE,
+        acs_county.SILVER_ACS_COUNTY_SCHEMA,
+        acs_county.SILVER_ACS_COUNTY_DOC,
+        acs_county.CONSTRAINTS,
+        ["bronze_acs_county"],
+        acs_county.silver_acs_county,
+    ),
+    # After silver_hospital_info, which it reads.
+    SilverTable(
+        acs_county.HOSPITAL_COUNTY_TABLE,
+        acs_county.SILVER_HOSPITAL_COUNTY_SCHEMA,
+        acs_county.SILVER_HOSPITAL_COUNTY_DOC,
+        acs_county.HOSPITAL_COUNTY_CONSTRAINTS,
+        ["silver_hospital_info", "bronze_acs_county"],
+        acs_county.silver_hospital_county,
     ),
 ]
 
@@ -180,6 +198,8 @@ def main(argv: list[str] | None = None) -> None:
             continue
         apply_governance(spark, name, table.schema, table.doc)
         print(f"{name}: {rows} rows, {quarantined} quarantined")
+        if table.name == acs_county.HOSPITAL_COUNTY_TABLE:
+            print("\n".join(acs_county.match_report(spark.table(name))))
     for table in contoso.CHECKED_TABLES:
         quarantined = quarantine_contoso(spark, prefix, table)
         print(f"{prefix}.silver_contoso_{table}: {quarantined} quarantined")
