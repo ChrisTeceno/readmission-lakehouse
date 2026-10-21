@@ -1,4 +1,4 @@
-Engagement documents for Contoso Health, a fictional regional hospital network: discovery notes, user stories, ADRs, status update, the dashboard wireframe and a PHI note. The readout is still to come.
+Engagement documents for Contoso Health, a fictional regional hospital network: discovery notes, user stories, ADRs, status update, the dashboard wireframe, a PHI note, the readout deck and the executive summary.
 
 | Document | What it is |
 |---|---|
@@ -8,6 +8,8 @@ Engagement documents for Contoso Health, a fictional regional hospital network: 
 | [adr/README.md](adr/README.md) | Index of decisions 0001 to 0007 |
 | [status-update.md](status-update.md) | Status for 2026-10-21: done, next, risks, decisions needed |
 | [phi-note.md](phi-note.md) | No PHI is used; what would change with real PHI |
+| [readout.md](readout.md) ([PDF](readout.pdf)) | The client readout: 14 slides, with the source of every number on the last |
+| [executive-summary.md](executive-summary.md) | One page for a non-technical executive, with three recommendations |
 
 Supporting analysis lives in `docs/`: [causal findings](../docs/causal-findings.md), [model
 card](../docs/model-card.md), [what the data can answer](../docs/eda/what-the-data-can-answer.md),
