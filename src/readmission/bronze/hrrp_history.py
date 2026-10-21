@@ -17,14 +17,13 @@ from pathlib import Path
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import types as T
 
+from readmission.bronze.metadata import INGEST_FIELDS, SHA256_FIELD
 from readmission.ingest.hrrp_history import PDC_SOURCE, read_ipps_rows, read_pdc_rows
 
 METADATA_FIELDS = [
     T.StructField("fiscal_year", T.IntegerType(), nullable=False),
-    T.StructField("_ingested_at", T.TimestampType(), nullable=False),
-    T.StructField("_source", T.StringType(), nullable=False),
-    T.StructField("_batch_id", T.StringType(), nullable=False),
-    T.StructField("_sha256", T.StringType(), nullable=False),
+    *INGEST_FIELDS,
+    SHA256_FIELD,
 ]
 
 BRONZE_HRRP_HISTORY_IPPS_SCHEMA = T.StructType(

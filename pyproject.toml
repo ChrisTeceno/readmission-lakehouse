@@ -9,6 +9,11 @@ dependencies = [
     "httpx>=0.28.1",
 ]
 
+# Entry points for the readmission_pipeline job's python_wheel_task tasks.
+[project.scripts]
+readmission-fetch = "readmission.ingest.fetch:main"
+readmission-bronze = "readmission.bronze.load:main"
+
 [dependency-groups]
 # PySpark is provided by the Databricks runtime, so it stays dev-only.
 # Delta Lake 3.3.x is the release line built for Spark 3.5.x.
