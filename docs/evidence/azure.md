@@ -39,6 +39,11 @@ appears in any log.
 
 ## Screenshots
 
-To be added: the ADF Monitor page for pipeline run `00df78a6-cd86-11f1-a3b7-4e997100a0d9`
-(activity list, all Succeeded), and the Databricks job run `739440262802758` (task graph, and
-the `fetch` task output with the Key Vault line).
+![ADF pipeline run 00df78a6-cd86-11f1-a3b7-4e997100a0d9: GetDatabricksToken, RunReadmissionPipeline, WaitForRun and CheckResult all Succeeded](azure/adf-pipeline-run-00df78a6.png)
+
+Databricks shows "Launched: Manually" for any run started through Jobs API `run-now`, which is
+how the ADF pipeline starts it.
+
+![Databricks run 739440262802758, started by ADF, with all 8 tasks succeeded](azure/databricks-run-739440262802758.png)
+
+![The fetch task's output with the line naming the Key Vault backend](azure/fetch-task-key-vault-line.png)
