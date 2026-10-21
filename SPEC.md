@@ -191,7 +191,7 @@ def clean_hrrp(raw: DataFrame) -> DataFrame:
 11. A failed job task sends a notification and shows up on the pipeline-health page.
 12. The pilot design states sample size, power, minimum detectable effect and the analysis it commits to.
 
-## Plan (2 to 3 days)
+## Plan
 
 **Day 1: data platform**
 - 1.1 Repo scaffold: uv, ruff, pytest, bundle skeleton, CI. (Chris rotates the old Databricks token by hand.)
