@@ -5,6 +5,7 @@ description = "Hospital readmission lakehouse for the fictional client Contoso H
 readme = "README.md"
 requires-python = ">=3.11,<3.12"
 dependencies = [
+    "databricks-sdk>=0.155.0",
     "httpx>=0.28.1",
 ]
 
