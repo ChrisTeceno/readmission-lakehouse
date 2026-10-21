@@ -8,6 +8,7 @@ from readmission.bronze import cms
 from readmission.bronze.hrrp_history import bronze_hrrp_history_ipps, bronze_hrrp_history_pdc
 from readmission.ingest.cms_current import read_csv_rows
 from readmission.ingest.hrrp_history import read_ipps_rows, read_pdc_rows
+from readmission.ops import RunRecorder
 from readmission.quality.expectations import (
     MAX_ERR_NULL_RATE,
     ExpectationFailed,
@@ -195,7 +196,12 @@ def test_build_table_fails_on_a_row_count_drop(spark, silver_db):
     load_bronze_hrrp(spark, silver_db, rows)
     build_table(spark, SILVER_HRRP, silver_db)
     load_bronze_hrrp(spark, silver_db, rows[:2])
+    run = RunRecorder("silver")
 
     with pytest.raises(ExpectationFailed, match="2 rows, down from 6"):
-        build_table(spark, SILVER_HRRP, silver_db)
+        build_table(spark, SILVER_HRRP, silver_db, run)
     assert spark.table(f"{silver_db}.silver_hrrp").count() == 6
+    assert [(m.metric, m.value, m.threshold, m.passed) for m in run.metrics] == [
+        ("quarantined_rows", 0, None, True),
+        ("row_count", 2, pytest.approx(4.8), False),
+    ]

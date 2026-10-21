@@ -31,6 +31,11 @@ def silver_tags(source: str, **extra: str) -> dict[str, str]:
     return {"layer": "silver", "contains_phi": "false", "source": source, **extra}
 
 
+def gold_tags(source: str, **extra: str) -> dict[str, str]:
+    """Gold is built from Silver CMS tables and Contoso's synthetic data, so it holds no PHI."""
+    return {"layer": "gold", "contains_phi": "false", "source": source, **extra}
+
+
 def _quote(text: str) -> str:
     return "'" + text.replace("\\", "\\\\").replace("'", "\\'") + "'"
 
