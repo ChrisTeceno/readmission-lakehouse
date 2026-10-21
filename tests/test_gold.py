@@ -7,10 +7,17 @@ from pyspark.sql import types as T
 from readmission.gold import build as gold_build
 from readmission.gold.contoso_scorecard import gold_contoso_scorecard
 from readmission.gold.facility_condition import gold_facility_condition_year
-from readmission.gold.features import FEATURE_COLUMNS, KEY, LABEL_COLUMNS, gold_features
+from readmission.gold.features import (
+    FEATURE_COLUMNS,
+    KEY,
+    LABEL_COLUMNS,
+    acs_vintage_for_target,
+    gold_features,
+)
 from readmission.gold.penalty_mart import gold_penalty_mart
 from readmission.gold.windows import PRIOR_WINDOW_YEARS, prior_window_year, window_months
 from readmission.ops import RunRecorder
+from readmission.silver.acs_county import SILVER_ACS_COUNTY_SCHEMA, SILVER_HOSPITAL_COUNTY_SCHEMA
 from readmission.silver.contoso import (
     SILVER_CONTOSO_DISCHARGES_SCHEMA,
     SILVER_CONTOSO_FACILITIES_SCHEMA,
@@ -76,6 +83,34 @@ def hospital_info(spark):
         ("010002", "Beta", "AL", "Mobile", "Acute Care Hospitals", "Voluntary", False),
     ]
     return spark.createDataFrame(rows, HOSPITAL_INFO_SCHEMA)
+
+
+def schema_rows(spark, schema, rows):
+    return spark.createDataFrame(
+        [tuple(r.get(n) for n in schema.fieldNames()) for r in rows], schema
+    )
+
+
+@pytest.fixture(scope="module")
+def acs(spark):
+    """010001 sits in county 01073 in every vintage; 010002 matched no county. Each vintage's
+    poverty rate is the vintage itself, so a feature shows which vintage it came from."""
+    counties = [
+        {"facility_id": "010001", "vintage": v, "county_fips": "01073", "match_method": "exact"}
+        for v in range(2011, 2025)
+    ] + [{"facility_id": "010002", "vintage": 2024, "match_method": "unmatched"}]
+    measures = [
+        {"county_fips": "01073", "vintage": v, "pct_below_poverty": float(v), "population": 650000}
+        for v in range(2011, 2025)
+    ]
+    for row in counties:
+        row["_batch_id"] = "b"
+    for row in measures:
+        row["_batch_id"] = "b"
+    return (
+        schema_rows(spark, SILVER_HOSPITAL_COUNTY_SCHEMA, counties),
+        schema_rows(spark, SILVER_ACS_COUNTY_SCHEMA, measures),
+    )
 
 
 @pytest.fixture(scope="module")
@@ -204,8 +239,8 @@ def test_contoso_scorecard(spark, facts):
     assert (old.contoso_months, old.contoso_discharges, old.followup_rate) == (0, None, None)
 
 
-def test_features_values(facts, hospital_info):
-    features = gold_features(facts, hospital_info)
+def test_features_values(facts, hospital_info, acs):
+    features = gold_features(facts, hospital_info, *acs)
     rows = by_key(features, *KEY)
 
     alpha = rows[("010001", "HF", 2027)]
@@ -221,10 +256,23 @@ def test_features_values(facts, hospital_info):
     assert (scoring.err_lag1, scoring.label_above_cutoff) == (0.99, None)
     assert scoring.err_change_lag1 == pytest.approx(-0.01)
     assert len(rows) == facts.count() + 2
+    # ACS: FY T takes vintage T-3, the latest published before T's results; FY2028 takes the
+    # latest loaded vintage, and FY2013 would need 2010, which is not loaded.
+    assert (alpha.acs_vintage, alpha.acs_pct_below_poverty) == (2024, 2024.0)
+    assert (rows[("010001", "HF", 2016)].acs_vintage, scoring.acs_vintage) == (2013, 2024)
+    assert (first.acs_vintage, first.acs_population) == (None, None)
+    assert rows[("010002", "HF", 2027)].acs_vintage is None
+    assert [acs_vintage_for_target(t) for t in [2014, 2020, 2027, 2028, 2030]] == [
+        2011,
+        2017,
+        2024,
+        2024,
+        2024,
+    ]
 
 
 @pytest.mark.parametrize("target", [2016, 2027])
-def test_features_never_use_the_target_year_or_later(facts, hospital_info, target):
+def test_features_never_use_the_target_year_or_later(facts, hospital_info, acs, target):
     """The leakage rule: changing every fact row of the target fiscal year or later must not
     change any feature for that target. Only the label columns may move."""
     numeric = [
@@ -249,11 +297,20 @@ def test_features_never_use_the_target_year_or_later(facts, hospital_info, targe
         "readmissions", F.when(later, F.lit(999)).otherwise(F.col("readmissions"))
     )
 
-    def at_target(df):
-        selected = gold_features(df, hospital_info).where(F.col("target_fiscal_year") == target)
+    # ACS vintages published after FY T's results (T-2 and later) change too.
+    hospital_county, acs_county = acs
+    acs_later = acs_county.withColumn(
+        "pct_below_poverty",
+        F.when(F.col("vintage") > target - 3, F.lit(-1.0)).otherwise(F.col("pct_below_poverty")),
+    )
+
+    def at_target(df, acs_county):
+        selected = gold_features(df, hospital_info, hospital_county, acs_county).where(
+            F.col("target_fiscal_year") == target
+        )
         return by_key(selected, *KEY)
 
-    original, changed = at_target(facts), at_target(perturbed)
+    original, changed = at_target(facts, acs_county), at_target(perturbed, acs_later)
     assert original.keys() == changed.keys()
     for key in original:
         for column in FEATURE_COLUMNS:
@@ -270,7 +327,7 @@ def gold_db(spark):
     spark.sql("DROP DATABASE IF EXISTS gold_test CASCADE")
 
 
-def test_build_gold_writes_every_table(spark, gold_db, history, monkeypatch):
+def test_build_gold_writes_every_table(spark, gold_db, history, acs, monkeypatch):
     # Unity Catalog tags and grants do not exist on local Spark.
     monkeypatch.setattr(gold_build, "apply_governance", lambda *a: None)
     history.write.format("delta").saveAsTable(f"{gold_db}.silver_hrrp_history")
@@ -278,6 +335,8 @@ def test_build_gold_writes_every_table(spark, gold_db, history, monkeypatch):
         [("010001", "Alpha", "AL", "Jefferson", "Acute Care Hospitals", "Proprietary", True)],
         HOSPITAL_INFO_SCHEMA,
     ).write.format("delta").saveAsTable(f"{gold_db}.silver_hospital_info")
+    acs[0].write.format("delta").saveAsTable(f"{gold_db}.silver_hospital_county")
+    acs[1].write.format("delta").saveAsTable(f"{gold_db}.silver_acs_county")
     for table, schema in [
         ("facilities", SILVER_CONTOSO_FACILITIES_SCHEMA),
         ("discharges", SILVER_CONTOSO_DISCHARGES_SCHEMA),

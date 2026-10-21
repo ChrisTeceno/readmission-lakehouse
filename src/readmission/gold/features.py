@@ -9,8 +9,10 @@ before it released FY T's results, which in this data means fiscal years strictl
   the attributes that rarely change (state, hospital type, ownership, emergency services) and
   leave out the star rating and the readmission measure counts, which are built from recent
   claims and would leak later years into early targets.
-- ACS county socioeconomics (run 41919ab5) join here, as of the latest ACS vintage released
-  before T, once `silver_acs_county` is merged; there are no ACS columns yet.
+- ACS county socioeconomics come from the latest 5-year vintage published before FY T's
+  results (`acs_vintage_for_target`), joined through the hospital's county in that vintage.
+  This is not the vintage `silver.acs_county.ACS_VINTAGE_BY_FISCAL_YEAR` maps to FY T: that
+  one describes T's performance period and was published after CMS announced T's penalties.
 
 tests/test_gold.py fails if changing any year T or later row changes a feature for target T.
 
@@ -23,6 +25,7 @@ from pyspark.sql import Column, DataFrame
 from pyspark.sql import functions as F
 from pyspark.sql import types as T
 
+from readmission.ingest.acs_county import LATEST_VINTAGE
 from readmission.silver.governance import TableDoc, field, gold_tags
 
 TABLE = "gold_features"
@@ -42,6 +45,26 @@ LAG1_ONLY = {
     "err_change": ("err_change", T.DoubleType(), "ERR change from its prior window"),
     "anomaly_flag": ("anomaly_flag", T.BooleanType(), "Anomaly flag"),
 }
+ACS_MEASURES = [
+    ("population", T.IntegerType(), "County population"),
+    ("median_household_income", T.IntegerType(), "County median household income, dollars"),
+    ("pct_below_poverty", T.DoubleType(), "Percent of the county below the poverty level"),
+    ("pct_uninsured", T.DoubleType(), "Percent of the county with no health insurance"),
+    ("pct_age_65_plus", T.DoubleType(), "Percent of the county aged 65 and over"),
+    ("pct_disability", T.DoubleType(), "Percent of the county with a disability"),
+]
+
+# HRRP results for FY T come out with the IPPS final rule in August of T-1, and ACS publishes a
+# 5-year vintage V in December of V+1, so the latest vintage out before FY T's results is T-3
+# (FY2016's results, August 2015, follow the 2013 vintage of December 2014). Targets after the
+# latest loaded vintage take that one; FY2013 would need the 2010 vintage, which is not loaded.
+ACS_PUBLICATION_LAG = 3
+
+
+def acs_vintage_for_target(target_fiscal_year: int, latest: int = LATEST_VINTAGE) -> int:
+    return min(target_fiscal_year - ACS_PUBLICATION_LAG, latest)
+
+
 HOSPITAL_ATTRIBUTES = [
     ("state", T.StringType(), "Two-letter state code"),
     ("hospital_type", T.StringType(), "CMS hospital type"),
@@ -92,6 +115,16 @@ GOLD_FEATURES_SCHEMA = T.StructType(
         field("err_max_prior", T.DoubleType(), "Highest ERR over the fiscal years before T"),
         *[field(name, data_type, comment) for name, data_type, comment in HOSPITAL_ATTRIBUTES],
         field(
+            "acs_vintage",
+            T.IntegerType(),
+            "ACS 5-year vintage the acs_* columns come from: T-3, the latest published before "
+            "FY T's results; null when the hospital's county did not match",
+        ),
+        *[
+            field(f"acs_{name}", data_type, f"{comment}, ACS vintage acs_vintage")
+            for name, data_type, comment in ACS_MEASURES
+        ],
+        field(
             "label_above_cutoff",
             T.BooleanType(),
             "Label: ERR above the cutoff in FY T; null for the next-cycle scoring rows",
@@ -113,11 +146,12 @@ GOLD_FEATURES_DOC = TableDoc(
     comment=(
         "Penalty model features per facility, condition and target fiscal year T. Leakage "
         "rule: features use only fiscal years before T and hospital attributes that rarely "
-        "change; only the label_* columns come from FY T. The latest fiscal year plus one "
-        "holds scoring rows with null labels. Built from gold_facility_condition_year and "
-        "silver_hospital_info."
+        "change, and ACS county data from the latest vintage published before FY T's results "
+        "(T-3); only the label_* columns come from FY T. The latest fiscal year plus one "
+        "holds scoring rows with null labels. Built from gold_facility_condition_year, "
+        "silver_hospital_info, silver_hospital_county and silver_acs_county."
     ),
-    tags=gold_tags("cms", dataset="9n3s-kdb3,ipps-supplemental,xubh-q36u"),
+    tags=gold_tags("cms,census", dataset="9n3s-kdb3,ipps-supplemental,xubh-q36u,acs5"),
 )
 
 
@@ -147,8 +181,32 @@ def lagged(column: str, name: str, lag: int) -> Column:
     return F.max(F.when(years_back == lag, F.col(column))).alias(f"{name}_lag{lag}")
 
 
-def gold_features(facts: DataFrame, hospital_info: DataFrame) -> DataFrame:
-    """`facts` is gold_facility_condition_year, `hospital_info` silver_hospital_info."""
+def with_acs(df: DataFrame, hospital_county: DataFrame, acs_county: DataFrame) -> DataFrame:
+    vintage = F.least(F.col("target_fiscal_year") - ACS_PUBLICATION_LAG, F.lit(LATEST_VINTAGE))
+    counties = hospital_county.where(F.col("county_fips").isNotNull()).select(
+        "facility_id", F.col("vintage").alias("_acs_vintage"), "county_fips"
+    )
+    measures = acs_county.select(
+        "county_fips",
+        F.col("vintage").alias("_acs_vintage"),
+        F.col("vintage").alias("acs_vintage"),
+        *[F.col(name).alias(f"acs_{name}") for name, _, _ in ACS_MEASURES],
+    )
+    return (
+        df.withColumn("_acs_vintage", vintage)
+        .join(counties, ["facility_id", "_acs_vintage"], "left")
+        .join(measures, ["county_fips", "_acs_vintage"], "left")
+    )
+
+
+def gold_features(
+    facts: DataFrame,
+    hospital_info: DataFrame,
+    hospital_county: DataFrame,
+    acs_county: DataFrame,
+) -> DataFrame:
+    """`facts` is gold_facility_condition_year; the others are silver_hospital_info,
+    silver_hospital_county and silver_acs_county."""
     history = facts.select(
         F.col("facility_id").alias("_history_facility_id"),
         F.col("measure").alias("_history_measure"),
@@ -173,5 +231,5 @@ def gold_features(facts: DataFrame, hospital_info: DataFrame) -> DataFrame:
         F.max(err).alias("err_max_prior"),
     )
     attributes = hospital_info.select("facility_id", *[name for name, _, _ in HOSPITAL_ATTRIBUTES])
-    df = df.join(attributes, "facility_id", "left")
+    df = with_acs(df.join(attributes, "facility_id", "left"), hospital_county, acs_county)
     return df.select(*[F.col(f.name).cast(f.dataType).alias(f.name) for f in GOLD_FEATURES_SCHEMA])

@@ -109,7 +109,12 @@ def build_gold(spark: SparkSession, prefix: str, run: RunRecorder) -> None:
     write_table(
         spark,
         f"{prefix}.{features.TABLE}",
-        features.gold_features(facts, table("silver_hospital_info")),
+        features.gold_features(
+            facts,
+            table("silver_hospital_info"),
+            table("silver_hospital_county"),
+            table("silver_acs_county"),
+        ),
         features.GOLD_FEATURES_SCHEMA,
         features.GOLD_FEATURES_DOC,
         run,

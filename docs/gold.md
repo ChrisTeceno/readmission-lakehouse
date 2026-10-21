@@ -9,7 +9,7 @@ Silver on every run. Code: `src/readmission/gold/`.
 | `gold_facility_condition_year` | facility, measure, fiscal year (FY2013 to FY2027) | `silver_hrrp_history`, `silver_hospital_info` |
 | `gold_penalty_mart` | facility, fiscal year | `gold_facility_condition_year`, `silver_contoso_facilities` |
 | `gold_contoso_scorecard` | Contoso facility, measure, fiscal year | `gold_facility_condition_year`, `silver_contoso_*` |
-| `gold_features` | facility, measure, target fiscal year | `gold_facility_condition_year`, `silver_hospital_info` |
+| `gold_features` | facility, measure, target fiscal year | `gold_facility_condition_year`, `silver_hospital_info`, `silver_hospital_county`, `silver_acs_county` |
 
 ROW_COUNTS
 
@@ -78,13 +78,20 @@ what CMS had published before it released FY T's results:
   Hospital General Information is only the current snapshot here, so the star rating and the
   readmission measure counts are left out: they are built from recent claims and would carry
   later years into early targets.
+- Census ACS county measures (`acs_population`, `acs_median_household_income`,
+  `acs_pct_below_poverty`, `acs_pct_uninsured`, `acs_pct_age_65_plus`, `acs_pct_disability`)
+  from vintage T-3, joined through the hospital's county in that vintage. CMS announces FY T's
+  results with the IPPS final rule in August of T-1, and ACS publishes vintage V in December of
+  V+1, so T-3 is the latest vintage out before T's results (FY2016, announced August 2015,
+  takes the 2013 vintage of December 2014). This is deliberately older than the vintage
+  `docs/data-sources.md` maps to each fiscal year, which describes T's performance period but
+  came out after T's penalties. Targets past the latest loaded vintage take it (FY2028 uses
+  2024); FY2013 would need the 2010 vintage, which is not loaded, so its ACS columns are null.
 - Only `label_above_cutoff`, `label_err` and `label_cutoff_is_approximate` come from year T.
 
 `tests/test_gold.py::test_features_never_use_the_target_year_or_later` changes every fact row of
-year T and later and fails if any feature column for target T moves.
-
-Census ACS county features (built by a separate task, not merged yet) will join on the
-hospital's county, as of the latest ACS release before T. There are no ACS columns yet.
+year T and later, and every ACS vintage after T-3, and fails if any feature column for target
+T moves.
 
 ## Contoso scorecard
 
