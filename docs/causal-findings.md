@@ -9,7 +9,9 @@ asked for is reported below, including the checks that came out against the desi
 
 - The analysis plan was committed on its own as `3aaf635` ("Analysis plan: pre-registration of
   the RDD, DiD check and EDA hypotheses, written before outcomes are examined") on 2026-10-21 at
-  10:42:39 -0600, on branch `pf/eda-notebook-and-analysis-plan-written-before-ou`.
+  10:42:39 -0600. Its branch was deleted after the squash merge, so the commit is cited through the PR:
+  https://github.com/ChrisTeceno/readmission-lakehouse/pull/9/commits/3aaf635d50790e06d83287931c6a3337f0f1d3d7
+  (fetch with `git fetch origin refs/pull/9/head`).
 - The factory squash-merged that branch (PR #9), so on `main` the plan and the EDA arrive
   together in `07d6c4f` (2026-10-21 11:01:24 -0600). The standalone commit `3aaf635` is the
   evidence that the plan came first.
