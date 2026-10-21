@@ -25,12 +25,27 @@ was checked on 2026-10-21 with all seven IPPS years (batch `20261021T190000Z`).
 
 ## Pipeline job
 
-`databricks bundle run readmission_pipeline -t dev` runs three serverless tasks from the project
+`databricks bundle run readmission_pipeline -t dev` runs four serverless tasks from the project
 wheel (`resources/readmission_pipeline.yml`): `fetch` runs the fetch CLI for every source, then
 `bronze` (`readmission.bronze.load`) appends what is new in landing to the Bronze tables and
 copies the MTSamples notes. A second run with no source changes appends nothing. `contoso`
 (`readmission.bronze.contoso`) runs beside them: it reads Contoso's Lakebase database directly,
-not the landing volume (see the Contoso section below).
+not the landing volume (see the Contoso section below). `silver` (`readmission.silver.build`)
+runs after `bronze` and `contoso` and rebuilds the Silver tables (see `docs/governance.md`).
+
+Silver row counts from the 2026-10-21 run:
+
+| Table | Rows | Quarantined |
+|---|---|---|
+| `silver_hrrp` | 18,330 | 0 |
+| `silver_hrrp_history` | 266,159 | 0 |
+| `silver_hospital_info` | 5,419 | 0 |
+| `silver_unplanned_visits` | 67,060 | 0 |
+| `silver_clinical_notes` | 2,357 | 1 (note 97 has no transcription text) |
+| `silver_contoso_discharges`, `silver_contoso_followup_calls` | built by `contoso` | 0 |
+
+Silver treats `Not Applicable` as a suppression code too: Unplanned Hospital Visits writes it for
+patient counts on rate-only measures.
 
 ## Current CMS datasets (verified 2026-10-21)
 

@@ -3,26 +3,81 @@
 from datetime import date
 from itertools import chain
 
-from pyspark.sql import Column, DataFrame
+from pyspark.sql import Column, DataFrame, Window
 from pyspark.sql import functions as F
 from pyspark.sql import types as T
 
+from readmission.quality.constraints import constraint_rules
+from readmission.silver.governance import TableDoc, field, silver_tags
+from readmission.silver.normalize import canonical_measure, pad_ccn, suppressed_to_null, try_cast
+from readmission.silver.quarantine import first_violation, missing_rules, split_rows
+
+TABLE = "silver_hrrp_history"
+KEY = ["facility_id", "measure", "fiscal_year"]
+CONSTRAINTS = ["ccn_format", "err_positive", "period_order"]
+
 SILVER_HRRP_HISTORY_SCHEMA = T.StructType(
     [
-        T.StructField("facility_id", T.StringType(), nullable=False),
-        T.StructField("measure", T.StringType(), nullable=False),
-        T.StructField("fiscal_year", T.IntegerType(), nullable=False),
-        T.StructField("discharges", T.IntegerType()),
-        T.StructField("readmissions", T.IntegerType()),
-        T.StructField("excess_readmission_ratio", T.DoubleType()),
-        T.StructField("predicted_rate", T.DoubleType()),
-        T.StructField("expected_rate", T.DoubleType()),
-        T.StructField("peer_group", T.IntegerType()),
-        T.StructField("peer_median_err", T.DoubleType()),
-        T.StructField("period_start", T.DateType()),
-        T.StructField("period_end", T.DateType()),
-        T.StructField("source", T.StringType(), nullable=False),
+        field("facility_id", T.StringType(), "CMS Certification Number (CCN)", nullable=False),
+        field(
+            "measure",
+            T.StringType(),
+            "HRRP condition: AMI, HF, PN, COPD, HIP_KNEE or CABG",
+            nullable=False,
+        ),
+        field("fiscal_year", T.IntegerType(), "HRRP payment fiscal year", nullable=False),
+        field(
+            "discharges", T.IntegerType(), "Eligible discharges in the period; null if suppressed"
+        ),
+        field(
+            "readmissions",
+            T.IntegerType(),
+            "Unplanned readmissions within 30 days; null if suppressed and for IPPS years",
+        ),
+        field(
+            "excess_readmission_ratio",
+            T.DoubleType(),
+            "Predicted over expected readmission rate (ratio); null when CMS computed none",
+        ),
+        field(
+            "predicted_rate",
+            T.DoubleType(),
+            "Risk-adjusted predicted readmission rate, percent; null for IPPS years",
+        ),
+        field(
+            "expected_rate",
+            T.DoubleType(),
+            "Risk-adjusted expected readmission rate, percent; null for IPPS years",
+        ),
+        field(
+            "peer_group",
+            T.IntegerType(),
+            "Dual-eligibility peer group quintile, 1 to 5; FY2027 only",
+        ),
+        field(
+            "peer_median_err",
+            T.DoubleType(),
+            "Median ERR of the hospital's peer group for the measure (ratio); FY2027 only",
+        ),
+        field("period_start", T.DateType(), "First discharge date of the performance period"),
+        field("period_end", T.DateType(), "Last discharge date of the performance period"),
+        field(
+            "source",
+            T.StringType(),
+            "pdc (Provider Data Catalog archive) or ipps (CMS.gov IPPS supplemental file)",
+            nullable=False,
+        ),
     ]
+)
+
+SILVER_HRRP_HISTORY_DOC = TableDoc(
+    comment=(
+        "HRRP results by fiscal year, FY2013 to FY2027, one row per facility, condition and "
+        "fiscal year. Sources: Provider Data Catalog archive snapshots (FY2019 to FY2026) and "
+        "CMS.gov IPPS final rule supplemental files (FY2013 to FY2018, FY2027) via "
+        "bronze_hrrp_history_pdc and bronze_hrrp_history_ipps."
+    ),
+    tags=silver_tags("cms", dataset="9n3s-kdb3,ipps-supplemental"),
 )
 
 # Performance periods. FY2019 to FY2026 follow the PDC table in SPEC.md ("Historical HRRP: how to
@@ -48,11 +103,6 @@ HRRP_PERIODS: dict[int, tuple[date, date]] = {
     2027: (date(2023, 7, 1), date(2025, 6, 30)),
 }
 
-# CMS writes suppressed or unavailable values as text; '.' is the IPPS files' missing marker.
-SUPPRESSION_CODES = ["N/A", "Not Available", "Too Few to Report", "."]
-
-MEASURES = ["AMI", "HF", "PN", "COPD", "HIP_KNEE", "CABG"]
-
 # IPPS wide headers name the measure in words until FY2018 and by abbreviation in FY2027
 # ("Number of Pneumonia Cases", "ERR for pneumonia", "Hip/Knee Arthroplasty ...", "THA/TKA").
 IPPS_MEASURE_PATTERNS = [
@@ -69,25 +119,6 @@ IPPS_FIELD_PATTERNS = [
     ("excess_readmission_ratio", r"excess readmission ratio|^err for"),
 ]
 IPPS_CCN_KEYS = ["PROV", "Provider", "Hospital CCN"]
-
-
-def suppressed_to_null(name: str) -> Column:
-    """Suppression codes and blanks become null; thousands separators are stripped."""
-    value = F.trim(F.col(name))
-    return F.when(value.isin(SUPPRESSION_CODES) | (value == ""), None).otherwise(
-        F.regexp_replace(value, ",", "")
-    )
-
-
-def pad_ccn(column: Column) -> Column:
-    """CCNs are 6 characters; spreadsheet round trips drop the leading zero (010001 -> 10001)."""
-    return F.lpad(F.trim(column), 6, "0")
-
-
-def pdc_measure(column: Column) -> Column:
-    """READM_30_AMI_HRRP (2019) and READM-30-AMI-HRRP (2020 on) both become AMI."""
-    normalized = F.regexp_replace(F.upper(F.trim(column)), "-", "_")
-    return F.regexp_extract(normalized, r"^READM_30_(.+)_HRRP$", 1)
 
 
 def _first_match(column: Column, patterns: list[tuple[str, str]]) -> Column:
@@ -111,7 +142,10 @@ def _with_period(df: DataFrame) -> DataFrame:
 
 def _conform(df: DataFrame) -> DataFrame:
     return df.select(
-        *[F.col(f.name).cast(f.dataType).alias(f.name) for f in SILVER_HRRP_HISTORY_SCHEMA]
+        *[
+            try_cast(f.name, f.dataType.simpleString()).alias(f.name)
+            for f in SILVER_HRRP_HISTORY_SCHEMA
+        ]
     )
 
 
@@ -120,7 +154,7 @@ def silver_from_pdc(bronze: DataFrame) -> DataFrame:
     id_columns = [F.col(c) for c in ("facility_id", "provider_id") if c in bronze.columns]
     df = bronze.select(
         pad_ccn(F.coalesce(*id_columns)).alias("facility_id"),
-        pdc_measure(F.col("measure_name")).alias("measure"),
+        canonical_measure(F.col("measure_name")).alias("measure"),
         "fiscal_year",
         suppressed_to_null("number_of_discharges").alias("discharges"),
         suppressed_to_null("number_of_readmissions").alias("readmissions"),
@@ -181,3 +215,38 @@ def silver_from_ipps(bronze: DataFrame) -> DataFrame:
 
 def silver_hrrp_history(bronze_pdc: DataFrame, bronze_ipps: DataFrame) -> DataFrame:
     return silver_from_pdc(bronze_pdc).unionByName(silver_from_ipps(bronze_ipps))
+
+
+def latest_batch_per_year(bronze: DataFrame) -> DataFrame:
+    """Each fiscal year's rows from its most recent batch. A fiscal year lands again only when
+    CMS changes its file, and the new file replaces the old one."""
+    latest = F.max("_batch_id").over(Window.partitionBy("fiscal_year"))
+    return (
+        bronze.withColumn("_latest", latest)
+        .where(F.col("_batch_id") == F.col("_latest"))
+        .drop("_latest")
+    )
+
+
+def silver_hrrp_history_checked(
+    bronze_pdc: DataFrame, bronze_ipps: DataFrame
+) -> tuple[DataFrame, DataFrame]:
+    """Returns (silver_hrrp_history rows, quarantine rows).
+
+    IPPS rows are unpivoted from one wide row per hospital, so a rejected row's `raw_row` is the
+    normalized history row as JSON rather than a single Bronze row.
+    """
+    pdc = latest_batch_per_year(bronze_pdc)
+    ipps = latest_batch_per_year(bronze_ipps)
+    batches = pdc.select("fiscal_year", "_batch_id").union(ipps.select("fiscal_year", "_batch_id"))
+    df = silver_hrrp_history(pdc, ipps)
+    df = df.withColumn("_raw", F.to_json(F.struct(*df.columns))).join(
+        batches.distinct(), "fiscal_year", "left"
+    )
+    rules = [
+        *missing_rules(["facility_id"]),
+        ("unknown_measure", F.col("measure").isNull()),
+        *constraint_rules(CONSTRAINTS),
+    ]
+    checked = df.withColumn("_violation", first_violation(rules))
+    return split_rows(checked, table=TABLE, schema=SILVER_HRRP_HISTORY_SCHEMA, key=KEY)

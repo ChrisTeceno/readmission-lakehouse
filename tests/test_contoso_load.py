@@ -16,6 +16,7 @@ from readmission.silver.contoso import (
     SILVER_CONTOSO_DISCHARGES_SCHEMA,
     SILVER_CONTOSO_FACILITIES_SCHEMA,
     SILVER_CONTOSO_FOLLOWUP_CALLS_SCHEMA,
+    contoso_rejects,
     silver_contoso_discharges,
     silver_contoso_facilities,
     silver_contoso_followup_calls,
@@ -143,6 +144,13 @@ def test_silver_keeps_latest_version_and_drops_invalid_rows(spark):
     assert [(r.facility_id, r.condition, r.discharges) for r in silver.collect()] == [
         ("CH01", "HF", 42)
     ]
+    rejects = {r.business_key: r for r in contoso_rejects(bronze, "discharges").collect()}
+    assert {k: r.rule for k, r in rejects.items()} == {
+        "CH01|2024-01-01|SEPSIS": "unknown_condition",
+        "CH02|2024-01-01|PN": "negative_count",
+    }
+    assert rejects["CH02|2024-01-01|PN"].table_name == "silver_contoso_discharges"
+    assert rejects["CH02|2024-01-01|PN"]._batch_id == "b1"
 
 
 def test_silver_breaks_updated_at_ties_by_ingest_time(spark):
@@ -198,3 +206,5 @@ def test_silver_followup_calls_rejects_completed_above_attempted(spark):
     silver = silver_contoso_followup_calls(bronze)
     assert silver.schema.fieldNames() == SILVER_CONTOSO_FOLLOWUP_CALLS_SCHEMA.fieldNames()
     assert [r.within_72h for r in silver.collect()] == [True]
+    (reject,) = contoso_rejects(bronze, "followup_calls").collect()
+    assert reject.rule == "completed_above_attempted"
