@@ -7,6 +7,7 @@ requires-python = ">=3.11,<3.12"
 dependencies = [
     "databricks-sdk>=0.155.0",
     "httpx>=0.28.1",
+    "jsonschema>=4.23",
 ]
 
 # Entry points for the readmission_pipeline job's python_wheel_task tasks.
