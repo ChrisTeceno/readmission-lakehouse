@@ -20,7 +20,8 @@
 # MAGIC 5. Difference-in-differences check
 # MAGIC 6. Why this is not regression to the mean
 # MAGIC 7. Result, in the plan's terms
-# MAGIC 8. Supplementary, not pre-registered: first-time penalized hospitals, event study
+# MAGIC 8. Supplementary, not pre-registered: first-time penalized hospitals (event study) and
+# MAGIC    outcome availability at the cutoff
 # MAGIC 9. Deviations from plan
 # MAGIC
 # MAGIC Estimator: `rdrobust` and `rddensity` (Calonico, Cattaneo, Farrell and Titiunik), installed
@@ -97,7 +98,12 @@ plt.rcParams.update(
     }
 )
 
-print({p: importlib.metadata.version(p) for p in ["rdrobust", "rddensity", "statsmodels"]})
+print(
+    {
+        p: importlib.metadata.version(p)
+        for p in ["rdrobust", "rddensity", "statsmodels", "numpy", "pandas"]
+    }
+)
 
 
 def table(name: str):
@@ -217,7 +223,7 @@ assert (primary["penalty_cutoff"] == CUTOFF).all()
 # running value puts the rows at exactly 0 on the untreated side and moves nothing else.
 C0 = float(primary.loc[primary["x"] > 0, "x"].min()) / 2
 print(
-    f"Rows with ERR exactly at the cutoff (untreated): {(primary['x'] == 0).sum():,}; c = {C0:.6f}"
+    f"Rows with ERR exactly at the cutoff (untreated): {(primary['x'] == 0).sum():,}; c = {C0:.2e}"
 )
 
 sample_counts = (
@@ -252,8 +258,8 @@ def rd(
         if covs and d[covs].nunique() > 1
         else None
     )
-    # rdrobust prints a notice on every call with repeated running values (the ERR has four
-    # decimals); it is expected here, and the mass-point adjustment it announces stays on.
+    # rdrobust prints a notice on every call with repeated running values (many hospitals share
+    # an ERR); it is expected here, and the mass-point adjustment it announces stays on.
     with contextlib.redirect_stdout(io.StringIO()):
         fit = rdrobust(
             d[y].to_numpy(),
@@ -791,7 +797,9 @@ print(json.dumps(summary, default=lambda v: v.item() if hasattr(v, "item") else 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 8. Supplementary, not pre-registered: first-time penalized hospitals, event study
+# MAGIC ## 8. Supplementary, not pre-registered
+# MAGIC
+# MAGIC ### 8.1 First-time penalized hospitals, event study
 # MAGIC
 # MAGIC The task card also asked for hospitals penalized for the first time against never-penalized
 # MAGIC ones, with an event-study plot of pre-trends. The plan did not pre-register it, so it sits
@@ -887,7 +895,37 @@ ax.set_title(
     "the jump at 0 is selection"
 )
 show(fig)
+print(f"Cohorts: {cohorts.value_counts().sort_index().to_dict()}; never penalized: {len(never):,}")
 event.round(4)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### 8.2 Outcome availability at the cutoff (added after the first run)
+# MAGIC
+# MAGIC Not pre-registered. The first run of this notebook found no density jump in the analysis
+# MAGIC sample (section 2.1) but a rejection on all primary-year rows with an ERR, with or without an
+# MAGIC outcome. A row leaves the analysis sample when CMS publishes no ERR for it in year s. If that
+# MAGIC attrition jumped at the cutoff, the rows left on each side could differ. This runs the primary
+# MAGIC specification with "has an outcome" (0 or 1) as the outcome. It describes the sample and
+# MAGIC does not change the headline.
+
+# COMMAND ----------
+
+with_err = (
+    facts[facts["fiscal_year"].isin(PRIMARY_YEARS) & facts["err"].notna()]
+    .rename(columns={"fiscal_year": "t"})
+    .merge(outcome[[*KEY, "t"]].assign(has_outcome=1.0), on=[*KEY, "t"], how="left")
+    .fillna({"has_outcome": 0.0})
+)
+with_err["measure_year"] = with_err["measure"] + "_" + with_err["t"].astype(str)
+attrition = rd(with_err, "has_outcome", label="has an outcome in year s")
+print(
+    f"Rows with an outcome: {with_err['has_outcome'].mean():.1%} of {len(with_err):,}; jump at "
+    f"the cutoff {attrition['estimate']:+.4f} (robust 95% CI {attrition['ci_low']:+.4f} to "
+    f"{attrition['ci_high']:+.4f}, p = {attrition['p']:.3f})"
+)
+print(json.dumps({"attrition": attrition}))
 
 # COMMAND ----------
 
@@ -896,9 +934,9 @@ event.round(4)
 # MAGIC
 # MAGIC 1. **Evaluation point of the cutoff.** Gold counts a condition only when its ERR is strictly
 # MAGIC    above 1.0, while `rdrobust` puts rows at exactly c on the treated side. The RDD is
-# MAGIC    evaluated at half the smallest positive running value (0.00005 for four-decimal ratios), so
-# MAGIC    rows at exactly 1.0 stay untreated as Gold has them. The treated set is unchanged, and the
-# MAGIC    density test uses the same point. Reason: to match the plan's treatment definition
+# MAGIC    evaluated at half the smallest positive running value in the data (printed in section 1),
+# MAGIC    so rows at exactly 1.0 stay untreated as Gold has them. The treated set is unchanged, and
+# MAGIC    the density test uses the same point. Reason: to match the plan's treatment definition
 # MAGIC    (`above_cutoff`); not a design change.
 # MAGIC 2. **DiD computed in first differences.** The plan's model (facility-measure and
 # MAGIC    measure-by-year-by-post fixed effects, two windows) is fitted as the change from t-3 to t+3
@@ -907,8 +945,12 @@ event.round(4)
 # MAGIC 3. **Bandwidth sensitivity scales both bandwidths.** The 0.5x to 2x runs scale the bias
 # MAGIC    bandwidth b with h, so 1x reproduces the primary run; the plan only names h. Reason: keeps
 # MAGIC    the bias correction comparable across runs.
-# MAGIC 4. **Section 8 is supplementary and was not pre-registered.** The task card asked for it; it
-# MAGIC    was designed in this notebook and does not enter the headline.
-# MAGIC 5. **Package environment.** `rdrobust` and `rddensity` pull a matplotlib that needs a newer
-# MAGIC    numpy than the serverless default, so the install cell pins numpy 1.26 and restarts Python.
-# MAGIC    No effect on the analysis.
+# MAGIC 4. **Section 8.1 is supplementary and was not pre-registered.** The task card asked for it;
+# MAGIC    it was designed in this notebook, before the first run, and does not enter the headline.
+# MAGIC 5. **Section 8.2 was added after the first run.** It checks outcome attrition at the cutoff,
+# MAGIC    prompted by the density result on all rows. Nothing else in the notebook changed between
+# MAGIC    the two runs except labels and this section. It does not enter the headline.
+# MAGIC 6. **Package environment.** Installing `rdrobust` and `rddensity` alone broke the matplotlib
+# MAGIC    import on serverless (a newer matplotlib against the default numpy), so the install cell
+# MAGIC    also requests numpy 1.26 and restarts Python. The versions that ran are printed above. No
+# MAGIC    effect on the analysis.
