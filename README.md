@@ -15,7 +15,7 @@ A portfolio project framed as a delivery engagement for the fictional client Con
 | Azure Data Factory, Key Vault | `infra/` Bicep: Key Vault holding the Census key and Databricks token, ADF pipeline |
 | Power BI | `powerbi/` `.pbip` project over Gold tables |
 | Dashboards, Genie | AI/BI dashboard JSON in the bundle, Genie space with documented sample questions |
-| Statistics: experimental design, hypothesis testing, causal inference | `analysis/` RDD + DiD notebook, pre-registered hypotheses in `docs/analysis-plan.md` |
+| Statistics: experimental design, hypothesis testing, causal inference | `analysis/` RDD + DiD notebook, pre-registered hypotheses in `docs/analysis-plan.md`, follow-up call pilot with simulation-based power in `docs/pilot-design.md` and `analysis/03_power.py` |
 | Exploration, anomalies, storytelling | EDA notebook, anomaly flags in Gold, the readout deck |
 | AI-assisted development and judgment | `docs/ai-assisted-dev.md` log: what AI produced, how it was checked, what was rejected |
 | LLMs in solutions | Notes extraction step with eval metrics |
