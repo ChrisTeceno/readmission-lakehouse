@@ -1,0 +1,2723 @@
+{
+  "datasets": [
+    {
+      "name": "scorecard",
+      "displayName": "Contoso scorecard",
+      "queryLines": [
+        "SELECT\n",
+        "  concat(contoso_facility_id, ' ', contoso_facility_name) AS facility,\n",
+        "  contoso_facility_id,\n",
+        "  facility_id AS ccn,\n",
+        "  measure,\n",
+        "  fiscal_year,\n",
+        "  excess_readmission_ratio AS err,\n",
+        "  penalty_cutoff,\n",
+        "  cutoff_is_approximate,\n",
+        "  above_cutoff,\n",
+        "  CASE WHEN above_cutoff THEN 1 ELSE 0 END AS above_cutoff_n,\n",
+        "  err_change,\n",
+        "  anomaly_flag\n",
+        "FROM gold_contoso_scorecard\n",
+        "WHERE fiscal_year = :fiscal_year"
+      ],
+      "parameters": [
+        {
+          "displayName": "fiscal_year",
+          "keyword": "fiscal_year",
+          "dataType": "INTEGER",
+          "defaultSelection": {
+            "values": {
+              "dataType": "INTEGER",
+              "values": [
+                {
+                  "value": "2027"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "scorecard_summary",
+      "displayName": "Contoso scorecard summary",
+      "queryLines": [
+        "SELECT\n",
+        "  COUNT(DISTINCT CASE WHEN above_cutoff THEN contoso_facility_id END) AS facilities_above,\n",
+        "  SUM(CASE WHEN above_cutoff THEN 1 ELSE 0 END) AS conditions_above,\n",
+        "  COUNT(excess_readmission_ratio) AS pairs_reported,\n",
+        "  ROUND(AVG(excess_readmission_ratio), 3) AS mean_err\n",
+        "FROM gold_contoso_scorecard\n",
+        "WHERE fiscal_year = :fiscal_year"
+      ],
+      "parameters": [
+        {
+          "displayName": "fiscal_year",
+          "keyword": "fiscal_year",
+          "dataType": "INTEGER",
+          "defaultSelection": {
+            "values": {
+              "dataType": "INTEGER",
+              "values": [
+                {
+                  "value": "2027"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "err_trend",
+      "displayName": "ERR trend: Contoso, Ohio, all hospitals",
+      "queryLines": [
+        "SELECT 'All hospitals' AS hospital_group, fiscal_year, measure, excess_readmission_ratio AS err\n",
+        "FROM gold_facility_condition_year\n",
+        "WHERE excess_readmission_ratio IS NOT NULL\n",
+        "UNION ALL\n",
+        "SELECT 'Ohio' AS hospital_group, fiscal_year, measure, excess_readmission_ratio AS err\n",
+        "FROM gold_facility_condition_year\n",
+        "WHERE excess_readmission_ratio IS NOT NULL AND state = 'OH'\n",
+        "UNION ALL\n",
+        "SELECT 'Contoso' AS hospital_group, fiscal_year, measure, excess_readmission_ratio AS err\n",
+        "FROM gold_contoso_scorecard\n",
+        "WHERE excess_readmission_ratio IS NOT NULL"
+      ]
+    },
+    {
+      "name": "penalized_share",
+      "displayName": "Share of hospitals penalized by year",
+      "queryLines": [
+        "SELECT\n",
+        "  fiscal_year,\n",
+        "  CASE WHEN cutoff_is_approximate THEN 'Approximate cutoff (1.0 stand-in)'\n",
+        "       ELSE 'Exact cutoff' END AS cutoff_basis,\n",
+        "  COUNT(*) AS hospitals,\n",
+        "  SUM(CASE WHEN penalized THEN 1 ELSE 0 END) AS penalized,\n",
+        "  ROUND(AVG(CASE WHEN penalized THEN 1.0 ELSE 0.0 END), 3) AS penalized_share\n",
+        "FROM gold_penalty_mart\n",
+        "WHERE conditions_reported > 0\n",
+        "GROUP BY 1, 2"
+      ]
+    },
+    {
+      "name": "penalized_by_state",
+      "displayName": "Hospitals penalized by state, latest year",
+      "queryLines": [
+        "SELECT\n",
+        "  state,\n",
+        "  COUNT(*) AS hospitals,\n",
+        "  SUM(CASE WHEN penalized THEN 1 ELSE 0 END) AS penalized,\n",
+        "  ROUND(AVG(CASE WHEN penalized THEN 1.0 ELSE 0.0 END), 3) AS penalized_share,\n",
+        "  ROUND(AVG(mean_err), 3) AS mean_err\n",
+        "FROM gold_penalty_mart\n",
+        "WHERE conditions_reported > 0\n",
+        "  AND state IS NOT NULL\n",
+        "  AND fiscal_year = (SELECT MAX(fiscal_year) FROM gold_penalty_mart)\n",
+        "GROUP BY state"
+      ]
+    },
+    {
+      "name": "predictions_contoso",
+      "displayName": "FY2028 predictions for Contoso",
+      "queryLines": [
+        "SELECT\n",
+        "  concat(contoso_facility_id, ' ', contoso_facility_name) AS facility,\n",
+        "  c.contoso_facility_id,\n",
+        "  p.measure,\n",
+        "  p.target_fiscal_year,\n",
+        "  ROUND(p.penalty_probability, 3) AS penalty_probability,\n",
+        "  p.predicted_above_cutoff,\n",
+        "  CASE WHEN p.predicted_above_cutoff THEN 1 ELSE 0 END AS predicted_above_n,\n",
+        "  p.above_cutoff_lag1 AS above_cutoff_last_year,\n",
+        "  CASE WHEN p.above_cutoff_lag1 THEN 1 ELSE 0 END AS above_last_year_n,\n",
+        "  p.risk_decile,\n",
+        "  p.risk_rank,\n",
+        "  p.model_name,\n",
+        "  p.model_version,\n",
+        "  p.scored_at\n",
+        "FROM gold_penalty_predictions p\n",
+        "JOIN (\n",
+        "  SELECT DISTINCT contoso_facility_id, contoso_facility_name, facility_id\n",
+        "  FROM gold_contoso_scorecard\n",
+        ") c ON p.facility_id = c.facility_id"
+      ]
+    },
+    {
+      "name": "predictions_by_measure",
+      "displayName": "FY2028 predictions by condition, all hospitals",
+      "queryLines": [
+        "SELECT\n",
+        "  measure,\n",
+        "  COUNT(*) AS pairs,\n",
+        "  ROUND(AVG(penalty_probability), 3) AS mean_probability,\n",
+        "  SUM(CASE WHEN predicted_above_cutoff THEN 1 ELSE 0 END) AS predicted_above\n",
+        "FROM gold_penalty_predictions\n",
+        "GROUP BY measure"
+      ]
+    },
+    {
+      "name": "followup",
+      "displayName": "Follow-up calls by facility and condition",
+      "queryLines": [
+        "SELECT\n",
+        "  concat(contoso_facility_id, ' ', contoso_facility_name) AS facility,\n",
+        "  contoso_facility_id,\n",
+        "  measure,\n",
+        "  fiscal_year,\n",
+        "  contoso_months,\n",
+        "  contoso_discharges,\n",
+        "  calls_attempted,\n",
+        "  calls_completed,\n",
+        "  calls_completed_within_72h,\n",
+        "  ROUND(followup_rate, 3) AS followup_rate,\n",
+        "  ROUND(followup_within_72h_rate, 3) AS followup_within_72h_rate,\n",
+        "  ROUND(calls_completed / NULLIF(calls_attempted, 0), 3) AS completed_of_attempted,\n",
+        "  above_cutoff,\n",
+        "  cutoff_is_approximate\n",
+        "FROM gold_contoso_scorecard\n",
+        "WHERE fiscal_year = :fiscal_year AND contoso_months > 0"
+      ],
+      "parameters": [
+        {
+          "displayName": "fiscal_year",
+          "keyword": "fiscal_year",
+          "dataType": "INTEGER",
+          "defaultSelection": {
+            "values": {
+              "dataType": "INTEGER",
+              "values": [
+                {
+                  "value": "2027"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "followup_facility",
+      "displayName": "Follow-up rate by facility",
+      "queryLines": [
+        "SELECT\n",
+        "  concat(contoso_facility_id, ' ', contoso_facility_name) AS facility,\n",
+        "  MAX(contoso_months) AS contoso_months,\n",
+        "  SUM(contoso_discharges) AS discharges,\n",
+        "  SUM(calls_completed) AS calls_completed,\n",
+        "  ROUND(SUM(calls_completed) / NULLIF(SUM(contoso_discharges), 0), 3) AS followup_rate,\n",
+        "  ROUND(SUM(calls_completed_within_72h) / NULLIF(SUM(contoso_discharges), 0), 3)\n",
+        "    AS followup_within_72h_rate,\n",
+        "  SUM(CASE WHEN above_cutoff THEN 1 ELSE 0 END) AS conditions_above_cutoff,\n",
+        "  CASE WHEN SUM(CASE WHEN above_cutoff THEN 1 ELSE 0 END) > 0\n",
+        "       THEN 'Has a condition above the cutoff' ELSE 'No condition above the cutoff' END\n",
+        "    AS penalty_status\n",
+        "FROM gold_contoso_scorecard\n",
+        "WHERE fiscal_year = :fiscal_year\n",
+        "GROUP BY 1\n",
+        "HAVING MAX(contoso_months) > 0"
+      ],
+      "parameters": [
+        {
+          "displayName": "fiscal_year",
+          "keyword": "fiscal_year",
+          "dataType": "INTEGER",
+          "defaultSelection": {
+            "values": {
+              "dataType": "INTEGER",
+              "values": [
+                {
+                  "value": "2027"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "run_summary",
+      "displayName": "Last pipeline run",
+      "queryLines": [
+        "WITH runs AS (\n",
+        "  SELECT\n",
+        "    job_run_id,\n",
+        "    MIN(started_at) AS run_started,\n",
+        "    MAX(ended_at) AS run_ended,\n",
+        "    COUNT(*) AS task_attempts,\n",
+        "    SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) AS failed_attempts\n",
+        "  FROM ops_run_log\n",
+        "  GROUP BY job_run_id\n",
+        ")\n",
+        "SELECT\n",
+        "  job_run_id,\n",
+        "  run_started,\n",
+        "  run_ended,\n",
+        "  CASE WHEN failed_attempts > 0 THEN 'failed' ELSE 'succeeded' END AS run_status,\n",
+        "  task_attempts,\n",
+        "  failed_attempts,\n",
+        "  ROUND((unix_timestamp(current_timestamp()) - unix_timestamp(run_ended)) / 3600, 1)\n",
+        "    AS hours_since_run_ended,\n",
+        "  (SELECT COUNT(*) FROM ops_dq_metrics WHERE NOT passed) AS failed_dq_checks\n",
+        "FROM runs\n",
+        "ORDER BY run_started DESC\n",
+        "LIMIT 1"
+      ]
+    },
+    {
+      "name": "task_latest",
+      "displayName": "Latest attempt per task",
+      "queryLines": [
+        "SELECT\n",
+        "  task,\n",
+        "  status,\n",
+        "  started_at,\n",
+        "  ended_at,\n",
+        "  ROUND((unix_timestamp(ended_at) - unix_timestamp(started_at)) / 60, 1) AS minutes,\n",
+        "  rows_written,\n",
+        "  error,\n",
+        "  job_run_id\n",
+        "FROM (\n",
+        "  SELECT *, ROW_NUMBER() OVER (PARTITION BY task ORDER BY ended_at DESC) AS attempt_rank\n",
+        "  FROM ops_run_log\n",
+        ")\n",
+        "WHERE attempt_rank = 1"
+      ]
+    },
+    {
+      "name": "task_durations",
+      "displayName": "Task duration by run",
+      "queryLines": [
+        "SELECT\n",
+        "  r.job_run_id,\n",
+        "  MIN(r.started_at) OVER (PARTITION BY r.job_run_id) AS run_started,\n",
+        "  r.task,\n",
+        "  r.status,\n",
+        "  ROUND((unix_timestamp(r.ended_at) - unix_timestamp(r.started_at)) / 60, 1) AS minutes\n",
+        "FROM ops_run_log r"
+      ]
+    },
+    {
+      "name": "dq_failed",
+      "displayName": "Failed data quality checks",
+      "queryLines": [
+        "SELECT job_run_id, task, table_name, metric, value, threshold, measured_at\n",
+        "FROM ops_dq_metrics\n",
+        "WHERE NOT passed"
+      ]
+    },
+    {
+      "name": "fiscal_years",
+      "displayName": "Fiscal years",
+      "queryLines": [
+        "SELECT DISTINCT fiscal_year\n",
+        "FROM gold_contoso_scorecard"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "scorecard",
+      "displayName": "Contoso scorecard",
+      "layout": [
+        {
+          "widget": {
+            "name": "scorecard_title",
+            "multilineTextboxSpec": {
+              "lines": [
+                "## Contoso Health scorecard\n",
+                "Which of our facilities and conditions are above the penalty cutoff this year? FY2027 is the latest HRRP year and the default.\n",
+                "\n",
+                "*Contoso Health is a fictional client. Its 12 facilities are real public Ohio CMS Certification Numbers relabeled with invented names; the CMS numbers are public, and no Contoso number describes a real hospital.*"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 4,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "scorecard_fy",
+            "queries": [
+              {
+                "name": "scorecard_fy_field",
+                "query": {
+                  "datasetName": "fiscal_years",
+                  "fields": [
+                    {
+                      "name": "fiscal_year",
+                      "expression": "`fiscal_year`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "scorecard_fy_scorecard",
+                "query": {
+                  "datasetName": "scorecard",
+                  "parameters": [
+                    {
+                      "name": "fiscal_year",
+                      "keyword": "fiscal_year"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "scorecard_fy_scorecard_summary",
+                "query": {
+                  "datasetName": "scorecard_summary",
+                  "parameters": [
+                    {
+                      "name": "fiscal_year",
+                      "keyword": "fiscal_year"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "fiscal_year",
+                    "queryName": "scorecard_fy_field"
+                  },
+                  {
+                    "parameterName": "fiscal_year",
+                    "queryName": "scorecard_fy_scorecard"
+                  },
+                  {
+                    "parameterName": "fiscal_year",
+                    "queryName": "scorecard_fy_scorecard_summary"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Fiscal year"
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 0,
+            "width": 1,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "scorecard_facility",
+            "queries": [
+              {
+                "name": "scorecard_facility_scorecard",
+                "query": {
+                  "datasetName": "scorecard",
+                  "fields": [
+                    {
+                      "name": "facility",
+                      "expression": "`facility`"
+                    },
+                    {
+                      "name": "facility_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "facility",
+                    "queryName": "scorecard_facility_scorecard"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Facility"
+              }
+            }
+          },
+          "position": {
+            "x": 5,
+            "y": 0,
+            "width": 1,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "sc_fac_above",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "scorecard_summary",
+                  "fields": [
+                    {
+                      "name": "sum(facilities_above)",
+                      "expression": "SUM(`facilities_above`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(facilities_above)",
+                  "displayName": "Facilities with a condition above the cutoff"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Facilities with a condition above the cutoff"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 3,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "sc_cond_above",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "scorecard_summary",
+                  "fields": [
+                    {
+                      "name": "sum(conditions_above)",
+                      "expression": "SUM(`conditions_above`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(conditions_above)",
+                  "displayName": "Facility-condition pairs above the cutoff"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Facility-condition pairs above the cutoff"
+              }
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 3,
+            "width": 1,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "sc_pairs",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "scorecard_summary",
+                  "fields": [
+                    {
+                      "name": "sum(pairs_reported)",
+                      "expression": "SUM(`pairs_reported`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(pairs_reported)",
+                  "displayName": "Pairs with an ERR"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Pairs with an ERR"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 3,
+            "width": 1,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "sc_mean_err",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "scorecard_summary",
+                  "fields": [
+                    {
+                      "name": "avg(mean_err)",
+                      "expression": "AVG(`mean_err`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "avg(mean_err)",
+                  "displayName": "Mean ERR across Contoso pairs"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Mean ERR across Contoso pairs"
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 3,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "sc_bar",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "scorecard",
+                  "fields": [
+                    {
+                      "name": "sum(above_cutoff_n)",
+                      "expression": "SUM(`above_cutoff_n`)"
+                    },
+                    {
+                      "name": "facility",
+                      "expression": "`facility`"
+                    },
+                    {
+                      "name": "measure",
+                      "expression": "`measure`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "sum(above_cutoff_n)",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "axis": {
+                    "title": "Conditions above the cutoff"
+                  },
+                  "displayName": "Conditions above the cutoff"
+                },
+                "y": {
+                  "fieldName": "facility",
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "x-reversed"
+                    }
+                  },
+                  "axis": {
+                    "title": "Facility"
+                  },
+                  "displayName": "Facility"
+                },
+                "color": {
+                  "fieldName": "measure",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "legend": {
+                    "title": "Condition"
+                  },
+                  "displayName": "Condition"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Conditions above the cutoff, by facility"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 6,
+            "width": 6,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "sc_table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "scorecard",
+                  "fields": [
+                    {
+                      "name": "facility",
+                      "expression": "`facility`"
+                    },
+                    {
+                      "name": "ccn",
+                      "expression": "`ccn`"
+                    },
+                    {
+                      "name": "measure",
+                      "expression": "`measure`"
+                    },
+                    {
+                      "name": "err",
+                      "expression": "`err`"
+                    },
+                    {
+                      "name": "penalty_cutoff",
+                      "expression": "`penalty_cutoff`"
+                    },
+                    {
+                      "name": "cutoff_is_approximate",
+                      "expression": "`cutoff_is_approximate`"
+                    },
+                    {
+                      "name": "above_cutoff",
+                      "expression": "`above_cutoff`"
+                    },
+                    {
+                      "name": "err_change",
+                      "expression": "`err_change`"
+                    },
+                    {
+                      "name": "anomaly_flag",
+                      "expression": "`anomaly_flag`"
+                    }
+                  ],
+                  "disaggregated": true,
+                  "orders": [
+                    {
+                      "direction": "DESC",
+                      "expression": "`above_cutoff`"
+                    },
+                    {
+                      "direction": "DESC",
+                      "expression": "`err`"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "facility",
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 100000,
+                    "title": "Facility",
+                    "alignContent": "left",
+                    "allowSearch": true
+                  },
+                  {
+                    "fieldName": "ccn",
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 100001,
+                    "title": "CCN",
+                    "alignContent": "left",
+                    "allowSearch": true
+                  },
+                  {
+                    "fieldName": "measure",
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 100002,
+                    "title": "Condition",
+                    "alignContent": "left",
+                    "allowSearch": true
+                  },
+                  {
+                    "fieldName": "err",
+                    "type": "float",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 100003,
+                    "title": "ERR",
+                    "alignContent": "right",
+                    "allowSearch": false,
+                    "numberFormat": "0.000"
+                  },
+                  {
+                    "fieldName": "penalty_cutoff",
+                    "type": "float",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 100004,
+                    "title": "Cutoff",
+                    "alignContent": "right",
+                    "allowSearch": false,
+                    "numberFormat": "0.000"
+                  },
+                  {
+                    "fieldName": "cutoff_is_approximate",
+                    "type": "boolean",
+                    "displayAs": "boolean",
+                    "visible": true,
+                    "order": 100005,
+                    "title": "Cutoff approximate",
+                    "alignContent": "left",
+                    "allowSearch": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ]
+                  },
+                  {
+                    "fieldName": "above_cutoff",
+                    "type": "boolean",
+                    "displayAs": "boolean",
+                    "visible": true,
+                    "order": 100006,
+                    "title": "Above cutoff",
+                    "alignContent": "left",
+                    "allowSearch": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ]
+                  },
+                  {
+                    "fieldName": "err_change",
+                    "type": "float",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 100007,
+                    "title": "ERR change from prior window",
+                    "alignContent": "right",
+                    "allowSearch": false,
+                    "numberFormat": "0.000"
+                  },
+                  {
+                    "fieldName": "anomaly_flag",
+                    "type": "boolean",
+                    "displayAs": "boolean",
+                    "visible": true,
+                    "order": 100008,
+                    "title": "Anomaly flag",
+                    "alignContent": "left",
+                    "allowSearch": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ]
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Every Contoso facility and condition"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 13,
+            "width": 6,
+            "height": 9
+          }
+        },
+        {
+          "widget": {
+            "name": "sc_caption",
+            "multilineTextboxSpec": {
+              "lines": [
+                "Cutoffs for FY2019 to FY2026 are approximate: CMS compared each hospital with the median ERR of its dual-eligibility peer group, which no file in this project carries, so 1.0 stands in (`cutoff_is_approximate = true`). FY2013 to FY2018 (1.0) and FY2027 (the published peer group median) are exact."
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 22,
+            "width": 6,
+            "height": 2
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS"
+    },
+    {
+      "name": "landscape",
+      "displayName": "National penalty landscape",
+      "layout": [
+        {
+          "widget": {
+            "name": "landscape_title",
+            "multilineTextboxSpec": {
+              "lines": [
+                "## National penalty landscape\n",
+                "How does our readmission ratio trend compare with Ohio and national hospitals? Mean ERR per fiscal year, FY2013 to FY2027. An ERR above the cutoff means more readmissions than CMS expected for that hospital's patients."
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 5,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "landscape_measure",
+            "queries": [
+              {
+                "name": "landscape_measure_err_trend",
+                "query": {
+                  "datasetName": "err_trend",
+                  "fields": [
+                    {
+                      "name": "measure",
+                      "expression": "`measure`"
+                    },
+                    {
+                      "name": "measure_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "measure",
+                    "queryName": "landscape_measure_err_trend"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Condition"
+              }
+            }
+          },
+          "position": {
+            "x": 5,
+            "y": 0,
+            "width": 1,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "trend_line",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "err_trend",
+                  "fields": [
+                    {
+                      "name": "fiscal_year",
+                      "expression": "`fiscal_year`"
+                    },
+                    {
+                      "name": "avg(err)",
+                      "expression": "AVG(`err`)"
+                    },
+                    {
+                      "name": "hospital_group",
+                      "expression": "`hospital_group`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "fiscal_year",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "axis": {
+                    "title": "Fiscal year"
+                  },
+                  "displayName": "Fiscal year"
+                },
+                "y": {
+                  "fieldName": "avg(err)",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "axis": {
+                    "title": "Mean ERR"
+                  },
+                  "displayName": "Mean ERR"
+                },
+                "color": {
+                  "fieldName": "hospital_group",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "legend": {
+                    "title": "Group"
+                  },
+                  "displayName": "Group"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Mean ERR by fiscal year: Contoso, Ohio, all hospitals"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 3,
+            "width": 6,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "penalized_bar",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "penalized_share",
+                  "fields": [
+                    {
+                      "name": "fiscal_year",
+                      "expression": "`fiscal_year`"
+                    },
+                    {
+                      "name": "sum(penalized_share)",
+                      "expression": "SUM(`penalized_share`)"
+                    },
+                    {
+                      "name": "cutoff_basis",
+                      "expression": "`cutoff_basis`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "fiscal_year",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "axis": {
+                    "title": "Fiscal year"
+                  },
+                  "displayName": "Fiscal year"
+                },
+                "y": {
+                  "fieldName": "sum(penalized_share)",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "axis": {
+                    "title": "Share of hospitals penalized"
+                  },
+                  "displayName": "Share of hospitals penalized"
+                },
+                "color": {
+                  "fieldName": "cutoff_basis",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "legend": {
+                    "title": "Cutoff"
+                  },
+                  "displayName": "Cutoff"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Share of hospitals with a condition above the cutoff"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 10,
+            "width": 3,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "state_table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "penalized_by_state",
+                  "fields": [
+                    {
+                      "name": "state",
+                      "expression": "`state`"
+                    },
+                    {
+                      "name": "hospitals",
+                      "expression": "`hospitals`"
+                    },
+                    {
+                      "name": "penalized",
+                      "expression": "`penalized`"
+                    },
+                    {
+                      "name": "penalized_share",
+                      "expression": "`penalized_share`"
+                    },
+                    {
+                      "name": "mean_err",
+                      "expression": "`mean_err`"
+                    }
+                  ],
+                  "disaggregated": true,
+                  "orders": [
+                    {
+                      "direction": "DESC",
+                      "expression": "`penalized_share`"
+                    },
+                    {
+                      "direction": "DESC",
+                      "expression": "`hospitals`"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "state",
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 100000,
+                    "title": "State",
+                    "alignContent": "left",
+                    "allowSearch": true
+                  },
+                  {
+                    "fieldName": "hospitals",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 100001,
+                    "title": "Hospitals",
+                    "alignContent": "right",
+                    "allowSearch": false
+                  },
+                  {
+                    "fieldName": "penalized",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 100002,
+                    "title": "Penalized",
+                    "alignContent": "right",
+                    "allowSearch": false
+                  },
+                  {
+                    "fieldName": "penalized_share",
+                    "type": "float",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 100003,
+                    "title": "Share penalized",
+                    "alignContent": "right",
+                    "allowSearch": false,
+                    "numberFormat": "0.000"
+                  },
+                  {
+                    "fieldName": "mean_err",
+                    "type": "float",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 100004,
+                    "title": "Mean ERR",
+                    "alignContent": "right",
+                    "allowSearch": false,
+                    "numberFormat": "0.000"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Hospitals penalized by state, FY2027 (exact cutoff)"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 10,
+            "width": 3,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "landscape_caption",
+            "multilineTextboxSpec": {
+              "lines": [
+                "Cutoffs for FY2019 to FY2026 are approximate: CMS compared each hospital with the median ERR of its dual-eligibility peer group, which no file in this project carries, so 1.0 stands in (`cutoff_is_approximate = true`). FY2013 to FY2018 (1.0) and FY2027 (the published peer group median) are exact. The bar colors show which years rest on the stand-in. A hospital counts as penalized when at least one condition is above the cutoff; the Gold tables carry no payment adjustment factor, so no page estimates the penalty's size."
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 17,
+            "width": 6,
+            "height": 2
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS"
+    },
+    {
+      "name": "predictions",
+      "displayName": "Predictions",
+      "layout": [
+        {
+          "widget": {
+            "name": "pred_title",
+            "multilineTextboxSpec": {
+              "lines": [
+                "## FY2028 penalty predictions\n",
+                "Which of our facility and condition pairs does the model expect above the cutoff next cycle? Probabilities from the `penalty_model` champion (LightGBM), scored into `gold_penalty_predictions`."
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 4,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "pred_facility",
+            "queries": [
+              {
+                "name": "pred_facility_predictions_contoso",
+                "query": {
+                  "datasetName": "predictions_contoso",
+                  "fields": [
+                    {
+                      "name": "facility",
+                      "expression": "`facility`"
+                    },
+                    {
+                      "name": "facility_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "facility",
+                    "queryName": "pred_facility_predictions_contoso"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Facility"
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 0,
+            "width": 1,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "pred_measure",
+            "queries": [
+              {
+                "name": "pred_measure_predictions_contoso",
+                "query": {
+                  "datasetName": "predictions_contoso",
+                  "fields": [
+                    {
+                      "name": "measure",
+                      "expression": "`measure`"
+                    },
+                    {
+                      "name": "measure_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "measure",
+                    "queryName": "pred_measure_predictions_contoso"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Condition"
+              }
+            }
+          },
+          "position": {
+            "x": 5,
+            "y": 0,
+            "width": 1,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "pred_above",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "predictions_contoso",
+                  "fields": [
+                    {
+                      "name": "sum(predicted_above_n)",
+                      "expression": "SUM(`predicted_above_n`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(predicted_above_n)",
+                  "displayName": "Contoso pairs predicted above the cutoff (probability 0.5 or more)"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Contoso pairs predicted above the cutoff (probability 0.5 or more)"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 3,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "pred_last",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "predictions_contoso",
+                  "fields": [
+                    {
+                      "name": "sum(above_last_year_n)",
+                      "expression": "SUM(`above_last_year_n`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(above_last_year_n)",
+                  "displayName": "Contoso pairs above the cutoff in FY2027"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Contoso pairs above the cutoff in FY2027"
+              }
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 3,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "pred_version",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "predictions_contoso",
+                  "fields": [
+                    {
+                      "name": "max(model_version)",
+                      "expression": "MAX(`model_version`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "max(model_version)",
+                  "displayName": "penalty_model version that scored"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "penalty_model version that scored"
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 3,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "pred_table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "predictions_contoso",
+                  "fields": [
+                    {
+                      "name": "facility",
+                      "expression": "`facility`"
+                    },
+                    {
+                      "name": "measure",
+                      "expression": "`measure`"
+                    },
+                    {
+                      "name": "penalty_probability",
+                      "expression": "`penalty_probability`"
+                    },
+                    {
+                      "name": "above_cutoff_last_year",
+                      "expression": "`above_cutoff_last_year`"
+                    },
+                    {
+                      "name": "risk_decile",
+                      "expression": "`risk_decile`"
+                    },
+                    {
+                      "name": "risk_rank",
+                      "expression": "`risk_rank`"
+                    },
+                    {
+                      "name": "scored_at",
+                      "expression": "`scored_at`"
+                    }
+                  ],
+                  "disaggregated": true,
+                  "orders": [
+                    {
+                      "direction": "DESC",
+                      "expression": "`penalty_probability`"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "facility",
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 100000,
+                    "title": "Facility",
+                    "alignContent": "left",
+                    "allowSearch": true
+                  },
+                  {
+                    "fieldName": "measure",
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 100001,
+                    "title": "Condition",
+                    "alignContent": "left",
+                    "allowSearch": true
+                  },
+                  {
+                    "fieldName": "penalty_probability",
+                    "type": "float",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 100002,
+                    "title": "Probability above cutoff, FY2028",
+                    "alignContent": "right",
+                    "allowSearch": false,
+                    "numberFormat": "0.000"
+                  },
+                  {
+                    "fieldName": "above_cutoff_last_year",
+                    "type": "boolean",
+                    "displayAs": "boolean",
+                    "visible": true,
+                    "order": 100003,
+                    "title": "Above cutoff in FY2027",
+                    "alignContent": "left",
+                    "allowSearch": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ]
+                  },
+                  {
+                    "fieldName": "risk_decile",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 100004,
+                    "title": "Decile (1 is highest risk)",
+                    "alignContent": "right",
+                    "allowSearch": false
+                  },
+                  {
+                    "fieldName": "risk_rank",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 100005,
+                    "title": "National rank",
+                    "alignContent": "right",
+                    "allowSearch": false
+                  },
+                  {
+                    "fieldName": "scored_at",
+                    "type": "datetime",
+                    "displayAs": "datetime",
+                    "visible": true,
+                    "order": 100006,
+                    "title": "Scored at (UTC)",
+                    "alignContent": "left",
+                    "allowSearch": false,
+                    "dateTimeFormat": "YYYY-MM-DD HH:mm"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Contoso pairs, highest probability first"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 6,
+            "width": 6,
+            "height": 9
+          }
+        },
+        {
+          "widget": {
+            "name": "pred_measure_bar",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "predictions_by_measure",
+                  "fields": [
+                    {
+                      "name": "measure",
+                      "expression": "`measure`"
+                    },
+                    {
+                      "name": "sum(mean_probability)",
+                      "expression": "SUM(`mean_probability`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "measure",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "axis": {
+                    "title": "Condition"
+                  },
+                  "displayName": "Condition"
+                },
+                "y": {
+                  "fieldName": "sum(mean_probability)",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "axis": {
+                    "title": "Mean probability"
+                  },
+                  "displayName": "Mean probability"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Mean FY2028 probability by condition, all hospitals"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 15,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "pred_caption",
+            "multilineTextboxSpec": {
+              "lines": [
+                "These are probabilities, not forecasts of the ERR or the penalty amount. The model scored test AUC 0.874 on FY2026, whose labels use the approximate 1.0 cutoff, but only 0.678 on FY2027, the one recent year with the exact peer-median cutoff, and its FY2027 probabilities are overconfident at both ends (rows under 0.1 were above the cutoff 22 percent of the time, rows over 0.9 only 76 percent). FY2028 follows FY2027, so expect accuracy closer to the lower figure. Use the ranking to decide where to look first. See `docs/model-card.md`."
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 21,
+            "width": 6,
+            "height": 3
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS"
+    },
+    {
+      "name": "followup",
+      "displayName": "Follow-up operations",
+      "layout": [
+        {
+          "widget": {
+            "name": "fu_title",
+            "multilineTextboxSpec": {
+              "lines": [
+                "## Follow-up operations\n",
+                "Where is follow-up call completion lowest, and is it where we are penalized? Rates are completed post-discharge calls over all-payer discharges in Contoso's own records, over the months of the fiscal year's performance window.\n",
+                "\n",
+                "*Contoso's operational data is synthetic and starts in September 2023, so only FY2026 (10 months) and FY2027 (22 months) have it.*"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 5,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "fu_fy",
+            "queries": [
+              {
+                "name": "fu_fy_field",
+                "query": {
+                  "datasetName": "fiscal_years",
+                  "fields": [
+                    {
+                      "name": "fiscal_year",
+                      "expression": "`fiscal_year`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "fu_fy_followup",
+                "query": {
+                  "datasetName": "followup",
+                  "parameters": [
+                    {
+                      "name": "fiscal_year",
+                      "keyword": "fiscal_year"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "fu_fy_followup_facility",
+                "query": {
+                  "datasetName": "followup_facility",
+                  "parameters": [
+                    {
+                      "name": "fiscal_year",
+                      "keyword": "fiscal_year"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "fiscal_year",
+                    "queryName": "fu_fy_field"
+                  },
+                  {
+                    "parameterName": "fiscal_year",
+                    "queryName": "fu_fy_followup"
+                  },
+                  {
+                    "parameterName": "fiscal_year",
+                    "queryName": "fu_fy_followup_facility"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Fiscal year"
+              }
+            }
+          },
+          "position": {
+            "x": 5,
+            "y": 0,
+            "width": 1,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "fu_bar",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "followup_facility",
+                  "fields": [
+                    {
+                      "name": "sum(followup_rate)",
+                      "expression": "SUM(`followup_rate`)"
+                    },
+                    {
+                      "name": "facility",
+                      "expression": "`facility`"
+                    },
+                    {
+                      "name": "penalty_status",
+                      "expression": "`penalty_status`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "sum(followup_rate)",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "axis": {
+                    "title": "Follow-up rate"
+                  },
+                  "displayName": "Follow-up rate"
+                },
+                "y": {
+                  "fieldName": "facility",
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "x"
+                    }
+                  },
+                  "axis": {
+                    "title": "Facility"
+                  },
+                  "displayName": "Facility"
+                },
+                "color": {
+                  "fieldName": "penalty_status",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "legend": {
+                    "title": "Penalty status"
+                  },
+                  "displayName": "Penalty status"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Follow-up rate by facility, lowest first"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 3,
+            "width": 6,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "fu_table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "followup",
+                  "fields": [
+                    {
+                      "name": "facility",
+                      "expression": "`facility`"
+                    },
+                    {
+                      "name": "measure",
+                      "expression": "`measure`"
+                    },
+                    {
+                      "name": "contoso_months",
+                      "expression": "`contoso_months`"
+                    },
+                    {
+                      "name": "contoso_discharges",
+                      "expression": "`contoso_discharges`"
+                    },
+                    {
+                      "name": "calls_attempted",
+                      "expression": "`calls_attempted`"
+                    },
+                    {
+                      "name": "calls_completed",
+                      "expression": "`calls_completed`"
+                    },
+                    {
+                      "name": "followup_rate",
+                      "expression": "`followup_rate`"
+                    },
+                    {
+                      "name": "followup_within_72h_rate",
+                      "expression": "`followup_within_72h_rate`"
+                    },
+                    {
+                      "name": "completed_of_attempted",
+                      "expression": "`completed_of_attempted`"
+                    },
+                    {
+                      "name": "above_cutoff",
+                      "expression": "`above_cutoff`"
+                    },
+                    {
+                      "name": "cutoff_is_approximate",
+                      "expression": "`cutoff_is_approximate`"
+                    }
+                  ],
+                  "disaggregated": true,
+                  "orders": [
+                    {
+                      "direction": "ASC",
+                      "expression": "`followup_rate`"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "facility",
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 100000,
+                    "title": "Facility",
+                    "alignContent": "left",
+                    "allowSearch": true
+                  },
+                  {
+                    "fieldName": "measure",
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 100001,
+                    "title": "Condition",
+                    "alignContent": "left",
+                    "allowSearch": true
+                  },
+                  {
+                    "fieldName": "contoso_months",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 100002,
+                    "title": "Months covered",
+                    "alignContent": "right",
+                    "allowSearch": false
+                  },
+                  {
+                    "fieldName": "contoso_discharges",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 100003,
+                    "title": "Discharges",
+                    "alignContent": "right",
+                    "allowSearch": false
+                  },
+                  {
+                    "fieldName": "calls_attempted",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 100004,
+                    "title": "Calls attempted",
+                    "alignContent": "right",
+                    "allowSearch": false
+                  },
+                  {
+                    "fieldName": "calls_completed",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 100005,
+                    "title": "Calls completed",
+                    "alignContent": "right",
+                    "allowSearch": false
+                  },
+                  {
+                    "fieldName": "followup_rate",
+                    "type": "float",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 100006,
+                    "title": "Follow-up rate",
+                    "alignContent": "right",
+                    "allowSearch": false,
+                    "numberFormat": "0.000"
+                  },
+                  {
+                    "fieldName": "followup_within_72h_rate",
+                    "type": "float",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 100007,
+                    "title": "Within 72 hours rate",
+                    "alignContent": "right",
+                    "allowSearch": false,
+                    "numberFormat": "0.000"
+                  },
+                  {
+                    "fieldName": "completed_of_attempted",
+                    "type": "float",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 100008,
+                    "title": "Completed of attempted",
+                    "alignContent": "right",
+                    "allowSearch": false,
+                    "numberFormat": "0.000"
+                  },
+                  {
+                    "fieldName": "above_cutoff",
+                    "type": "boolean",
+                    "displayAs": "boolean",
+                    "visible": true,
+                    "order": 100009,
+                    "title": "Above cutoff",
+                    "alignContent": "left",
+                    "allowSearch": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ]
+                  },
+                  {
+                    "fieldName": "cutoff_is_approximate",
+                    "type": "boolean",
+                    "displayAs": "boolean",
+                    "visible": true,
+                    "order": 100010,
+                    "title": "Cutoff approximate",
+                    "alignContent": "left",
+                    "allowSearch": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ]
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Facility and condition, lowest follow-up rate first"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 10,
+            "width": 6,
+            "height": 9
+          }
+        },
+        {
+          "widget": {
+            "name": "fu_caption",
+            "multilineTextboxSpec": {
+              "lines": [
+                "A low follow-up rate beside a condition above the cutoff is a place to look, not evidence that calls lower the ERR: that is the question the follow-up pilot is designed to test. A facility's penalty status counts every condition above the cutoff, including the few Contoso has no call records for, which the table leaves out. FY2026 cutoffs are the approximate 1.0 stand-in; FY2027's are exact."
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 19,
+            "width": 6,
+            "height": 2
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS"
+    },
+    {
+      "name": "pipeline_health",
+      "displayName": "Pipeline health",
+      "layout": [
+        {
+          "widget": {
+            "name": "health_title",
+            "multilineTextboxSpec": {
+              "lines": [
+                "## Pipeline health: readmission_pipeline\n",
+                "Is the data pipeline healthy? From `ops_run_log` (one row per task attempt) and `ops_dq_metrics` (every expectation's value and threshold). A run started for a subset of tasks counts as a run."
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 6,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "h_failed",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "run_summary",
+                  "fields": [
+                    {
+                      "name": "sum(failed_attempts)",
+                      "expression": "SUM(`failed_attempts`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(failed_attempts)",
+                  "displayName": "Failed task attempts, last run"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Failed task attempts, last run"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "h_hours",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "run_summary",
+                  "fields": [
+                    {
+                      "name": "sum(hours_since_run_ended)",
+                      "expression": "SUM(`hours_since_run_ended`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(hours_since_run_ended)",
+                  "displayName": "Hours since the last run ended"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Hours since the last run ended"
+              }
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 2,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "h_dq",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "run_summary",
+                  "fields": [
+                    {
+                      "name": "sum(failed_dq_checks)",
+                      "expression": "SUM(`failed_dq_checks`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(failed_dq_checks)",
+                  "displayName": "Failed data quality checks, all runs"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Failed data quality checks, all runs"
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 2,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "h_run",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "run_summary",
+                  "fields": [
+                    {
+                      "name": "job_run_id",
+                      "expression": "`job_run_id`"
+                    },
+                    {
+                      "name": "run_status",
+                      "expression": "`run_status`"
+                    },
+                    {
+                      "name": "run_started",
+                      "expression": "`run_started`"
+                    },
+                    {
+                      "name": "run_ended",
+                      "expression": "`run_ended`"
+                    },
+                    {
+                      "name": "task_attempts",
+                      "expression": "`task_attempts`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "job_run_id",
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 100000,
+                    "title": "Last job run",
+                    "alignContent": "left",
+                    "allowSearch": true
+                  },
+                  {
+                    "fieldName": "run_status",
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 100001,
+                    "title": "Status",
+                    "alignContent": "left",
+                    "allowSearch": true
+                  },
+                  {
+                    "fieldName": "run_started",
+                    "type": "datetime",
+                    "displayAs": "datetime",
+                    "visible": true,
+                    "order": 100002,
+                    "title": "Started (UTC)",
+                    "alignContent": "left",
+                    "allowSearch": false,
+                    "dateTimeFormat": "YYYY-MM-DD HH:mm"
+                  },
+                  {
+                    "fieldName": "run_ended",
+                    "type": "datetime",
+                    "displayAs": "datetime",
+                    "visible": true,
+                    "order": 100003,
+                    "title": "Ended (UTC)",
+                    "alignContent": "left",
+                    "allowSearch": false,
+                    "dateTimeFormat": "YYYY-MM-DD HH:mm"
+                  },
+                  {
+                    "fieldName": "task_attempts",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 100004,
+                    "title": "Task attempts",
+                    "alignContent": "right",
+                    "allowSearch": false
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Last run"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 5,
+            "width": 6,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "h_tasks",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "task_latest",
+                  "fields": [
+                    {
+                      "name": "task",
+                      "expression": "`task`"
+                    },
+                    {
+                      "name": "status",
+                      "expression": "`status`"
+                    },
+                    {
+                      "name": "started_at",
+                      "expression": "`started_at`"
+                    },
+                    {
+                      "name": "minutes",
+                      "expression": "`minutes`"
+                    },
+                    {
+                      "name": "rows_written",
+                      "expression": "`rows_written`"
+                    },
+                    {
+                      "name": "error",
+                      "expression": "`error`"
+                    },
+                    {
+                      "name": "job_run_id",
+                      "expression": "`job_run_id`"
+                    }
+                  ],
+                  "disaggregated": true,
+                  "orders": [
+                    {
+                      "direction": "ASC",
+                      "expression": "`started_at`"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "task",
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 100000,
+                    "title": "Task",
+                    "alignContent": "left",
+                    "allowSearch": true
+                  },
+                  {
+                    "fieldName": "status",
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 100001,
+                    "title": "Status",
+                    "alignContent": "left",
+                    "allowSearch": true
+                  },
+                  {
+                    "fieldName": "started_at",
+                    "type": "datetime",
+                    "displayAs": "datetime",
+                    "visible": true,
+                    "order": 100002,
+                    "title": "Started (UTC)",
+                    "alignContent": "left",
+                    "allowSearch": false,
+                    "dateTimeFormat": "YYYY-MM-DD HH:mm"
+                  },
+                  {
+                    "fieldName": "minutes",
+                    "type": "float",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 100003,
+                    "title": "Minutes",
+                    "alignContent": "right",
+                    "allowSearch": false,
+                    "numberFormat": "0.000"
+                  },
+                  {
+                    "fieldName": "rows_written",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 100004,
+                    "title": "Rows written",
+                    "alignContent": "right",
+                    "allowSearch": false
+                  },
+                  {
+                    "fieldName": "error",
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 100005,
+                    "title": "Error",
+                    "alignContent": "left",
+                    "allowSearch": true
+                  },
+                  {
+                    "fieldName": "job_run_id",
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 100006,
+                    "title": "Job run",
+                    "alignContent": "left",
+                    "allowSearch": true
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Latest attempt per task"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 8,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "h_duration",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "task_durations",
+                  "fields": [
+                    {
+                      "name": "run_started",
+                      "expression": "`run_started`"
+                    },
+                    {
+                      "name": "sum(minutes)",
+                      "expression": "SUM(`minutes`)"
+                    },
+                    {
+                      "name": "task",
+                      "expression": "`task`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "run_started",
+                  "scale": {
+                    "type": "temporal"
+                  },
+                  "axis": {
+                    "title": "Run started"
+                  },
+                  "displayName": "Run started"
+                },
+                "y": {
+                  "fieldName": "sum(minutes)",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "axis": {
+                    "title": "Minutes"
+                  },
+                  "displayName": "Minutes"
+                },
+                "color": {
+                  "fieldName": "task",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "legend": {
+                    "title": "Task"
+                  },
+                  "displayName": "Task"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Task duration by run"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 14,
+            "width": 6,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "h_dq_table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "dq_failed",
+                  "fields": [
+                    {
+                      "name": "job_run_id",
+                      "expression": "`job_run_id`"
+                    },
+                    {
+                      "name": "task",
+                      "expression": "`task`"
+                    },
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "metric",
+                      "expression": "`metric`"
+                    },
+                    {
+                      "name": "value",
+                      "expression": "`value`"
+                    },
+                    {
+                      "name": "threshold",
+                      "expression": "`threshold`"
+                    },
+                    {
+                      "name": "measured_at",
+                      "expression": "`measured_at`"
+                    }
+                  ],
+                  "disaggregated": true,
+                  "orders": [
+                    {
+                      "direction": "DESC",
+                      "expression": "`measured_at`"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "job_run_id",
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 100000,
+                    "title": "Job run",
+                    "alignContent": "left",
+                    "allowSearch": true
+                  },
+                  {
+                    "fieldName": "task",
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 100001,
+                    "title": "Task",
+                    "alignContent": "left",
+                    "allowSearch": true
+                  },
+                  {
+                    "fieldName": "table_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 100002,
+                    "title": "Table",
+                    "alignContent": "left",
+                    "allowSearch": true
+                  },
+                  {
+                    "fieldName": "metric",
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 100003,
+                    "title": "Metric",
+                    "alignContent": "left",
+                    "allowSearch": true
+                  },
+                  {
+                    "fieldName": "value",
+                    "type": "float",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 100004,
+                    "title": "Value",
+                    "alignContent": "right",
+                    "allowSearch": false,
+                    "numberFormat": "0.0000"
+                  },
+                  {
+                    "fieldName": "threshold",
+                    "type": "float",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 100005,
+                    "title": "Threshold",
+                    "alignContent": "right",
+                    "allowSearch": false,
+                    "numberFormat": "0.0000"
+                  },
+                  {
+                    "fieldName": "measured_at",
+                    "type": "datetime",
+                    "displayAs": "datetime",
+                    "visible": true,
+                    "order": 100006,
+                    "title": "Measured at (UTC)",
+                    "alignContent": "left",
+                    "allowSearch": false,
+                    "dateTimeFormat": "YYYY-MM-DD HH:mm"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Failed data quality checks"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 21,
+            "width": 6,
+            "height": 5
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS"
+    }
+  ],
+  "uiSettings": {
+    "theme": {
+      "widgetHeaderAlignment": "LEFT"
+    }
+  }
+}
