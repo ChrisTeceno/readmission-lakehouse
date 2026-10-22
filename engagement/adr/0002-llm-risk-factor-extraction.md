@@ -1,8 +1,8 @@
 # ADR 0002: Extract note risk factors with gpt-oss-120b through `ai_query`
 
 Status: accepted (2026-10-21). The metrics below are measured against the 50 reviewed labels: the
-project lead checked all 50 against the written rules and Chris decided the four judgment calls.
-No clinician has reviewed them. The first figures, against the unreviewed drafts, are under
+project lead drafted them and checked all 50 against the written rules; Chris Teceno, a
+clinician, reviewed all 50 and decided the four judgment calls. The first figures, against the unreviewed drafts, are under
 "Label review" below.
 
 ## Context
@@ -148,7 +148,7 @@ rejected notes are retried automatically under the new prompt.
 - **Small samples on three fields.** With 4 primary-condition positives, 3 prior admissions and 2
   social risk factors, one note moves those fields' precision or recall by 0.25 or more. The
   comparison is decided by comorbidities (55 terms) and follow-up (13), where the sample is
-  larger. The labels are reviewed by the lead and Chris, not by a clinician; the one change is
+  larger. The lead drafted the labels and Chris Teceno, a clinician, reviewed all 50; the one change is
   recorded in `docs/llm-extraction.md`.
 - **Proportional sampling** makes the 50 notes look like the population the job processes (20
   are Surgery operative notes), so most notes are negative for most fields. A sample enriched
