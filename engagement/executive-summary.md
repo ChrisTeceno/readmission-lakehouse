@@ -31,9 +31,9 @@ its penalty, what would reduce it, and whether being penalized makes hospitals i
   be returning to normal, so programs need a comparison group to show they work.
 - **Clinical notes can add risk factors Medicare data lacks.** An AI model run inside Contoso's
   data platform pulled comorbidities, prior admissions and follow-up plans from notes, scoring
-  0.81 on a 0 to 1 accuracy scale against 50 test notes. Our project lead checked all 50 test
-  answers against the written rules and the four judgment calls were decided by Chris; no
-  clinician has reviewed them.
+  0.81 on a 0 to 1 accuracy scale against 50 test notes. Our project lead drafted the 50 test
+  answers and checked them against the written rules; Chris Teceno, a clinician, reviewed all 50
+  and decided the four judgment calls.
 
 ## Three recommendations
 
@@ -44,9 +44,9 @@ its penalty, what would reduce it, and whether being penalized makes hospitals i
    hours of discharge on two facilities at a time, every three months, over 21 months and about
    18,000 discharges. It will detect a drop in readmissions from about 17 to 13 percent; smaller
    gains may be missed. The decision for each outcome is agreed before it starts.
-3. **Close three gaps.** Name a clinician to check the 50 test notes, share Medicare's peer-group
-   cutoffs for past years if Contoso has them, and approve the short-lived Azure resources (Key
-   Vault and Data Factory) for the last pipeline run.
+3. **Close two gaps.** Share Medicare's peer-group cutoffs for past
+   years if Contoso has them, and approve the short-lived Azure resources (Key Vault and Data
+   Factory) for the last pipeline run.
 
 ## Limits
 

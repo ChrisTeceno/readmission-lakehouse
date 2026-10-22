@@ -29,9 +29,9 @@ flag, every list item) and null otherwise.
 `tests/fixtures/llm_labels.jsonl` holds 50 notes drawn by `readmission.llm.sample` (seed
 20261021, stratified by specialty with proportional allocation, so 20 of the 50 are Surgery).
 The labels were drafted from the note text before any model was run. On 2026-10-21 the project
-lead checked all 50 against the rules above and Chris decided the four judgment calls, after
-which `needs_review` was cleared on every row; `labeler_note` still records the calls that were
-checked. No clinician has reviewed them.
+lead checked all 50 against the rules above; Chris Teceno, a clinician, then reviewed all 50
+and decided the four judgment calls, after which `needs_review` was cleared on every row;
+`labeler_note` still records the calls that were checked.
 A label changes only to fix a labelling error, in its own commit, recorded below.
 
 Label changes (the other 49 labels were checked and kept, including cancer in notes 2854 and 12

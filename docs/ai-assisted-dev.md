@@ -94,11 +94,10 @@ measurement: `databricks-gpt-oss-120b` scored mean field F1 0.81 against 0.70 an
 labelled notes (`engagement/adr/0002-llm-risk-factor-extraction.md`). The labels were drafted
 with AI help from the note text before any model ran, so every one was marked
 `needs_review: true` and the first metrics were tagged `metrics_provisional=true` in MLflow. The
-project lead then checked all 50 against the written rules and Chris decided the four judgment
-calls; one label changed (note 3360 gained `valvular_disease`). The saved predictions were
+project lead then checked all 50 against the written rules; Chris Teceno, a clinician, reviewed
+all 50 and decided the four judgment calls; one label changed (note 3360 gained `valvular_disease`). The saved predictions were
 rescored on the reviewed labels without calling a model again: gpt-oss-120b moved from 0.82 to
-0.81, the other two stayed at 0.70 and 0.54, and the choice held. No clinician has reviewed the
-labels, and the docs say so.
+0.81, the other two stayed at 0.70 and 0.54, and the choice held.
 
 Outcome: accepted on evidence, with the limit written next to the number.
 

@@ -5,8 +5,7 @@ Date: 2026-10-21. Contoso Health is a fictional client.
 ## Summary
 
 The data platform, penalty model, causal analysis, notes extraction and dashboard are built and
-on main. Three things are open: the Azure evidence run, workspace screenshots of the dashboard,
-and a clinical review of the extraction labels. The causal result is a null: crossing the cutoff does not
+on main. Two things are open: the Azure evidence run and workspace screenshots of the dashboard. The causal result is a null: crossing the cutoff does not
 change a hospital's later ERR.
 
 ## Done
@@ -35,9 +34,9 @@ A clean run from empty tables takes 12 minutes 58 seconds against a 15-minute ta
 - **Dashboard screenshots, pending.** The pages exist and are tested; the images in
   `docs/evidence/` are local renders, and workspace screenshots need a signed-in session
   (`docs/genie.md`).
-- **Label review, done by the lead.** The project lead checked all 50 extraction labels against
-  the written rules and Chris decided the four judgment calls; one label changed and the model
-  ranking held. No clinician has reviewed them.
+- **Label review, done.** The project lead checked all 50 extraction labels against the written
+  rules; Chris Teceno, a clinician, reviewed all 50 and decided the four judgment calls; one
+  label changed and the model ranking held.
 - **Pilot design, in review (PR #13).** Stepped wedge across Contoso facilities; minimum
   detectable effect 3.82 percentage points at 80 percent power.
 - Power BI project, engagement readout and executive summary follow.
@@ -50,17 +49,15 @@ A clean run from empty tables takes 12 minutes 58 seconds against a 15-minute ta
 | FY2019 to FY2026 cutoffs are approximate | 6.2 percent of FY2027 rows land on a different side of the two cutoffs | Rows flagged; causal analysis uses exact years (ADR 0006) |
 | The causal estimate has a retention caveat | Rows just above the cutoff are 3.5 points more likely to have a later ERR | Reported; bounds not yet run |
 | The pilot's detectable effect is large | 3.82 points is about 23 percent relative; smaller effects would not be seen | Design is open for discussion (PR #13) |
-| The extraction labels have no clinical review | One note moves some fields' precision or recall by 0.25 or more | Lead and Chris checked them; a clinician review is open |
+| Small samples on some extraction fields | One note moves some fields' precision or recall by 0.25 or more | The comparison is decided by the larger fields (ADR 0002) |
 
 ## Decisions needed from Contoso
 
-1. **Label review.** Name a clinical reviewer for the 50 extraction labels, or accept that the
-   project lead and Chris checked them.
-2. **Peer group medians.** Confirm whether Contoso can supply or point us to FY2019 to FY2026
+1. **Peer group medians.** Confirm whether Contoso can supply or point us to FY2019 to FY2026
    peer medians; without them those years stay approximate.
-3. **Pilot.** Confirm that the follow-up program can be rolled out to facilities in stages, and
+2. **Pilot.** Confirm that the follow-up program can be rolled out to facilities in stages, and
    which facilities cannot be randomized and why.
-4. **Azure.** Approve the short-lived Key Vault and Data Factory resources, which carry a small
+3. **Azure.** Approve the short-lived Key Vault and Data Factory resources, which carry a small
    cost.
-5. **Source system.** Ask your DBA whether the operational database sets `updated_at` on update,
+4. **Source system.** Ask your DBA whether the operational database sets `updated_at` on update,
    not only on insert; the incremental load depends on it (ADR 0001).
