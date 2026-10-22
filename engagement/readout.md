@@ -198,10 +198,10 @@ workspace.
 | Mean field F1 on 50 labelled notes | **0.81** | 0.70 | 0.54 | **0.85** |
 | Rejected after one retry | 4 percent | 4 percent | 28 percent | 0 percent |
 
-- **Label review:** the project lead checked all 50 labels against the written rules and Chris
-  decided the four judgment calls; one label changed and the ranking held. No clinician has
-  reviewed them. With 4 primary-condition positives, one note moves a field's precision or recall
-  by 0.25 or more.
+- **Label review:** the project lead drafted the labels and checked all 50 against the written
+  rules; Chris Teceno, a clinician, reviewed all 50 and decided the four judgment calls; one
+  label changed and the ranking held. With 4 primary-condition positives, one note moves a
+  field's precision or recall by 0.25 or more.
 - **Local option:** the fourth column is a model run on a laptop, so no note text leaves the
   machine. On these notes it scored no lower than the hosted model, which makes keeping notes
   inside Contoso's network a hosting question, not an accuracy one. It is not in the pipeline,
@@ -245,9 +245,7 @@ facilities at a time (one larger, one smaller) every three months in an order dr
   them; the causal analysis uses exact years only.
 - The model is a ranking with AUC 0.678 on the exact-cutoff year and is overconfident there.
 - The causal null applies to hospitals near the cutoff, and carries the retention caveat.
-- The notes extraction labels were reviewed by the project lead and Chris, not by a clinician.
 - No penalty dollars: the work says where to look, not how much is at stake.
-- **Pending:** a clinical review of the extraction labels.
 
 ---
 
@@ -257,13 +255,11 @@ facilities at a time (one larger, one smaller) every three months in an order dr
    hip/knee across the network. The dashboard and Genie space answer the five agreed questions.
 2. **Approve the pilot**: confirm staged rollout is possible, which facilities cannot be
    randomized, and the 2-point smallest reduction worth the program (finance).
-3. **Name a clinical reviewer** for the 50 extraction labels, or accept that they were checked by
-   the project lead and Chris only.
-4. **Peer group medians**: point us to FY2019 to FY2026 medians if Contoso has them; without
+3. **Peer group medians**: point us to FY2019 to FY2026 medians if Contoso has them; without
    them those years' labels stay approximate.
-5. **Azure:** the Key Vault and Data Factory run is done
+4. **Azure:** the Key Vault and Data Factory run is done
    ([evidence](../docs/evidence/azure.md)); the resources are torn down after the readout.
-6. **Ask the DBA** whether the operational database sets `updated_at` on update; the incremental
+5. **Ask the DBA** whether the operational database sets `updated_at` on update; the incremental
    load depends on it.
 
 ---
