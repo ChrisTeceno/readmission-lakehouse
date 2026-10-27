@@ -8,9 +8,10 @@ years out of training:
 - train: targets FY2014 to FY2023. FY2013 has no earlier HRRP year, so none of its history
   features exist.
 - validation: FY2024 and FY2025, which pick the champion.
-- test: FY2026, the held-out year the metric gate reads. Its cutoff is the 1.0 stand-in for a
-  peer group median (`label_cutoff_is_approximate`), like every target from FY2019 to FY2026.
-- test_exact: FY2027, where the cutoff is the published peer group median, as a second check.
+- test: FY2026, the held-out year the metric gate reads. Its cutoff, like every target's from
+  FY2019, is the published peer group median.
+- test_exact: FY2027, a second check. The name dates from when it was the only year with a
+  published median; FY2027's window is two years and shares only one with FY2026's.
   Its features come from FY2026 and earlier, so it shares no label with training.
 
 Rows with a null label (an ERR CMS suppressed for under 25 discharges) are left out.

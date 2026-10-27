@@ -52,12 +52,14 @@ SILVER_HRRP_HISTORY_SCHEMA = T.StructType(
         field(
             "peer_group",
             T.IntegerType(),
-            "Dual-eligibility peer group quintile, 1 to 5; FY2027 only",
+            "Dual-eligibility peer group quintile, 1 to 5; FY2019 on, null when the hospital "
+            "is not in that year's IPPS supplemental file",
         ),
         field(
             "peer_median_err",
             T.DoubleType(),
-            "Median ERR of the hospital's peer group for the measure (ratio); FY2027 only",
+            "Median ERR of the hospital's peer group for the measure (ratio); FY2019 on, null "
+            "when the hospital is not in that year's IPPS supplemental file",
         ),
         field("period_start", T.DateType(), "First discharge date of the performance period"),
         field("period_end", T.DateType(), "Last discharge date of the performance period"),
@@ -75,7 +77,9 @@ SILVER_HRRP_HISTORY_DOC = TableDoc(
         "HRRP results by fiscal year, FY2013 to FY2027, one row per facility, condition and "
         "fiscal year. Sources: Provider Data Catalog archive snapshots (FY2019 to FY2026) and "
         "CMS.gov IPPS final rule supplemental files (FY2013 to FY2018, FY2027) via "
-        "bronze_hrrp_history_pdc and bronze_hrrp_history_ipps."
+        "bronze_hrrp_history_pdc and bronze_hrrp_history_ipps. Peer group and peer group "
+        "median ERR, FY2019 to FY2027, from the supplemental files via silver_hrrp_payment and "
+        "silver_hrrp_payment_measure."
     ),
     tags=silver_tags("cms", dataset="9n3s-kdb3,ipps-supplemental"),
 )
@@ -114,7 +118,6 @@ IPPS_MEASURE_PATTERNS = [
     ("CABG", r"bypass|\bcabg\b"),
 ]
 IPPS_FIELD_PATTERNS = [
-    ("peer_median_err", r"^peer group median err"),
     ("discharges", r"^number of"),
     ("excess_readmission_ratio", r"excess readmission ratio|^err for"),
 ]
@@ -173,15 +176,13 @@ def silver_from_ipps(bronze: DataFrame) -> DataFrame:
 
     IPPS files carry no readmission counts and no predicted or expected rates. FY2013 to FY2017
     write an ERR of 0 when a hospital had fewer than 25 cases and CMS computed no ratio; a real
-    ERR is always positive, so 0 becomes null. Only FY2027 carries the dual-eligibility peer
-    group and the peer group median ERR (peer grouping began in FY2019, after the last IPPS year
-    before 2027).
+    ERR is always positive, so 0 becomes null. The peer group and peer group median ERR are left
+    null here and joined from the payment tables (with_peer_terms).
     """
     record = F.col("record")
     long = bronze.select(
         pad_ccn(F.coalesce(*[record[k] for k in IPPS_CCN_KEYS])).alias("facility_id"),
         "fiscal_year",
-        record["Peer group assignment"].alias("peer_group_raw"),
         F.explode(record).alias("key", "value"),
     )
     key = F.lower(F.col("key"))
@@ -192,7 +193,7 @@ def silver_from_ipps(bronze: DataFrame) -> DataFrame:
         .withColumn("value", suppressed_to_null("value"))
     )
     wide = (
-        classified.groupBy("facility_id", "fiscal_year", "measure", "peer_group_raw")
+        classified.groupBy("facility_id", "fiscal_year", "measure")
         .pivot("field", [field for field, _ in IPPS_FIELD_PATTERNS])
         .agg(F.first("value"))
     )
@@ -206,22 +207,40 @@ def silver_from_ipps(bronze: DataFrame) -> DataFrame:
         F.when(err > 0, err).alias("excess_readmission_ratio"),
         F.lit(None).alias("predicted_rate"),
         F.lit(None).alias("expected_rate"),
-        suppressed_to_null("peer_group_raw").alias("peer_group"),
-        "peer_median_err",
+        F.lit(None).alias("peer_group"),
+        F.lit(None).alias("peer_median_err"),
         F.lit("ipps").alias("source"),
     )
     return _conform(_with_period(df))
 
 
-# Fiscal years the PDC archive covers. The IPPS supplemental file for FY2026 is in Bronze too, for
-# the payment work (readmission.silver.hrrp_payment), but history keeps PDC's FY2026 rows, which
-# carry readmission counts; its peer medians stay out until ADR 0006 is revisited.
+# Fiscal years the PDC archive covers. The IPPS supplemental files for these years are in Bronze
+# too, but history keeps PDC's rows, which carry readmission counts and rates, and takes only the
+# peer terms from the supplemental files.
 PDC_FISCAL_YEARS = range(2019, 2027)
 
 
-def silver_hrrp_history(bronze_pdc: DataFrame, bronze_ipps: DataFrame) -> DataFrame:
+def with_peer_terms(history: DataFrame, payment: DataFrame, measures: DataFrame) -> DataFrame:
+    """The peer group (per hospital and year) from silver_hrrp_payment and the peer group median
+    ERR (per hospital, measure and year) from silver_hrrp_payment_measure, so the supplemental
+    files are parsed in one place. Both are null before FY2019 and for a hospital the year's
+    supplemental file does not list. Each join is on its table's key, so the row count holds."""
+    peer_group = payment.select("facility_id", "fiscal_year", "peer_group")
+    medians = measures.select(*KEY, "peer_median_err")
+    df = (
+        history.drop("peer_group", "peer_median_err")
+        .join(peer_group, ["facility_id", "fiscal_year"], "left")
+        .join(medians, KEY, "left")
+    )
+    return df.select(*[f.name for f in SILVER_HRRP_HISTORY_SCHEMA])
+
+
+def silver_hrrp_history(
+    bronze_pdc: DataFrame, bronze_ipps: DataFrame, payment: DataFrame, measures: DataFrame
+) -> DataFrame:
     ipps = bronze_ipps.where(~F.col("fiscal_year").isin(*PDC_FISCAL_YEARS))
-    return silver_from_pdc(bronze_pdc).unionByName(silver_from_ipps(ipps))
+    history = silver_from_pdc(bronze_pdc).unionByName(silver_from_ipps(ipps))
+    return with_peer_terms(history, payment, measures)
 
 
 def latest_batch_per_year(bronze: DataFrame) -> DataFrame:
@@ -236,9 +255,10 @@ def latest_batch_per_year(bronze: DataFrame) -> DataFrame:
 
 
 def silver_hrrp_history_checked(
-    bronze_pdc: DataFrame, bronze_ipps: DataFrame
+    bronze_pdc: DataFrame, bronze_ipps: DataFrame, payment: DataFrame, measures: DataFrame
 ) -> tuple[DataFrame, DataFrame]:
-    """Returns (silver_hrrp_history rows, quarantine rows).
+    """Returns (silver_hrrp_history rows, quarantine rows). `payment` and `measures` are
+    silver_hrrp_payment and silver_hrrp_payment_measure.
 
     IPPS rows are unpivoted from one wide row per hospital, so a rejected row's `raw_row` is the
     normalized history row as JSON rather than a single Bronze row.
@@ -246,7 +266,7 @@ def silver_hrrp_history_checked(
     pdc = latest_batch_per_year(bronze_pdc)
     ipps = latest_batch_per_year(bronze_ipps).where(~F.col("fiscal_year").isin(*PDC_FISCAL_YEARS))
     batches = pdc.select("fiscal_year", "_batch_id").union(ipps.select("fiscal_year", "_batch_id"))
-    df = silver_hrrp_history(pdc, ipps)
+    df = silver_hrrp_history(pdc, ipps, payment, measures)
     df = df.withColumn("_raw", F.to_json(F.struct(*df.columns))).join(
         batches.distinct(), "fiscal_year", "left"
     )

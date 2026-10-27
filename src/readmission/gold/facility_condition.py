@@ -19,8 +19,8 @@ TABLE = "gold_facility_condition_year"
 KEY = ["facility_id", "measure", "fiscal_year"]
 
 # FY2013 to FY2018 penalized any ERR above 1.0. From FY2019 CMS compares each hospital with the
-# median ERR of its dual-eligibility peer group for the measure, and only the FY2027 IPPS file
-# carries that median here: FY2019 to FY2026 use 1.0 as a stand-in, marked approximate.
+# median ERR of its dual-eligibility peer group for the measure, published in each year's IPPS
+# supplemental file. A row with no median falls back to 1.0, marked approximate.
 FIXED_CUTOFF = 1.0
 FIRST_PEER_GROUP_YEAR = 2019
 
@@ -72,7 +72,7 @@ GOLD_FACILITY_CONDITION_YEAR_SCHEMA = T.StructType(
         field(
             "peer_group",
             T.IntegerType(),
-            "Dual-eligibility peer group quintile, 1 to 5; FY2027 only",
+            "Dual-eligibility peer group quintile, 1 to 5; FY2019 on",
         ),
         field(
             "penalty_cutoff",
@@ -83,8 +83,8 @@ GOLD_FACILITY_CONDITION_YEAR_SCHEMA = T.StructType(
         field(
             "cutoff_is_approximate",
             T.BooleanType(),
-            "True for FY2019 to FY2026: the real cutoff was the peer group median, not in this "
-            "data, and 1.0 stands in",
+            "True for a FY2019 or later row with no published peer group median (the hospital "
+            "is not in that year's IPPS supplemental file): 1.0 stands in",
             nullable=False,
         ),
         field(
@@ -143,11 +143,11 @@ GOLD_FACILITY_CONDITION_YEAR_DOC = TableDoc(
     comment=(
         "HRRP results per facility, condition and fiscal year, FY2013 to FY2027, with the "
         "penalty cutoff, the change from the prior non-overlapping window and anomaly flags. "
-        "Cutoff: 1.0 for FY2013 to FY2018 (exact), the peer group median ERR for FY2027 "
-        "(exact), and 1.0 as a stand-in for FY2019 to FY2026, where CMS used the peer group "
-        "median but no file here carries it (cutoff_is_approximate = true). Hospital "
-        "attributes are the current Hospital General Information snapshot. Built from "
-        "silver_hrrp_history and silver_hospital_info."
+        "Cutoff: 1.0 for FY2013 to FY2018 and the peer group median ERR from FY2019, from "
+        "the IPPS supplemental files; 1.0 stands in for a FY2019 or later row without a "
+        "published median (cutoff_is_approximate = true). Hospital attributes are the current "
+        "Hospital General Information snapshot. Built from silver_hrrp_history and "
+        "silver_hospital_info."
     ),
     tags=gold_tags("cms", dataset="9n3s-kdb3,ipps-supplemental,xubh-q36u"),
 )
@@ -160,8 +160,8 @@ def year_map(values: dict[int, int]) -> Column:
 
 
 def with_penalty_cutoff(df: DataFrame) -> DataFrame:
-    """A FY2027 row without a peer median (no ERR, so none was published) falls back to 1.0 and
-    is marked approximate too."""
+    """A FY2019 or later row without a peer median (the hospital is not in that year's
+    supplemental file) falls back to 1.0 and is marked approximate."""
     peer_era = F.col("fiscal_year") >= FIRST_PEER_GROUP_YEAR
     peer_median = F.when(peer_era, F.col("peer_median_err"))
     return (

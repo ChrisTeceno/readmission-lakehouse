@@ -25,6 +25,7 @@ from readmission.silver.governance import (
     tag_statement,
 )
 from readmission.silver.hrrp_history import silver_hrrp_history_checked
+from readmission.silver.hrrp_payment import silver_hrrp_payment, silver_hrrp_payment_measure
 from readmission.silver.normalize import canonical_measure, pad_ccn, suppressed_to_null
 from readmission.silver.quarantine import QUARANTINE_TABLE, SILVER_QUARANTINE_SCHEMA
 
@@ -96,7 +97,10 @@ def test_history_malformed_row_goes_to_quarantine(spark):
         ingested_at=INGESTED_AT,
     )
 
-    rows, rejected = silver_hrrp_history_checked(pdc.unionByName(stale), ipps)
+    payment, _ = silver_hrrp_payment(ipps)
+    measures, _ = silver_hrrp_payment_measure(ipps)
+
+    rows, rejected = silver_hrrp_history_checked(pdc.unionByName(stale), ipps, payment, measures)
 
     # The stale batch of FY2022 is ignored; the latest batch holds the year.
     assert rows.count() == 12 + 9

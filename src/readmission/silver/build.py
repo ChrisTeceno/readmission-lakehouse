@@ -73,14 +73,6 @@ SILVER_TABLES = [
         hrrp.silver_hrrp,
     ),
     SilverTable(
-        hrrp_history.TABLE,
-        hrrp_history.SILVER_HRRP_HISTORY_SCHEMA,
-        hrrp_history.SILVER_HRRP_HISTORY_DOC,
-        hrrp_history.CONSTRAINTS,
-        ["bronze_hrrp_history_pdc", "bronze_hrrp_history_ipps"],
-        hrrp_history.silver_hrrp_history_checked,
-    ),
-    SilverTable(
         hrrp_payment.PAYMENT_TABLE,
         hrrp_payment.SILVER_HRRP_PAYMENT_SCHEMA,
         hrrp_payment.SILVER_HRRP_PAYMENT_DOC,
@@ -95,6 +87,20 @@ SILVER_TABLES = [
         hrrp_payment.MEASURE_CONSTRAINTS,
         ["bronze_hrrp_history_ipps"],
         hrrp_payment.silver_hrrp_payment_measure,
+    ),
+    # After silver_hrrp_payment and silver_hrrp_payment_measure, which it reads.
+    SilverTable(
+        hrrp_history.TABLE,
+        hrrp_history.SILVER_HRRP_HISTORY_SCHEMA,
+        hrrp_history.SILVER_HRRP_HISTORY_DOC,
+        hrrp_history.CONSTRAINTS,
+        [
+            "bronze_hrrp_history_pdc",
+            "bronze_hrrp_history_ipps",
+            "silver_hrrp_payment",
+            "silver_hrrp_payment_measure",
+        ],
+        hrrp_history.silver_hrrp_history_checked,
     ),
     SilverTable(
         hrrp_payment.IMPACT_TABLE,

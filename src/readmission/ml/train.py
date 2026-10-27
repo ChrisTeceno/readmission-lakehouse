@@ -1,7 +1,7 @@
 """Penalty model training: logistic regression against LightGBM, tracked in MLflow.
 
     readmission-train [--catalog workspace] [--schema readmission]
-        [--experiment /Shared/readmission-penalty]
+        [--experiment /Shared/readmission-penalty] [--set-champion true|false]
 
 The `train` task of the `readmission_pipeline` job, after `gold`. It reads gold_features, splits
 it by target fiscal year (readmission.ml.dataset), and logs one MLflow run per candidate: the
@@ -13,7 +13,8 @@ table by ownership and size, and the model with its signature and an input examp
 The champion is the model with the higher validation PR-AUC. It is registered in Unity Catalog
 as `<catalog>.<schema>.penalty_model` with the alias `champion` only if it passes the metric
 gate (readmission.ml.evaluate.check_gate); otherwise the task fails and the alias stays on the
-previous version, so the `score` task never runs on a model that failed.
+previous version, so the `score` task never runs on a model that failed. `--set-champion false`
+registers the version without moving the alias, for a retrain to review before it scores.
 """
 
 import argparse
@@ -195,7 +196,7 @@ def log_candidate(
         return mlflow_run.info.run_id
 
 
-def register(model_name: str, run_id: str, champion: Candidate) -> str:
+def register(model_name: str, run_id: str, champion: Candidate, set_champion: bool = True) -> str:
     import mlflow
     from mlflow import MlflowClient
 
@@ -207,12 +208,18 @@ def register(model_name: str, run_id: str, champion: Candidate) -> str:
                 model_name, version, f"{s}_{metric}", f"{champion.metrics[s][metric]:.4f}"
             )
     client.set_model_version_tag(model_name, version, "candidate", champion.name)
-    client.set_registered_model_alias(model_name, CHAMPION_ALIAS, version)
+    if set_champion:
+        client.set_registered_model_alias(model_name, CHAMPION_ALIAS, version)
     return version
 
 
 def train(
-    spark: SparkSession, prefix: str, experiment: str, job_run_id: str, run: RunRecorder
+    spark: SparkSession,
+    prefix: str,
+    experiment: str,
+    job_run_id: str,
+    run: RunRecorder,
+    set_champion: bool = True,
 ) -> None:
     import mlflow
 
@@ -247,8 +254,11 @@ def train(
         max(evaluate.AUC_FLOOR, baseline.metrics["test"]["auc"]),
         lambda: evaluate.check_gate(champion_auc, baseline.metrics["test"]["auc"]),
     )
-    version = register(model_name, run_ids[champion.name], champion)
-    print(f"{model_name}: version {version} ({champion.name}) is @{CHAMPION_ALIAS}")
+    version = register(model_name, run_ids[champion.name], champion, set_champion)
+    if set_champion:
+        print(f"{model_name}: version {version} ({champion.name}) is @{CHAMPION_ALIAS}")
+    else:
+        print(f"{model_name}: version {version} ({champion.name}) registered, alias not moved")
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -256,11 +266,24 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--catalog", default="workspace")
     parser.add_argument("--schema", default="readmission")
     parser.add_argument("--experiment", default=EXPERIMENT)
+    parser.add_argument(
+        "--set-champion",
+        choices=["true", "false"],
+        default="true",
+        help=f"false: register the version without moving @{CHAMPION_ALIAS}",
+    )
     add_ops_arguments(parser)
     args = parser.parse_args(argv)
     with track_run("train", args) as run:
         spark = SparkSession.builder.getOrCreate()
-        train(spark, f"{args.catalog}.{args.schema}", args.experiment, args.job_run_id, run)
+        train(
+            spark,
+            f"{args.catalog}.{args.schema}",
+            args.experiment,
+            args.job_run_id,
+            run,
+            args.set_champion == "true",
+        )
 
 
 if __name__ == "__main__":
