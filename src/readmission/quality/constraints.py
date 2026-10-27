@@ -15,6 +15,11 @@ CONSTRAINTS: dict[str, str] = {
     # CMS leaves it blank (null here) when it computes none.
     "err_positive": "excess_readmission_ratio IS NULL OR excess_readmission_ratio > 0",
     "period_order": "period_end >= period_start",
+    # The HRRP payment adjustment factor: a reduction of at most 3 percent (the floor was 0.99 in
+    # FY2013 and 0.98 in FY2014), never an increase.
+    "paf_range": (
+        "payment_adjustment_factor IS NULL OR payment_adjustment_factor BETWEEN 0.97 AND 1.0"
+    ),
     # State FIPS plus county FIPS; an unmatched hospital has none. Delta rejects a row whose CHECK
     # evaluates to null (seen on serverless 2026-10-21), so nullable columns say IS NULL OR.
     "county_fips_format": "county_fips IS NULL OR county_fips RLIKE '^[0-9]{5}$'",

@@ -134,6 +134,30 @@ top of a page and apply to every widget on it.
 +--------------------------------------------------------------------------+
 ```
 
+### Added 2026-10-26: Penalty dollars and follow-up calls
+
+Added after the readout, before Pipeline health, when Contoso asked what the penalty costs and
+whether follow-up calls would pay for themselves (`docs/penalty-dollars.md`).
+
+```
++--------------------------------------------------------------------------+
+| Penalty dollars and follow-up calls: every dollar figure is an estimate   |
+| Timeline: FY2026 paid, FY2027 being paid (fixed), FY2028 mostly baked in, |
+| FY2029 on can still change                                                |
++------------------------------------+-------------------------------------+
+| Estimated penalty, FY2026          | Estimated penalty, FY2027           |
++------------------------------------+-------------------------------------+
+| Penalty by facility, FY2026 (bar)  | Penalty by facility, FY2027 (bar)   |
++------------------------------------+-------------------------------------+
+| What changed FY2026 to FY2027 (table: facility, condition, both years)    |
++------------------------------------+-------------------------------------+
+| Break-even drop, pass-through 0.5  | Break-even drop, pass-through 1.0   |
++------------------------------------+-------------------------------------+
+| Scenarios (table: effect, cost level, pass-through, cost, penalty         |
+| avoided, Contoso net, break-even, payer savings shown apart)              |
++--------------------------------------------------------------------------+
+```
+
 ### 5. Pipeline health (Q5)
 
 ```
@@ -161,6 +185,8 @@ top of a page and apply to every widget on it.
 - Q1 uses FY2027 by default because it is the one recent year with the exact cutoff. Earlier
   years stay selectable, with the approximate-cutoff flag shown as a column.
 - No dollar amounts. The Gold tables carry ERRs and above-cutoff flags, not the payment
-  adjustment factor, so the dashboard does not estimate the penalty's size.
+  adjustment factor, so the dashboard does not estimate the penalty's size. Superseded
+  2026-10-26: the penalty dollars page shows estimated dollars from the published payment
+  adjustment factor and estimated base payments.
 - The predictions page shows probabilities, not a yes or no, because the model card says the
   probabilities are overconfident at both ends on FY2027.

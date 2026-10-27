@@ -1,5 +1,6 @@
 # The AI/BI dashboard on the Gold and ops tables, laid out from engagement/wireframe.md: Contoso
-# scorecard, national penalty landscape, predictions, follow-up operations and pipeline health.
+# scorecard, national penalty landscape, predictions, follow-up operations, penalty dollars and
+# follow-up calls, and pipeline health.
 # Datasets name tables without a catalog or schema; dataset_catalog and dataset_schema point
 # them at the bundle's. Queries run on the workspace's 2X-Small serverless SQL warehouse (Free
 # Edition has one), looked up by name. Edits made in the UI stay in the workspace until

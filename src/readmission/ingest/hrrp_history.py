@@ -3,7 +3,9 @@
 Two sources (see docs/data-sources.md):
 - `hrrp_history_pdc`: PDC archive, FY2019 to FY2026, quarterly zip snapshots of the whole
   hospitals theme.
-- `hrrp_history_ipps`: CMS.gov IPPS final rule supplemental zips, FY2013 to FY2018 and FY2027.
+- `hrrp_history_ipps`: CMS.gov IPPS final rule supplemental zips, FY2013 to FY2018, FY2026 and
+  FY2027. FY2026 is on PDC too; its supplemental file lands for the payment adjustment factor,
+  DRG payment ratios and peer medians the penalty dollars need (readmission.silver.hrrp_payment).
 
 Fetch downloads each zip into a local work dir, extracts only the HRRP file and lands it
 unchanged under `<source>/<fiscal_year>/<batch_id>/` with a manifest. Parsing works on landed
@@ -45,7 +47,9 @@ IPPS_BASE = "https://www.cms.gov"
 _IPPS_DOWNLOADS = "/medicare/medicare-fee-for-service-payment/acuteinpatientpps/downloads"
 # Each zip holds several tab-separated files (DRG info, claim trims, earlier drafts). The
 # pattern picks the hospital-level readmissions file, and the latest correction where CMS
-# published one. Never use the CMS.gov FY2023 and FY2026 links: they serve the wrong year.
+# published one. The FY2026 link on the archived supplemental files page serves the FY2025 zip;
+# the FY2026 final rule home page links the right file (checked 2026-10-26), which is the one
+# below. The archived page's FY2023 entry has no zip link at all.
 IPPS_FILES: dict[int, tuple[str, str]] = {
     2013: (
         f"{_IPPS_DOWNLOADS}/fy_2013_fr_readmissions_file.zip",
@@ -59,6 +63,10 @@ IPPS_FILES: dict[int, tuple[str, str]] = {
     2016: (f"{_IPPS_DOWNLOADS}/fy2016-cms-1632-fr-readmissions.zip", "*PUF_readmadj*.txt"),
     2017: (f"{_IPPS_DOWNLOADS}/fy2017-cms-1655-fr-hospital-readmissions.zip", "*(FY17 data).txt"),
     2018: (f"{_IPPS_DOWNLOADS}/fy2018-fr-hospital-readmissions.zip", "*(FY18 data).txt"),
+    2026: (
+        "/files/zip/fy2026-hospital-readmissions-reduction-program-supplemental-data-file.zip",
+        "FR FY 2026.txt",
+    ),
     2027: (
         "/files/zip/fy-2027-hospital-readmissions-reduction-program-supplemental-data-file.zip",
         "*FR FY 2027 Tab.txt",
@@ -157,15 +165,19 @@ def parse_pdc_rows(text: str) -> list[dict[str, str]]:
     return list(csv.DictReader(io.StringIO(text, newline="")))
 
 
-def parse_ipps_rows(text: str) -> list[dict[str, str]]:
+def parse_ipps_rows(
+    text: str, ccn_headers: Iterable[str] = IPPS_CCN_HEADERS
+) -> list[dict[str, str]]:
     """IPPS files are tab-separated with title rows above the header and notes below the data.
 
     The header is the first row starting with a CCN column name; data rows are those whose first
     cell is a CCN. Header names are trimmed (FY2027 pads them with spaces) and blank trailing
-    columns dropped; values stay strings as received.
+    columns dropped; values stay strings as received. The IPPS impact files share the layout
+    under a different CCN header (readmission.ingest.ipps_impact).
     """
+    ccn_headers = tuple(ccn_headers)
     rows = list(csv.reader(io.StringIO(text, newline=""), delimiter="\t"))
-    start = next(i for i, row in enumerate(rows) if row and row[0].strip() in IPPS_CCN_HEADERS)
+    start = next(i for i, row in enumerate(rows) if row and row[0].strip() in ccn_headers)
     header = [h.strip() for h in rows[start]]
     records = []
     for row in rows[start + 1 :]:

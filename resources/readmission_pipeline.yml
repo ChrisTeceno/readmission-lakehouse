@@ -70,6 +70,7 @@ resources:
               - hrrp_history_pdc
               - hrrp_history_ipps
               - acs_county
+              - ipps_impact
               - --work-dir
               - /tmp/readmission-fetch
               - --catalog
