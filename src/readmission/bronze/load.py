@@ -14,10 +14,11 @@ from functools import reduce
 
 from pyspark.sql import DataFrame, SparkSession
 
-from readmission.bronze import acs_county, clinical_notes, cms, hrrp_history
+from readmission.bronze import acs_county, clinical_notes, cms, hrrp_history, ipps_impact
 from readmission.ingest import acs_county as acs_county_ingest
 from readmission.ingest import cms_current
 from readmission.ingest import hrrp_history as hrrp_history_ingest
+from readmission.ingest import ipps_impact as ipps_impact_ingest
 from readmission.ingest.landing import LANDING_VOLUME, batches_to_load, list_manifests, new_batch_id
 from readmission.ops import add_ops_arguments, track_run
 
@@ -36,6 +37,7 @@ LANDED_TABLES: dict[str, tuple[str, Builder]] = {
         hrrp_history.bronze_from_manifest,
     ),
     acs_county_ingest.SOURCE: ("bronze_acs_county", acs_county.bronze_from_manifest),
+    ipps_impact_ingest.SOURCE: ("bronze_ipps_impact", ipps_impact.bronze_from_manifest),
 }
 NOTES_TABLE = "bronze_clinical_notes"
 

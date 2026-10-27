@@ -24,6 +24,7 @@ from readmission.ingest.hrrp_history import (
     theme_snapshots,
 )
 from readmission.ingest.http import download_zip, request_with_retry
+from readmission.ingest.ipps_impact import IMPACT_FILES, fetch_ipps_impact, read_impact_rows
 from readmission.ingest.landing import LocalLander, list_manifests, sha256_hex
 
 FIXTURES = Path(__file__).parent / "fixtures" / "hrrp_history"
@@ -294,6 +295,45 @@ def test_fetch_ipps_lands_readmissions_file_only(tmp_path):
     assert landed[0]["member_modified"] == "2013-03-11"
     assert landed[0]["row_count"] == 3
     assert Path(landed[0]["path"]).read_bytes() == fy2013
+
+
+def test_ipps_fy2026_pattern_skips_the_case_info_tab():
+    names = ["FY2026_HRRP_Supplemental_File.xlsx", "FR FY 2026.txt", "FR FY 2026 Case Info.txt"]
+    assert find_member(names, [IPPS_FILES[2026][1]]) == "FR FY 2026.txt"
+
+
+def test_fetch_ipps_impact_lands_the_correction_notice(tmp_path):
+    fixture = Path(__file__).parent / "fixtures" / "hrrp_payment" / "impact_fy2027.txt"
+    data = fixture.read_bytes()
+    url = "https://www.cms.gov" + IMPACT_FILES[2027][0]
+    body = zip_bytes(
+        {
+            "FY 2027 IPPS Impact File - Final Rule.txt": b"superseded",
+            "FY 2027 IPPS Impact File - Correction Notice.txt": data,
+            "FY 2027 IPPS FR & CN Impact File.xlsx": b"spreadsheet",
+        }
+    )
+    client = httpx.Client(transport=range_server({url: body}))
+
+    landed = fetch_ipps_impact(
+        client, LocalLander(str(tmp_path / "landing")), "b1", tmp_path / "work", [2027]
+    )
+
+    assert landed[0]["member"] == "FY 2027 IPPS Impact File - Correction Notice.txt"
+    assert landed[0]["row_count"] == 12
+    assert Path(landed[0]["path"]).read_bytes() == data
+    (manifest,) = list_manifests(str(tmp_path / "landing"), "ipps_impact")
+    assert (manifest["partition"], manifest["files"][0]["name"]) == ("2027", "impact_fy2027.txt")
+    assert "ipps_impact" in SOURCES
+
+
+def test_read_impact_rows_uses_the_provider_number_header():
+    rows = read_impact_rows(
+        Path(__file__).parent / "fixtures" / "hrrp_payment" / "impact_fy2026.txt"
+    )
+    assert len(rows) == 12
+    assert rows[0]["Provider Number"] == "360027"
+    assert rows[0]["CASETA43"] and rows[0]["FY 2026 Wage Index"] == "0.8767"
 
 
 def test_fetch_cli_registry_runs_a_source(tmp_path):

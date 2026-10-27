@@ -22,6 +22,12 @@ three decimals; all five pages render with no invalid widget.
 | Follow-up operations | ![Follow-up operations](dashboard-4-follow-up-operations.png) | Follow-up rate by fiscal year and the follow-up table |
 | Pipeline health | ![Pipeline health](dashboard-5-pipeline-health.png) | Failed attempts, hours since the last run, failed quality checks, latest run `739440262802758` with its 8 tasks |
 
+The sixth page, "Penalty dollars and follow-up calls" (added 2026-10-26, before Pipeline health),
+has no screenshot yet: the published dashboard needs a signed-in browser session, and none was
+available to the build. Its five datasets were run on the SQL warehouse on 2026-10-26 and return
+the figures in `docs/penalty-dollars.md` (totals $1,959,057 for FY2026 and $1,764,148 for FY2027,
+break-even 0.71 and 0.36 points).
+
 ## Genie answer
 
 Question 1 (facilities above the cutoff), the answer headline and chart, then the rest of the

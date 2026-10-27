@@ -213,8 +213,15 @@ def silver_from_ipps(bronze: DataFrame) -> DataFrame:
     return _conform(_with_period(df))
 
 
+# Fiscal years the PDC archive covers. The IPPS supplemental file for FY2026 is in Bronze too, for
+# the payment work (readmission.silver.hrrp_payment), but history keeps PDC's FY2026 rows, which
+# carry readmission counts; its peer medians stay out until ADR 0006 is revisited.
+PDC_FISCAL_YEARS = range(2019, 2027)
+
+
 def silver_hrrp_history(bronze_pdc: DataFrame, bronze_ipps: DataFrame) -> DataFrame:
-    return silver_from_pdc(bronze_pdc).unionByName(silver_from_ipps(bronze_ipps))
+    ipps = bronze_ipps.where(~F.col("fiscal_year").isin(*PDC_FISCAL_YEARS))
+    return silver_from_pdc(bronze_pdc).unionByName(silver_from_ipps(ipps))
 
 
 def latest_batch_per_year(bronze: DataFrame) -> DataFrame:
@@ -237,7 +244,7 @@ def silver_hrrp_history_checked(
     normalized history row as JSON rather than a single Bronze row.
     """
     pdc = latest_batch_per_year(bronze_pdc)
-    ipps = latest_batch_per_year(bronze_ipps)
+    ipps = latest_batch_per_year(bronze_ipps).where(~F.col("fiscal_year").isin(*PDC_FISCAL_YEARS))
     batches = pdc.select("fiscal_year", "_batch_id").union(ipps.select("fiscal_year", "_batch_id"))
     df = silver_hrrp_history(pdc, ipps)
     df = df.withColumn("_raw", F.to_json(F.struct(*df.columns))).join(

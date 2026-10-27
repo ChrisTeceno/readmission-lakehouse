@@ -14,8 +14,10 @@ PAGES = [
     "National penalty landscape",
     "Predictions",
     "Follow-up operations",
+    "Penalty dollars and follow-up calls",
     "Pipeline health",
 ]
+# The tables the Genie space reads; the dashboard also reads the penalty dollar tables.
 TABLES = {
     "gold_contoso_scorecard",
     "gold_facility_condition_year",
@@ -23,6 +25,11 @@ TABLES = {
     "gold_penalty_predictions",
     "ops_dq_metrics",
     "ops_run_log",
+}
+DASHBOARD_TABLES = TABLES | {
+    "gold_nurse_call_economics",
+    "gold_penalty_by_condition",
+    "gold_penalty_dollars",
 }
 
 
@@ -138,7 +145,7 @@ def test_datasets_read_only_gold_and_ops_tables_without_a_catalog(dashboard):
     for name, sql in dataset_sql(dashboard).items():
         ctes = set(re.findall(r"\b([a-z_]+) AS \(", sql))
         referenced = set(re.findall(r"\b(?:FROM|JOIN)\s+([a-z_.]+)", sql)) - ctes
-        assert referenced <= TABLES, (name, referenced - TABLES)
+        assert referenced <= DASHBOARD_TABLES, (name, referenced - DASHBOARD_TABLES)
 
 
 def test_pages_caption_the_approximate_cutoff_and_the_model(dashboard):
@@ -147,6 +154,28 @@ def test_pages_caption_the_approximate_cutoff_and_the_model(dashboard):
     predictions = page_text(page(dashboard, "Predictions"))
     assert "probabilities" in predictions and "0.678" in predictions
     assert "fictional client" in page_text(page(dashboard, "Contoso scorecard"))
+
+
+def test_penalty_dollars_page_labels_estimates_and_keeps_the_ledgers_apart(dashboard):
+    p = page(dashboard, "Penalty dollars and follow-up calls")
+    text = page_text(p)
+    assert "estimate" in text and "Table 1B" in text and "fictional client" in text
+    assert "never added" in text and "0.36 to 0.71" in text and "3.82" in text
+    kinds = [w["spec"]["widgetType"] for w in widgets(p) if "spec" in w]
+    assert kinds.count("bar") == 2 and kinds.count("table") == 2 and kinds.count("counter") == 4
+    assert "names the year the penalty is paid" in text and "FY2029 to FY2031" in text
+    titles = [w["spec"]["frame"]["title"] for w in widgets(p) if "spec" in w]
+    assert any("FY2026" in t for t in titles) and any("FY2027" in t for t in titles)
+    table = next(w for w in widgets(p) if w["name"] == "pd_scenarios")
+    headers = [c["title"] for c in table["spec"]["encodings"]["columns"]]
+    assert "Payer savings, not Contoso's (est.)" in headers
+    assert all("(est.)" in h for h in headers if h.endswith(("cost (est.)", "net (est.)")))
+
+
+def test_penalty_datasets_show_only_contoso_names(dashboard):
+    for name, sql in dataset_sql(dashboard).items():
+        if re.search(r"gold_(penalty_dollars|penalty_by_condition|nurse_call_economics)", sql):
+            assert not re.search(r"(?<!contoso_)facility_name", sql), name
 
 
 @pytest.mark.parametrize(

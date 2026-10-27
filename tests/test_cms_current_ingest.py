@@ -93,6 +93,7 @@ def test_fetch_cli_registers_every_source_and_takes_several(tmp_path, monkeypatc
         "hrrp_history_pdc",
         "hrrp_history_ipps",
         "acs_county",
+        "ipps_impact",
     } == SOURCES.keys()
     land_manifest(
         LocalLander(str(tmp_path)), "cms_hrrp", "b1", [{"name": "a", "modified": "2026-01-26"}]

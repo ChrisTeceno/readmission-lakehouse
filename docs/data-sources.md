@@ -20,6 +20,13 @@ uv run python -m readmission.ingest.fetch hrrp_history_pdc                     #
 uv run python -m readmission.ingest.fetch hrrp_history_ipps --local data/landing
 ```
 
+On 2026-10-26 data.cms.gov answered the job's serverless fetch with HTTP 403 (`Access Denied`)
+on the datastore metadata call, so `hrrp_history_ipps` and `ipps_impact` (both on www.cms.gov)
+were landed from a laptop with
+`uv run python -m readmission.ingest.fetch hrrp_history_ipps ipps_impact --profile readmission`
+and the job run with `--only bronze,silver,gold`. The fetch/load split is what makes that
+possible.
+
 `--work-dir` (default `data/fetch/`, gitignored) caches downloaded zips. Landing in the volume
 was checked on 2026-10-21 with all seven IPPS years (batch `20261021T190000Z`).
 
@@ -307,7 +314,7 @@ Caveats:
   the fetch retries until length and zip structure check out.
 - No PDC file carries the dual-eligibility peer group or the peer median ERR.
 
-### CMS.gov IPPS supplemental files, FY2013 to FY2018 and FY2027 (verified 2026-10-21)
+### CMS.gov IPPS supplemental files, FY2013 to FY2018, FY2026 and FY2027 (verified 2026-10-21; FY2026 2026-10-26)
 
 Archive page:
 `https://www.cms.gov/medicare/payment/prospective-payment-systems/acute-inpatient-pps/archived-supplemental-data-files`.
@@ -323,10 +330,17 @@ taking the latest correction where CMS published one.
 | 2016 | `https://www.cms.gov/medicare/medicare-fee-for-service-payment/acuteinpatientpps/downloads/fy2016-cms-1632-fr-readmissions.zip` | `FY 2016 IPPS Final Rule Readmissions PUF_readmadj revised 08-04-15.txt` | 3,464 | 07/01/2011 to 06/30/2014 |
 | 2017 | `https://www.cms.gov/medicare/medicare-fee-for-service-payment/acuteinpatientpps/downloads/fy2017-cms-1655-fr-hospital-readmissions.zip` | `FY 2017 IPPS Final Rule Readmissions PUF (FY17 data).txt` | 3,448 | 07/01/2012 to 06/30/2015 |
 | 2018 | `https://www.cms.gov/medicare/medicare-fee-for-service-payment/acuteinpatientpps/downloads/fy2018-fr-hospital-readmissions.zip` | `FY 2018 IPPS Final Rule Readmissions PUF (FY18 data).txt` | 3,414 | 07/01/2013 to 06/30/2016 |
+| 2026 | `https://www.cms.gov/files/zip/fy2026-hospital-readmissions-reduction-program-supplemental-data-file.zip` | `FR FY 2026.txt` | 2,945 | 07/01/2021 to 06/30/2024 |
 | 2027 | `https://www.cms.gov/files/zip/fy-2027-hospital-readmissions-reduction-program-supplemental-data-file.zip` | `FY2027_HRRP_Supplemental_File - FR FY 2027 Tab.txt` | 2,912 | 07/01/2023 to 06/30/2025 |
 
-Periods come from the variable description file in each zip. Do not use the CMS.gov FY2023 and
-FY2026 links: they serve the wrong year's file.
+Periods come from the variable description file in each zip. The archived page is wrong for two
+years: its FY2026 entry links the FY2025 zip and its FY2023 entry has no zip link. The FY2026 URL
+above is the one on the FY2026 final rule home page
+(`https://www.cms.gov/medicare/payment/prospective-payment-systems/acute-inpatient-pps/fy-2026-ipps-final-rule-home-page`),
+and its file reports the FY2026 period. FY2026 is on the PDC archive too: `silver_hrrp_history`
+keeps PDC's FY2026 rows, and the supplemental file feeds only the payment tables (see
+`docs/penalty-dollars.md`). The FY2019 to FY2025 supplemental files also exist (URLs in
+`docs/penalty-dollars.md`) and are not loaded; see ADR 0006.
 
 Caveats:
 - Tab-separated, cp1252, CRLF. One to four title rows above the header (FY2013 has four) and
@@ -344,11 +358,41 @@ Caveats:
   to null. FY2018 and FY2027 write `.` for missing values and report ERRs for some hospitals
   under 25 cases.
 - FY2027 quotes discharge counts over 999 with a thousands separator (`"1,110"`).
-- Peer groups: only FY2027 carries `Peer group assignment` (dual-eligibility quintile 1 to 5)
-  and `Peer group median ERR for <M>`. FY2013 to FY2018 predate peer grouping (it began in
-  FY2019). FY2027 also has dual proportion, neutrality modifier, penalty indicator and DRG
-  payment ratio columns, kept in Bronze only.
+- Peer groups: FY2026 and FY2027 carry `Peer group assignment` (dual-eligibility quintile 1 to
+  5) and `Peer group median ERR for <M>`. FY2013 to FY2018 predate peer grouping (it began in
+  FY2019). FY2026 and FY2027 also have dual proportion, neutrality modifier, penalty indicator
+  and DRG payment ratio columns; `silver_hrrp_payment` and `silver_hrrp_payment_measure` carry
+  them, with the payment adjustment factor for every IPPS year.
+- The payment adjustment factor header changes by year: `FY 2013  Readmission Payment
+  Adjustment Factor`, `Corrected FY 2015  Readmissions Adjustment Factor`, `Payment adjustment
+  factor` (FY2026 on). FY2022 on also write `Payment reduction percentage` with a `%` sign.
+- The FY2026 zip also holds `FR FY 2026 Case Info.txt`; the pattern matches the hospital file
+  only.
 - FY2027 covers two years of discharges, not three, per its variable description.
+
+### IPPS final rule impact files, FY2026 and FY2027 (verified 2026-10-26)
+
+Source `ipps_impact`, table `bronze_ipps_impact` (`record` maps, like the IPPS readmissions files),
+fetched by `readmission.ingest.ipps_impact`. One row per IPPS hospital with the inputs CMS models
+the year's payments from; Gold uses them to estimate base operating DRG payments
+(`docs/penalty-dollars.md`).
+
+| FY | Zip URL | Inner file | Hospitals | Cases from |
+|---|---|---|---|---|
+| 2026 | `https://www.cms.gov/files/zip/fy2026-ipps-fr-impact-file.zip` | `FY 2026 IPPS Final Rule Impact File.txt` | 3,103 | MedPAR FY2024 |
+| 2027 | `https://www.cms.gov/files/zip/fy2027-ipps-fr-impact-file.zip` | `FY 2027 IPPS Impact File - Correction Notice.txt` | 3,075 | MedPAR FY2025 |
+
+Caveats:
+- Tab-separated, one title row, header on row 2 starting `Provider Number`; CRLF.
+- The FY2027 zip holds both the final rule and the correction notice file; the correction notice
+  is later and goes with the correction notice Table 1B amounts, so it is the one landed.
+- Columns are named after the year: `FY 2027 Wage Index`, and `CASETA44` / `TACMIV44` for the
+  FY2027 grouper (V44), beside `CASETA43` / `TACMIV43` for the prior year's grouper. Silver picks
+  the year's own grouper (fiscal year minus 1983).
+- The file carries real hospital names in `Name`. Silver drops them; Gold and the dashboard show
+  only Contoso's names.
+- `Proxy Readmission Adjustment Factor` is the prior year's payment adjustment factor, not the
+  year's.
 
 ### Silver normalization
 

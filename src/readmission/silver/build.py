@@ -33,6 +33,7 @@ from readmission.silver import (
     hospital_info,
     hrrp,
     hrrp_history,
+    hrrp_payment,
     unplanned_visits,
 )
 from readmission.silver.governance import (
@@ -78,6 +79,30 @@ SILVER_TABLES = [
         hrrp_history.CONSTRAINTS,
         ["bronze_hrrp_history_pdc", "bronze_hrrp_history_ipps"],
         hrrp_history.silver_hrrp_history_checked,
+    ),
+    SilverTable(
+        hrrp_payment.PAYMENT_TABLE,
+        hrrp_payment.SILVER_HRRP_PAYMENT_SCHEMA,
+        hrrp_payment.SILVER_HRRP_PAYMENT_DOC,
+        hrrp_payment.PAYMENT_CONSTRAINTS,
+        ["bronze_hrrp_history_ipps"],
+        hrrp_payment.silver_hrrp_payment,
+    ),
+    SilverTable(
+        hrrp_payment.MEASURE_TABLE,
+        hrrp_payment.SILVER_HRRP_PAYMENT_MEASURE_SCHEMA,
+        hrrp_payment.SILVER_HRRP_PAYMENT_MEASURE_DOC,
+        hrrp_payment.MEASURE_CONSTRAINTS,
+        ["bronze_hrrp_history_ipps"],
+        hrrp_payment.silver_hrrp_payment_measure,
+    ),
+    SilverTable(
+        hrrp_payment.IMPACT_TABLE,
+        hrrp_payment.SILVER_IPPS_IMPACT_SCHEMA,
+        hrrp_payment.SILVER_IPPS_IMPACT_DOC,
+        hrrp_payment.IMPACT_CONSTRAINTS,
+        ["bronze_ipps_impact"],
+        hrrp_payment.silver_ipps_impact,
     ),
     SilverTable(
         hospital_info.TABLE,

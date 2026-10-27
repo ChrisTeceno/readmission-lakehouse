@@ -1,4 +1,5 @@
-"""Gold build: facility-condition facts, penalty mart, Contoso scorecard and model features.
+"""Gold build: facility-condition facts, penalty mart, Contoso scorecard, model features, and
+Contoso's estimated penalty dollars and nurse-call economics.
 
     readmission-gold [--catalog workspace] [--schema readmission]
 
@@ -15,7 +16,14 @@ from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql import types as T
 
-from readmission.gold import contoso_scorecard, facility_condition, features, penalty_mart
+from readmission.gold import (
+    contoso_scorecard,
+    facility_condition,
+    features,
+    nurse_call_economics,
+    penalty_dollars,
+    penalty_mart,
+)
 from readmission.ops import RunRecorder, add_ops_arguments, track_run
 from readmission.ops.tables import OPS_TABLES, create_statement
 from readmission.quality.expectations import check_same_row_count
@@ -117,6 +125,41 @@ def build_gold(spark: SparkSession, prefix: str, run: RunRecorder) -> None:
         ),
         features.GOLD_FEATURES_SCHEMA,
         features.GOLD_FEATURES_DOC,
+        run,
+    )
+    payment, measures = table("silver_hrrp_payment"), table("silver_hrrp_payment_measure")
+    write_table(
+        spark,
+        f"{prefix}.{penalty_dollars.TABLE}",
+        penalty_dollars.gold_penalty_dollars(
+            payment, measures, table("silver_ipps_impact"), contoso
+        ),
+        penalty_dollars.GOLD_PENALTY_DOLLARS_SCHEMA,
+        penalty_dollars.GOLD_PENALTY_DOLLARS_DOC,
+        run,
+    )
+    write_table(
+        spark,
+        f"{prefix}.{penalty_dollars.CONDITION_TABLE}",
+        penalty_dollars.gold_penalty_by_condition(table(penalty_dollars.TABLE), measures),
+        penalty_dollars.GOLD_PENALTY_BY_CONDITION_SCHEMA,
+        penalty_dollars.GOLD_PENALTY_BY_CONDITION_DOC,
+        run,
+    )
+    write_table(
+        spark,
+        f"{prefix}.{penalty_dollars.SENSITIVITY_TABLE}",
+        penalty_dollars.gold_penalty_sensitivity(table(penalty_dollars.TABLE), measures, payment),
+        penalty_dollars.GOLD_PENALTY_SENSITIVITY_SCHEMA,
+        penalty_dollars.GOLD_PENALTY_SENSITIVITY_DOC,
+        run,
+    )
+    write_table(
+        spark,
+        f"{prefix}.{nurse_call_economics.TABLE}",
+        nurse_call_economics.gold_nurse_call_economics(table(penalty_dollars.SENSITIVITY_TABLE)),
+        nurse_call_economics.GOLD_NURSE_CALL_ECONOMICS_SCHEMA,
+        nurse_call_economics.GOLD_NURSE_CALL_ECONOMICS_DOC,
         run,
     )
     for ops_table, schema, doc in OPS_TABLES:

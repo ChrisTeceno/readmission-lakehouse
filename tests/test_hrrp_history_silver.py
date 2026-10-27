@@ -194,6 +194,20 @@ def test_silver_hrrp_history_schema_and_key(spark):
     )
 
 
+def test_history_keeps_pdc_for_fy2026_and_skips_the_ipps_file(spark):
+    # The FY2026 supplemental file is in Bronze for the payment work; history stays on PDC's
+    # FY2026 rows and their 1.0 cutoff stand-in (ADR 0006).
+    ipps = ipps_bronze(spark, "ipps_fy2027.txt", 2026).unionByName(
+        ipps_bronze(spark, "ipps_fy2027.txt", 2027)
+    )
+    pdc = pdc_bronze(spark, "pdc_fy2022.csv", 2022)
+
+    silver = silver_hrrp_history(pdc, ipps)
+
+    years = {r.fiscal_year for r in silver.where("source = 'ipps'").collect()}
+    assert years == {2027}
+
+
 def test_bronze_from_manifest_reads_landed_batch(spark, tmp_path):
     lander = LocalLander(str(tmp_path))
     data = (FIXTURES / "ipps_fy2017.txt").read_bytes()

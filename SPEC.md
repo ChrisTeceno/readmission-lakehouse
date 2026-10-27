@@ -96,7 +96,7 @@ Verified 2026-10-21: the three CMS datastore endpoints respond; HRRP has 18,330 
 
 **CMS.gov IPPS supplemental files, FY2013 to FY2018 and FY2027.** Index: `https://www.cms.gov/medicare/payment/prospective-payment-systems/acute-inpatient-pps/archived-supplemental-data-files`. Exact zip URLs per year are recorded in `docs/data-sources.md` (created by the historical-ingest task). Tab-separated, title rows before the header, one row per hospital with wide `<condition> cases` and `<condition> ERR` columns. No readmission counts or predicted/expected rates. FY2013 to FY2014 cover AMI, HF and pneumonia only; COPD and hip/knee arrive in FY2015, CABG in FY2017. FY2027 is not on PDC yet.
 
-**Normalization rules.** Left-pad CCN to 6 digits. Accept `Provider ID` and `Facility ID`. Normalize measure names (`READM_30_AMI_HRRP` and `READM-30-AMI-HRRP` are the same). Strip thousands separators. Treat `N/A`, `Not Available`, `Too Few to Report`, `.` and blank as null. Do not use the CMS.gov FY2023 and FY2026 links: they serve the wrong year's file.
+**Normalization rules.** Left-pad CCN to 6 digits. Accept `Provider ID` and `Facility ID`. Normalize measure names (`READM_30_AMI_HRRP` and `READM-30-AMI-HRRP` are the same). Strip thousands separators. Treat `N/A`, `Not Available`, `Too Few to Report`, `.` and blank as null. The archived supplemental files page is wrong for two years: its FY2026 entry links the FY2025 zip and its FY2023 entry has no zip link. Take FY2026 from the FY2026 final rule home page instead (`docs/data-sources.md`).
 
 ## Commands
 
