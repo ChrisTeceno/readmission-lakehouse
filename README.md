@@ -28,6 +28,8 @@ A portfolio project framed as a delivery engagement for the fictional client Con
 
 Contoso Health is fictional. Its operational database (a Lakebase Postgres, [`docs/lakebase.md`](docs/lakebase.md)) is synthetic, seeded by [`scripts/seed_contoso.py`](scripts/seed_contoso.py). Its 12 facilities are real public CMS Certification Numbers from Ohio relabeled with invented names, so Contoso's numbers line up with the public HRRP data; no real hospital's data is altered, and no Contoso number describes a real hospital.
 
+How the synthetic data were made, and how they compare with public benchmarks: [`docs/synthetic-data.md`](docs/synthetic-data.md).
+
 ## How to run
 
 Needs [`uv`](https://docs.astral.sh/uv/), Java 17 for the local Spark tests, and the Databricks CLI logged in to a workspace for the bundle commands.
