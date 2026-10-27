@@ -28,6 +28,10 @@ available to the build. Its five datasets were run on the SQL warehouse on 2026-
 the figures in `docs/penalty-dollars.md` (totals $1,959,057 for FY2026 and $1,764,148 for FY2027,
 break-even 0.71 and 0.36 points).
 
+The same six pages, penalty dollars included, are also in the public static dashboard
+(`site/dashboard/`, no sign-in), with its own render check and screenshot in
+[`../static-dashboard.md`](../static-dashboard.md).
+
 ## Genie answer
 
 Question 1 (facilities above the cutoff), the answer headline and chart, then the rest of the
