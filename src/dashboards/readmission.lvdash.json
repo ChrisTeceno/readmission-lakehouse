@@ -237,6 +237,85 @@
       ]
     },
     {
+      "name": "penalty_dollars_fy2026",
+      "displayName": "Estimated penalty by facility, FY2026",
+      "queryLines": [
+        "SELECT\n",
+        "  concat(contoso_facility_id, ' ', contoso_facility_name) AS facility,\n",
+        "  ROUND(est_penalty, 0) AS est_penalty,\n",
+        "  ROUND(est_base_operating_drg_payments, 0) AS est_base_payments,\n",
+        "  payment_adjustment_factor\n",
+        "FROM gold_penalty_dollars\n",
+        "WHERE fiscal_year = 2026"
+      ]
+    },
+    {
+      "name": "penalty_dollars_fy2027",
+      "displayName": "Estimated penalty by facility, FY2027",
+      "queryLines": [
+        "SELECT\n",
+        "  concat(contoso_facility_id, ' ', contoso_facility_name) AS facility,\n",
+        "  ROUND(est_penalty, 0) AS est_penalty,\n",
+        "  ROUND(est_base_operating_drg_payments, 0) AS est_base_payments,\n",
+        "  payment_adjustment_factor\n",
+        "FROM gold_penalty_dollars\n",
+        "WHERE fiscal_year = 2027"
+      ]
+    },
+    {
+      "name": "penalty_summary",
+      "displayName": "Estimated penalty totals and break-even",
+      "queryLines": [
+        "SELECT\n",
+        "  (SELECT SUM(est_penalty) FROM gold_penalty_dollars WHERE fiscal_year = 2026)\n",
+        "    AS est_penalty_fy2026,\n",
+        "  (SELECT SUM(est_penalty) FROM gold_penalty_dollars WHERE fiscal_year = 2027)\n",
+        "    AS est_penalty_fy2027,\n",
+        "  (SELECT MAX(break_even_drop_points) FROM gold_nurse_call_economics\n",
+        "   WHERE cost_level = 'central' AND err_pass_through = 0.5) AS break_even_half,\n",
+        "  (SELECT MAX(break_even_drop_points) FROM gold_nurse_call_economics\n",
+        "   WHERE cost_level = 'central' AND err_pass_through = 1.0) AS break_even_full"
+      ]
+    },
+    {
+      "name": "penalty_change",
+      "displayName": "Estimated penalty change by facility and condition",
+      "queryLines": [
+        "SELECT\n",
+        "  concat(contoso_facility_id, ' ', contoso_facility_name) AS facility,\n",
+        "  measure,\n",
+        "  ROUND(SUM(CASE WHEN fiscal_year = 2026 THEN est_penalty ELSE 0 END), 0) AS est_penalty_fy2026,\n",
+        "  ROUND(SUM(CASE WHEN fiscal_year = 2027 THEN est_penalty ELSE 0 END), 0) AS est_penalty_fy2027,\n",
+        "  ROUND(SUM(CASE WHEN fiscal_year = 2027 THEN est_penalty ELSE -est_penalty END), 0)\n",
+        "    AS est_change,\n",
+        "  ROUND(ABS(SUM(CASE WHEN fiscal_year = 2027 THEN est_penalty ELSE -est_penalty END)), 0)\n",
+        "    AS abs_change\n",
+        "FROM gold_penalty_by_condition\n",
+        "GROUP BY 1, 2\n",
+        "HAVING SUM(est_penalty) > 0"
+      ]
+    },
+    {
+      "name": "nurse_call_scenarios",
+      "displayName": "Nurse-call program scenarios",
+      "queryLines": [
+        "SELECT\n",
+        "  effect_scenario,\n",
+        "  drop_points,\n",
+        "  effect_basis,\n",
+        "  cost_level,\n",
+        "  CASE cost_level WHEN 'low' THEN 1 WHEN 'central' THEN 2 ELSE 3 END AS cost_order,\n",
+        "  err_pass_through,\n",
+        "  ROUND(annual_program_cost, 0) AS annual_program_cost,\n",
+        "  ROUND(est_penalty_avoided, 0) AS est_penalty_avoided,\n",
+        "  ROUND(hospital_net, 0) AS hospital_net,\n",
+        "  break_even_drop_points,\n",
+        "  ROUND(readmissions_avoided, 0) AS readmissions_avoided,\n",
+        "  ROUND(payer_savings, 0) AS payer_savings\n",
+        "FROM gold_nurse_call_economics"
+      ]
+    },
+    {
       "name": "run_summary",
       "displayName": "Last pipeline run",
       "queryLines": [
@@ -2128,6 +2207,724 @@
             "y": 19,
             "width": 6,
             "height": 2
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS"
+    },
+    {
+      "name": "penalty_dollars",
+      "displayName": "Penalty dollars and follow-up calls",
+      "layout": [
+        {
+          "widget": {
+            "name": "pd_title",
+            "multilineTextboxSpec": {
+              "lines": [
+                "## Penalty dollars and follow-up calls\n",
+                "What does the HRRP penalty cost Contoso, which years can still change, and would a 72-hour nurse follow-up call program pay for itself? Every dollar figure is an estimate: penalty = (1 - CMS's payment adjustment factor) x estimated base operating DRG payments, where the base is transfer-adjusted cases x case mix index x (labor amount x wage index + nonlabor amount) from the CMS IPPS impact file and Table 1B.\n",
+                "\n",
+                "*Contoso Health is a fictional client: its facilities are real public Ohio CCNs under invented names, so the penalty inputs are real CMS figures. Program costs are built from BLS wage data and stated time, setup and management assumptions.*"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 6,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "pd_timeline",
+            "multilineTextboxSpec": {
+              "lines": [
+                "The fiscal year names the year the penalty is paid, not the discharges it measures.\n",
+                "\n",
+                "| Fiscal year | Paid | Discharges measured | Where it stands |\n",
+                "|---|---|---|---|\n",
+                "| FY2026 | Oct 2025 to Sep 2026 | 07/2021 to 06/2024 | The bill paid; comparison year |\n",
+                "| FY2027 | Oct 2026 to Sep 2027 | 07/2023 to 06/2025 | The bill being paid now; published Aug 2026, fixed |\n",
+                "| FY2028 | Oct 2027 to Sep 2028 | 07/2024 to 06/2026 (assumed) | Mostly baked in; see the Predictions page |\n",
+                "| FY2029 on | Oct 2028 on | 07/2025 on (assumed) | What Contoso can still change: a program started in 2027 first moves the penalty around FY2029 to FY2031 |"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 3,
+            "width": 6,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "pd_total_fy2026",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "penalty_summary",
+                  "fields": [
+                    {
+                      "name": "sum(est_penalty_fy2026)",
+                      "expression": "SUM(`est_penalty_fy2026`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(est_penalty_fy2026)",
+                  "displayName": "Estimated penalty, FY2026 (the bill paid)",
+                  "format": {
+                    "type": "number-currency",
+                    "currencyCode": "USD",
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 2
+                    }
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Estimated penalty, FY2026 (the bill paid)"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 7,
+            "width": 3,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "pd_total_fy2027",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "penalty_summary",
+                  "fields": [
+                    {
+                      "name": "sum(est_penalty_fy2027)",
+                      "expression": "SUM(`est_penalty_fy2027`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(est_penalty_fy2027)",
+                  "displayName": "Estimated penalty, FY2027 (the bill being paid now)",
+                  "format": {
+                    "type": "number-currency",
+                    "currencyCode": "USD",
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 2
+                    }
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Estimated penalty, FY2027 (the bill being paid now)"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 7,
+            "width": 3,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "pd_bar_fy2026",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "penalty_dollars_fy2026",
+                  "fields": [
+                    {
+                      "name": "sum(est_penalty)",
+                      "expression": "SUM(`est_penalty`)"
+                    },
+                    {
+                      "name": "facility",
+                      "expression": "`facility`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "sum(est_penalty)",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "axis": {
+                    "title": "Estimated penalty, dollars"
+                  },
+                  "displayName": "Estimated penalty, dollars"
+                },
+                "y": {
+                  "fieldName": "facility",
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "x-reversed"
+                    }
+                  },
+                  "axis": {
+                    "title": "Facility"
+                  },
+                  "displayName": "Facility"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Estimated penalty by facility, FY2026"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 10,
+            "width": 3,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "pd_bar_fy2027",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "penalty_dollars_fy2027",
+                  "fields": [
+                    {
+                      "name": "sum(est_penalty)",
+                      "expression": "SUM(`est_penalty`)"
+                    },
+                    {
+                      "name": "facility",
+                      "expression": "`facility`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "sum(est_penalty)",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "axis": {
+                    "title": "Estimated penalty, dollars"
+                  },
+                  "displayName": "Estimated penalty, dollars"
+                },
+                "y": {
+                  "fieldName": "facility",
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "x-reversed"
+                    }
+                  },
+                  "axis": {
+                    "title": "Facility"
+                  },
+                  "displayName": "Facility"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Estimated penalty by facility, FY2027"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 10,
+            "width": 3,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "pd_change",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "penalty_change",
+                  "fields": [
+                    {
+                      "name": "facility",
+                      "expression": "`facility`"
+                    },
+                    {
+                      "name": "measure",
+                      "expression": "`measure`"
+                    },
+                    {
+                      "name": "est_penalty_fy2026",
+                      "expression": "`est_penalty_fy2026`"
+                    },
+                    {
+                      "name": "est_penalty_fy2027",
+                      "expression": "`est_penalty_fy2027`"
+                    },
+                    {
+                      "name": "est_change",
+                      "expression": "`est_change`"
+                    }
+                  ],
+                  "disaggregated": true,
+                  "orders": [
+                    {
+                      "direction": "DESC",
+                      "expression": "`abs_change`"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "facility",
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 100000,
+                    "title": "Facility",
+                    "alignContent": "left",
+                    "allowSearch": true
+                  },
+                  {
+                    "fieldName": "measure",
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 100001,
+                    "title": "Condition",
+                    "alignContent": "left",
+                    "allowSearch": true
+                  },
+                  {
+                    "fieldName": "est_penalty_fy2026",
+                    "type": "float",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 100002,
+                    "title": "FY2026 penalty (est.)",
+                    "alignContent": "right",
+                    "allowSearch": false,
+                    "numberFormat": "$0,0"
+                  },
+                  {
+                    "fieldName": "est_penalty_fy2027",
+                    "type": "float",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 100003,
+                    "title": "FY2027 penalty (est.)",
+                    "alignContent": "right",
+                    "allowSearch": false,
+                    "numberFormat": "$0,0"
+                  },
+                  {
+                    "fieldName": "est_change",
+                    "type": "float",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 100004,
+                    "title": "Change (est.)",
+                    "alignContent": "right",
+                    "allowSearch": false,
+                    "numberFormat": "$0,0"
+                  }
+                ],
+                "itemsPerPage": 25,
+                "paginationSize": "default",
+                "condensed": true,
+                "withRowNumber": false
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "What changed from FY2026 to FY2027, largest moves first"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 17,
+            "width": 6,
+            "height": 8
+          }
+        },
+        {
+          "widget": {
+            "name": "pd_break_even_half",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "penalty_summary",
+                  "fields": [
+                    {
+                      "name": "sum(break_even_half)",
+                      "expression": "SUM(`break_even_half`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(break_even_half)",
+                  "displayName": "Break-even drop, points (central cost, ERR pass-through 0.5)",
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "none",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 2
+                    }
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Break-even drop, points (central cost, ERR pass-through 0.5)"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 25,
+            "width": 3,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "pd_break_even_full",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "penalty_summary",
+                  "fields": [
+                    {
+                      "name": "sum(break_even_full)",
+                      "expression": "SUM(`break_even_full`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(break_even_full)",
+                  "displayName": "Break-even drop, points (central cost, ERR pass-through 1.0)",
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "none",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 2
+                    }
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Break-even drop, points (central cost, ERR pass-through 1.0)"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 25,
+            "width": 3,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "pd_scenarios",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "nurse_call_scenarios",
+                  "fields": [
+                    {
+                      "name": "effect_scenario",
+                      "expression": "`effect_scenario`"
+                    },
+                    {
+                      "name": "drop_points",
+                      "expression": "`drop_points`"
+                    },
+                    {
+                      "name": "err_pass_through",
+                      "expression": "`err_pass_through`"
+                    },
+                    {
+                      "name": "cost_level",
+                      "expression": "`cost_level`"
+                    },
+                    {
+                      "name": "annual_program_cost",
+                      "expression": "`annual_program_cost`"
+                    },
+                    {
+                      "name": "est_penalty_avoided",
+                      "expression": "`est_penalty_avoided`"
+                    },
+                    {
+                      "name": "hospital_net",
+                      "expression": "`hospital_net`"
+                    },
+                    {
+                      "name": "break_even_drop_points",
+                      "expression": "`break_even_drop_points`"
+                    },
+                    {
+                      "name": "readmissions_avoided",
+                      "expression": "`readmissions_avoided`"
+                    },
+                    {
+                      "name": "payer_savings",
+                      "expression": "`payer_savings`"
+                    },
+                    {
+                      "name": "effect_basis",
+                      "expression": "`effect_basis`"
+                    }
+                  ],
+                  "disaggregated": true,
+                  "orders": [
+                    {
+                      "direction": "ASC",
+                      "expression": "`cost_order`"
+                    },
+                    {
+                      "direction": "ASC",
+                      "expression": "`err_pass_through`"
+                    },
+                    {
+                      "direction": "ASC",
+                      "expression": "`drop_points`"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "effect_scenario",
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 100000,
+                    "title": "Effect scenario",
+                    "alignContent": "left",
+                    "allowSearch": true
+                  },
+                  {
+                    "fieldName": "drop_points",
+                    "type": "float",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 100001,
+                    "title": "Drop, points",
+                    "alignContent": "right",
+                    "allowSearch": false,
+                    "numberFormat": "0.00"
+                  },
+                  {
+                    "fieldName": "err_pass_through",
+                    "type": "float",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 100002,
+                    "title": "ERR pass-through",
+                    "alignContent": "right",
+                    "allowSearch": false,
+                    "numberFormat": "0.0"
+                  },
+                  {
+                    "fieldName": "cost_level",
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 100003,
+                    "title": "Cost level",
+                    "alignContent": "left",
+                    "allowSearch": true
+                  },
+                  {
+                    "fieldName": "annual_program_cost",
+                    "type": "float",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 100004,
+                    "title": "Program cost (est.)",
+                    "alignContent": "right",
+                    "allowSearch": false,
+                    "numberFormat": "$0,0"
+                  },
+                  {
+                    "fieldName": "est_penalty_avoided",
+                    "type": "float",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 100005,
+                    "title": "Penalty avoided (est.)",
+                    "alignContent": "right",
+                    "allowSearch": false,
+                    "numberFormat": "$0,0"
+                  },
+                  {
+                    "fieldName": "hospital_net",
+                    "type": "float",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 100006,
+                    "title": "Contoso net (est.)",
+                    "alignContent": "right",
+                    "allowSearch": false,
+                    "numberFormat": "$0,0"
+                  },
+                  {
+                    "fieldName": "break_even_drop_points",
+                    "type": "float",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 100007,
+                    "title": "Break-even drop, points",
+                    "alignContent": "right",
+                    "allowSearch": false,
+                    "numberFormat": "0.00"
+                  },
+                  {
+                    "fieldName": "readmissions_avoided",
+                    "type": "float",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 100008,
+                    "title": "Readmissions avoided",
+                    "alignContent": "right",
+                    "allowSearch": false,
+                    "numberFormat": "0"
+                  },
+                  {
+                    "fieldName": "payer_savings",
+                    "type": "float",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 100009,
+                    "title": "Payer savings, not Contoso's (est.)",
+                    "alignContent": "right",
+                    "allowSearch": false,
+                    "numberFormat": "$0,0"
+                  },
+                  {
+                    "fieldName": "effect_basis",
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 100010,
+                    "title": "Effect basis",
+                    "alignContent": "left",
+                    "allowSearch": true
+                  }
+                ],
+                "itemsPerPage": 25,
+                "paginationSize": "default",
+                "condensed": true,
+                "withRowNumber": false
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Nurse-call program scenarios: effect x cost x ERR pass-through"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 28,
+            "width": 6,
+            "height": 10
+          }
+        },
+        {
+          "widget": {
+            "name": "pd_caption",
+            "multilineTextboxSpec": {
+              "lines": [
+                "Trials find no effect from a follow-up call alone (Boggan 2025, risk difference 0.00 across 7 RCTs). The program pays for itself at Contoso if it lowers the 30-day readmission rate by about half a point (0.36 to 0.71 points at the central $371K cost), which the pilot, with a 3.82-point minimum detectable effect, cannot detect. ",
+                "Contoso net is the penalty avoided minus the program cost, Contoso's own money. Payer savings ($14,000 per avoided readmission) go to Medicare and insurers and are never added to it. The 1.0-point central effect is a judgment; 3.0 points is a multicomponent bundle (Leppin 2014), not a call alone. ",
+                "Penalty avoided holds FY2027's peer medians, DRG payment ratios and base payments fixed. The change table splits each facility's penalty by each condition's term in the payment adjustment factor formula; the two windows share July 2023 to June 2024."
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 38,
+            "width": 6,
+            "height": 3
           }
         }
       ],

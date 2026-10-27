@@ -17,6 +17,12 @@ its penalty, what would reduce it, and whether being penalized makes hospitals i
   facilities, Birch, Dogwood, Hawthorn and Oak, accounted for over half of Contoso's conditions
   over the line, and hip and knee replacement was over the line at 8 of the 9 facilities that do
   it. Overall, Contoso looks like a typical Ohio hospital network.
+- **The penalty costs Contoso about $2.0M a year in FY2026 and $1.8M in FY2027 (estimates).**
+  Medicare names each penalty after the year it is paid, not the years it measures: the FY2027
+  bill, paid from October 2026 to September 2027, is charged on discharges from July 2023 to June
+  2025 and is already fixed. Between the two years, heart attack care improved at Dogwood and hip
+  and knee at Birch, while bypass surgery got worse at Alder and Hawthorn. FY2028 is mostly
+  decided too; what Contoso does now first shows up around FY2029 to FY2031.
 - **Next year will look much like this year.** Our forecast expects 28 facility-condition pairs
   over the line next year, against 25 this year, led by Oak (hip and knee, heart failure) and
   Hawthorn (bypass surgery). The forecast ranks well where Medicare's rule was approximated
@@ -43,13 +49,18 @@ its penalty, what would reduce it, and whether being penalized makes hospitals i
 2. **Test nurse follow-up calls before rolling them out.** Switch a structured call within 72
    hours of discharge on two facilities at a time, every three months, over 21 months and about
    18,000 discharges. It will detect a drop in readmissions from about 17 to 13 percent; smaller
-   gains may be missed. The decision for each outcome is agreed before it starts.
+   gains may be missed. The decision for each outcome is agreed before it starts. The best
+   trials find no effect from a call alone, but the program, at about $371K a year, pays for
+   itself in avoided penalties if it lowers readmissions by about half a percentage point, a
+   gain too small for the pilot to confirm. Medicare's own savings would be larger, but they are
+   Medicare's, not Contoso's.
 3. **Close two gaps.** Share Medicare's peer-group cutoffs for past
    years if Contoso has them, and approve the short-lived Azure resources (Key Vault and Data
    Factory) for the last pipeline run.
 
 ## Limits
 
-Contoso's operations data are synthetic, the work ranks where to look but does not estimate
-dollar amounts, and the extraction labels were reviewed by the project lead and Chris, not by a
-clinician.
+Contoso's operations data are synthetic. Penalty dollars are estimates built from Medicare's
+own modelling file rather than Contoso's paid claims, and the program's costs rest on stated
+assumptions. The extraction labels were drafted by the project lead and reviewed by Chris
+Teceno, a clinician.

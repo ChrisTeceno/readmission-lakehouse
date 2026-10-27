@@ -24,6 +24,11 @@ from readmission.silver.contoso import (
     SILVER_CONTOSO_FOLLOWUP_CALLS_SCHEMA,
 )
 from readmission.silver.hrrp_history import HRRP_PERIODS, SILVER_HRRP_HISTORY_SCHEMA
+from readmission.silver.hrrp_payment import (
+    SILVER_HRRP_PAYMENT_MEASURE_SCHEMA,
+    SILVER_HRRP_PAYMENT_SCHEMA,
+    SILVER_IPPS_IMPACT_SCHEMA,
+)
 
 HOSPITAL_INFO_SCHEMA = (
     "facility_id string, facility_name string, state string, county string, "
@@ -345,6 +350,12 @@ def test_build_gold_writes_every_table(spark, gold_db, history, acs, monkeypatch
         spark.createDataFrame([], schema).write.format("delta").saveAsTable(
             f"{gold_db}.silver_contoso_{table}"
         )
+    for table, schema in [
+        ("silver_hrrp_payment", SILVER_HRRP_PAYMENT_SCHEMA),
+        ("silver_hrrp_payment_measure", SILVER_HRRP_PAYMENT_MEASURE_SCHEMA),
+        ("silver_ipps_impact", SILVER_IPPS_IMPACT_SCHEMA),
+    ]:
+        spark.createDataFrame([], schema).write.format("delta").saveAsTable(f"{gold_db}.{table}")
     run = RunRecorder("gold")
 
     gold_build.build_gold(spark, gold_db, run)
@@ -357,7 +368,14 @@ def test_build_gold_writes_every_table(spark, gold_db, history, acs, monkeypatch
         f"{gold_db}.gold_penalty_mart",
         f"{gold_db}.gold_contoso_scorecard",
         f"{gold_db}.gold_features",
+        f"{gold_db}.gold_penalty_dollars",
+        f"{gold_db}.gold_penalty_by_condition",
+        f"{gold_db}.gold_penalty_sensitivity",
+        f"{gold_db}.gold_nurse_call_economics",
     }
+    # Without Contoso facilities there is nothing to price, and no penalty to avoid.
+    assert run.rows[f"{gold_db}.gold_penalty_dollars"] == 0
+    assert run.rows[f"{gold_db}.gold_nurse_call_economics"] == 0
     check = next(m for m in run.metrics if m.metric == "row_count_vs_silver")
     assert (check.value, check.threshold, check.passed) == (18, 18, True)
     comments = {r["col_name"]: r["comment"] for r in spark.sql(f"DESCRIBE {facts}").collect()}

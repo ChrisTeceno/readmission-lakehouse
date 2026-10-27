@@ -62,8 +62,9 @@ Two limits shape every answer:
 - **The cutoff is exact only for FY2013 to FY2018 and FY2027.** For FY2019 to FY2026 CMS used
   peer group medians no file here carries; 1.0 stands in, and in FY2027, where both are known,
   6.2 percent of rows land on different sides of the two.
-- **No dollar amounts.** Base payments are not loaded, so this ranks where to look; it does not
-  size the penalty.
+- **Dollars are estimates.** CMS publishes each hospital's payment adjustment factor but not the
+  base payments it applies to; the base is estimated from CMS's own IPPS impact file
+  (`docs/penalty-dollars.md`).
 
 ---
 
@@ -106,6 +107,28 @@ The other seven facilities (Cedar, Elm, Fir, Juniper, Linden, Maple, Spruce) hav
 
 Reading: Contoso is a typical Ohio network. Its exposure comes from a few facilities and from
 hip/knee, not from the whole network running high.
+
+---
+
+<!-- _class: small -->
+
+# What the penalty costs, and which year can still change
+
+The fiscal year names the year the penalty is paid, not the discharges it measures.
+Every dollar figure is an estimate: (1 - CMS's payment adjustment factor) x base operating DRG
+payments estimated from CMS's IPPS impact file and Table 1B.
+
+| Fiscal year | Paid | Discharges measured | Where it stands | Estimated penalty |
+|---|---|---|---|---|
+| FY2026 | Oct 2025 to Sep 2026 | 07/2021 to 06/2024 | The bill paid; comparison year | about $2.0M |
+| FY2027 | Oct 2026 to Sep 2027 | 07/2023 to 06/2025 | The bill being paid now; published Aug 2026, fixed | about $1.8M |
+| FY2028 | Oct 2027 to Sep 2028 | 07/2024 to 06/2026 (assumed) | Mostly baked in; the model's forecast (next slide) | not estimated |
+| FY2029 on | Oct 2028 on | 07/2025 on (assumed) | What Contoso can still change | see the pilot economics |
+
+- **What changed, FY2026 to FY2027 (down about $195K):** AMI fell $447K, most of it Dogwood
+  ($373K to $13K); Birch hip/knee fell $150K. CABG rose $530K: Alder ($57K to $364K) and Hawthorn
+  ($52K to $238K); Oak heart failure and hip/knee rose $160K together.
+- A program started in 2027 first moves the penalty around FY2029 to FY2031.
 
 ---
 
@@ -237,6 +260,31 @@ facilities at a time (one larger, one smaller) every three months in an order dr
 
 ---
 
+<!-- _class: small -->
+
+# Would follow-up calls pay for themselves?
+
+Contoso's own ledger: FY2027 penalty avoided minus the program's cost. Estimates; costs are BLS
+wages plus stated time, setup and management assumptions (central $371K a year, range $201K to
+$724K).
+
+| Effect on the 30-day rate | Basis | Penalty avoided | Contoso net, central cost |
+|---|---|---|---|
+| 0 points | Pooled RCTs of calls alone (Boggan 2025) | $0 | -$371K |
+| 1.0 point | A judgment | $0.50M to $0.93M | +$132K to +$558K |
+| 3.0 points | Multicomponent bundles (Leppin 2014), not a call alone | $1.20M to $1.64M | +$833K to +$1.27M |
+| 3.82 points | The pilot's detectable effect; more than the evidence supports | $1.36M to $1.74M | +$987K to +$1.37M |
+
+Ranges are 0.5 to 1.0 of the drop reaching each ERR.
+
+- **Trials find no effect from a call alone. The program pays for itself at Contoso at about half
+  a point** (0.36 to 0.71 points at the central cost), which the pilot cannot detect.
+- Medicare and insurers would save about $14,000 per avoided readmission ($1.43M a year at 1
+  point). That is their money, never added to Contoso's.
+- Contoso's upside is capped by the penalty it pays, about $1.75M a year.
+
+---
+
 # Limits, stated plainly
 
 - Contoso is fictional. Its CMS numbers are real public data for relabeled Ohio hospitals; its
@@ -245,7 +293,9 @@ facilities at a time (one larger, one smaller) every three months in an order dr
   them; the causal analysis uses exact years only.
 - The model is a ranking with AUC 0.678 on the exact-cutoff year and is overconfident there.
 - The causal null applies to hospitals near the cutoff, and carries the retention caveat.
-- No penalty dollars: the work says where to look, not how much is at stake.
+- Penalty dollars are estimates: the base payments are modelled from CMS's impact file, not
+  Contoso's paid claims. Program costs rest on stated assumptions, and the 1-point central
+  effect is a judgment.
 
 ---
 
@@ -268,7 +318,7 @@ facilities at a time (one larger, one smaller) every three months in an order dr
 
 # Sources
 
-All files are on `main` unless marked; Gold tables and notebook runs are from 2026-10-21.
+All files are on `main` unless marked; Gold tables and notebook runs are from 2026-10-21, the penalty dollar tables from 2026-10-26.
 
 - `engagement/discovery.md` (Data available): 266,159 HRRP rows; 5,419 hospitals; ACS 2011 to 2024 vintages; 12 facilities, 1,850 discharge rows, 3,700 call rows; 2,357 notes.
 - `docs/gold.md` (Penalty cutoff): exact years FY2013 to FY2018 and FY2027; 6.2 percent (899 of 14,575) of FY2027 rows on different sides of 1.0 and the peer median.
@@ -278,5 +328,6 @@ All files are on `main` unless marked; Gold tables and notebook runs are from 20
 - `docs/causal-findings.md` (The answer; Validity checks; Sensitivity; Difference-in-differences; Limitations), from `docs/causal/02_causal.html`: +0.0004, -0.0027 to +0.0047, MDE 0.0053, bandwidth 0.061, 0.5x to 2x, threshold 0.02, 1.02 read as 2 percent more readmissions than expected, placebo cutoffs 0.90, 0.95, 1.05 and 1.10 with BH p 0.61 to 0.75, 69,163 rows, 3,268 hospitals, density p 0.009 and 0.91, retention 3.5 points, DiD -0.0030 (-0.0058 to -0.0002).
 - `engagement/adr/0002-llm-risk-factor-extraction.md` (Results; First job run; MLflow runs rescored on the reviewed labels `e18026f5a77b444db0ecc9fb8163c8bf`, `321fafc2509d4fc09edc42476355f193`, `0fe0fa0c99ce40e4a4232a139c9ecd70`): F1 0.81, 0.70, 0.54; reject rates 4, 4, 28 percent; 4 primary-condition positives, 0.25 swing; 100 notes, 14 rejected. `docs/llm-extraction.md`: all 50 labels drafted and checked by the lead, reviewed by Chris Teceno, a clinician, who decided the four judgment calls; one label changed.
 - `docs/pilot-design.md` (on branch `pf/pilot-experiment-design-post-discharge-follow-up`, PR #13, open; Summary and For the COO; `analysis/03_power.py`, seed 20261021): 72-hour call, 12 facilities, 6 steps of 2 every three months, 21 months plus one month, about 17,885 (17,900) discharges, 16.9 percent usual care, MDE 3.82 points to about 13.1 percent, 30 percent power at 2 points, smaller than about 4 points, 2-point decision threshold. The MDE of 3.82 is also on `main` in `engagement/status-update.md`.
+- `docs/penalty-dollars.md` (Headline; Timeline; What changed; Economics; Break-even), from `gold_penalty_dollars`, `gold_penalty_by_condition`, `gold_penalty_sensitivity` and `gold_nurse_call_economics`: $1,959,057 (FY2026) and $1,764,148 (FY2027); FY2027 windows and publication; condition and facility changes; costs $200,739, $370,724, $724,342; penalty avoided $503,059 and $928,851 at 1 point, $1,203,846 and $1,642,249 at 3, $1,357,498 and $1,740,081 at 3.82; break-even 0.36 and 0.71; payer savings $1,428,000 at 1 point; $14,000 per readmission (Medicare $13,986 per Contoso discharge, DY2024); Boggan 2025, Leppin 2014.
 - `engagement/status-update.md` (Next; Decisions needed): pending Azure run and screenshots; the four decisions.
 - `engagement/executive-summary.md` rounds the figures above: about 9 in 10 hospitals (90.7 percent); over half (17 of 31 pairs); 87 and 68 times in 100 (AUC 0.874 and 0.678); a quarter of the size that would matter (0.0053 against 0.02); about 18,000 discharges (17,885); about 17 to 13 percent (16.9 percent less 3.82 points).
