@@ -85,7 +85,7 @@ a {
 }
 
 header.site {
-  padding: 28px 0 8px;
+  padding: 20px 0 0;
 }
 
 header.site h1 {
@@ -106,7 +106,7 @@ nav.tabs {
   z-index: 5;
   background: var(--bg);
   border-bottom: 1px solid var(--line);
-  margin-top: 16px;
+  margin-top: 12px;
 }
 
 nav.tabs .wrap {
@@ -136,7 +136,12 @@ nav.tabs button[aria-selected="true"] {
 }
 
 main {
-  padding: 20px 0 8px;
+  padding: 16px 0 8px;
+}
+
+/* A #page link scrolls its section to the top; the margin keeps it below the sticky tabs. */
+section.page {
+  scroll-margin-top: 64px;
 }
 
 section.page[hidden] {
