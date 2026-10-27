@@ -155,6 +155,7 @@ in `ops_watermarks` (one row per source table) over JDBC, appends them to Bronze
 keeping the latest version of each key. Setup, credentials and the incremental test:
 `docs/lakebase.md`; connector choice: `engagement/adr/0001-contoso-lakebase-connector.md`.
 Code: `ingest/contoso.py`, `bronze/contoso.py`, `silver/contoso.py`, `scripts/seed_contoso.py`.
+Generation steps, parameters and the realism check against public benchmarks: `docs/synthetic-data.md`.
 
 ## Census ACS county socioeconomics (verified 2026-10-21)
 
