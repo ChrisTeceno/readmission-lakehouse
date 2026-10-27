@@ -3,9 +3,9 @@
 Two sources (see docs/data-sources.md):
 - `hrrp_history_pdc`: PDC archive, FY2019 to FY2026, quarterly zip snapshots of the whole
   hospitals theme.
-- `hrrp_history_ipps`: CMS.gov IPPS final rule supplemental zips, FY2013 to FY2018, FY2026 and
-  FY2027. FY2026 is on PDC too; its supplemental file lands for the payment adjustment factor,
-  DRG payment ratios and peer medians the penalty dollars need (readmission.silver.hrrp_payment).
+- `hrrp_history_ipps`: CMS.gov IPPS final rule supplemental zips, FY2013 to FY2027. FY2019 to
+  FY2026 are on PDC too; their supplemental files land for what PDC lacks: the peer group, peer
+  median ERR, payment adjustment factor and DRG payment ratios (readmission.silver.hrrp_payment).
 
 Fetch downloads each zip into a local work dir, extracts only the HRRP file and lands it
 unchanged under `<source>/<fiscal_year>/<batch_id>/` with a manifest. Parsing works on landed
@@ -45,11 +45,24 @@ PDC_MEMBER_PATTERNS = (
 
 IPPS_BASE = "https://www.cms.gov"
 _IPPS_DOWNLOADS = "/medicare/medicare-fee-for-service-payment/acuteinpatientpps/downloads"
+
+
+def _supplemental_zip(fiscal_year: int) -> str:
+    return (
+        f"/files/zip/fy-{fiscal_year}-ipps-final-rule-hospital-readmissions-reduction-program-"
+        "supplemental-data-file.zip"
+    )
+
+
 # Each zip holds several tab-separated files (DRG info, claim trims, earlier drafts). The
 # pattern picks the hospital-level readmissions file, and the latest correction where CMS
 # published one. The FY2026 link on the archived supplemental files page serves the FY2025 zip;
 # the FY2026 final rule home page links the right file (checked 2026-10-26), which is the one
-# below. The archived page's FY2023 entry has no zip link at all.
+# below. The archived page's FY2023 entry has no zip link at all; its URL follows the FY2020 to
+# FY2025 pattern. From FY2019 each zip also holds an xlsx workbook; the text copy CMS publishes
+# beside it ("Section 508" or "508 version", comma-separated for FY2022 and FY2025) is landed
+# instead. Checked 2026-10-27: every value in the text copies matched the workbooks to the
+# four decimals CMS prints.
 IPPS_FILES: dict[int, tuple[str, str]] = {
     2013: (
         f"{_IPPS_DOWNLOADS}/fy_2013_fr_readmissions_file.zip",
@@ -63,6 +76,16 @@ IPPS_FILES: dict[int, tuple[str, str]] = {
     2016: (f"{_IPPS_DOWNLOADS}/fy2016-cms-1632-fr-readmissions.zip", "*PUF_readmadj*.txt"),
     2017: (f"{_IPPS_DOWNLOADS}/fy2017-cms-1655-fr-hospital-readmissions.zip", "*(FY17 data).txt"),
     2018: (f"{_IPPS_DOWNLOADS}/fy2018-fr-hospital-readmissions.zip", "*(FY18 data).txt"),
+    2019: (
+        f"{_IPPS_DOWNLOADS}/fy2019-cms-1694-fr-hospital-readmissions.zip",
+        "Section 508 - FR FY 19 - tab - *.txt",
+    ),
+    2020: (_supplemental_zip(2020), "*Supplemental_File tab2.txt"),
+    2021: (_supplemental_zip(2021), "*_FR FY 2021.txt"),
+    2022: (_supplemental_zip(2022), "508_Compliant_Version_of_FR FY 2022.csv"),
+    2023: (_supplemental_zip(2023), "*FR FY 2023.txt"),
+    2024: (_supplemental_zip(2024), "*Variations FR FY 2024 tab .txt"),
+    2025: (_supplemental_zip(2025), "508-Version-FR-FY-2025.csv"),
     2026: (
         "/files/zip/fy2026-hospital-readmissions-reduction-program-supplemental-data-file.zip",
         "FR FY 2026.txt",
@@ -75,6 +98,24 @@ IPPS_FILES: dict[int, tuple[str, str]] = {
 IPPS_CCN_HEADERS = ("PROV", "Provider", "Hospital CCN")
 PDC_ENCODING = "utf-8-sig"
 IPPS_ENCODING = "cp1252"
+FIRST_PEER_GROUP_YEAR = 2019
+# Columns every supplemental file from FY2019 carries, by normalized name (lower case, single
+# spaces): capitalization changes by year ("Peer Group Assignment" in FY2019 and FY2020, "Peer
+# group assignment" later). Per condition, each `err for <condition>` needs its three partners.
+IPPS_PEER_COLUMNS = (
+    "hospital ccn",
+    "payment adjustment factor",
+    "dual proportion",
+    "peer group assignment",
+    "neutrality modifier",
+)
+IPPS_CONDITION_COLUMNS = (
+    "number of eligible discharges for",
+    "peer group median err for",
+    "drg payment ratio for",
+)
+# FY2023 dropped pneumonia (COVID), so five is the fewest conditions a peer-era file carries.
+IPPS_MIN_CONDITIONS = 5
 
 
 @dataclass(frozen=True)
@@ -166,17 +207,18 @@ def parse_pdc_rows(text: str) -> list[dict[str, str]]:
 
 
 def parse_ipps_rows(
-    text: str, ccn_headers: Iterable[str] = IPPS_CCN_HEADERS
+    text: str, ccn_headers: Iterable[str] = IPPS_CCN_HEADERS, delimiter: str = "\t"
 ) -> list[dict[str, str]]:
     """IPPS files are tab-separated with title rows above the header and notes below the data.
 
     The header is the first row starting with a CCN column name; data rows are those whose first
     cell is a CCN. Header names are trimmed (FY2027 pads them with spaces) and blank trailing
     columns dropped; values stay strings as received. The IPPS impact files share the layout
-    under a different CCN header (readmission.ingest.ipps_impact).
+    under a different CCN header (readmission.ingest.ipps_impact), and the FY2022 and FY2025
+    supplemental files under a comma delimiter.
     """
     ccn_headers = tuple(ccn_headers)
-    rows = list(csv.reader(io.StringIO(text, newline=""), delimiter="\t"))
+    rows = list(csv.reader(io.StringIO(text, newline=""), delimiter=delimiter))
     start = next(i for i, row in enumerate(rows) if row and row[0].strip() in ccn_headers)
     header = [h.strip() for h in rows[start]]
     records = []
@@ -191,8 +233,41 @@ def read_pdc_rows(path: Path | str) -> list[dict[str, str]]:
     return parse_pdc_rows(Path(path).read_text(encoding=PDC_ENCODING))
 
 
+def ipps_delimiter(name: str) -> str:
+    return "," if name.lower().endswith(".csv") else "\t"
+
+
 def read_ipps_rows(path: Path | str) -> list[dict[str, str]]:
-    return parse_ipps_rows(Path(path).read_text(encoding=IPPS_ENCODING))
+    path = Path(path)
+    return parse_ipps_rows(
+        path.read_text(encoding=IPPS_ENCODING), delimiter=ipps_delimiter(path.name)
+    )
+
+
+def normalized_header(header: str) -> str:
+    return " ".join(header.split()).lower()
+
+
+def check_ipps_columns(rows: list[dict[str, str]], fiscal_year: int) -> None:
+    """Fail when a peer-era supplemental file lacks a column the Silver tables read, rather than
+    land a year whose peer medians or payment terms would silently come out null."""
+    if fiscal_year < FIRST_PEER_GROUP_YEAR:
+        return
+    if not rows:
+        raise ValueError(f"FY{fiscal_year} IPPS file: no data rows")
+    headers = {normalized_header(h) for h in rows[0]}
+    missing = [c for c in IPPS_PEER_COLUMNS if c not in headers]
+    conditions = [h.removeprefix("err for ") for h in headers if h.startswith("err for ")]
+    missing += [
+        f"{prefix} {condition}"
+        for condition in conditions
+        for prefix in IPPS_CONDITION_COLUMNS
+        if f"{prefix} {condition}" not in headers
+    ]
+    if missing:
+        raise ValueError(f"FY{fiscal_year} IPPS file: missing columns {missing}")
+    if len(conditions) < IPPS_MIN_CONDITIONS:
+        raise ValueError(f"FY{fiscal_year} IPPS file: only conditions {sorted(conditions)}")
 
 
 def land_member(
@@ -214,7 +289,9 @@ def land_member(
     if source == PDC_SOURCE:
         name, rows = f"pdc_fy{fiscal_year}.csv", parse_pdc_rows(data.decode(PDC_ENCODING))
     else:
-        name, rows = f"ipps_fy{fiscal_year}.txt", parse_ipps_rows(data.decode(IPPS_ENCODING))
+        name = f"ipps_fy{fiscal_year}{Path(member).suffix.lower()}"
+        rows = parse_ipps_rows(data.decode(IPPS_ENCODING), delimiter=ipps_delimiter(name))
+        check_ipps_columns(rows, fiscal_year)
     partition = str(fiscal_year)
     path = lander.land_file(source, batch_id, name, data, partition)
     entry = entry | {

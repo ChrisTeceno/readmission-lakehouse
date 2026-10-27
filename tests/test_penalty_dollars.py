@@ -152,6 +152,54 @@ def test_silver_payment_measure_unpivots_six_conditions(measures):
     assert rows[("360072", "PN", 2027)].penalty_indicator is False
 
 
+@pytest.fixture(scope="module")
+def peer_era(spark):
+    """FY2019 (tab-separated, capitalized headers) and FY2025 (CSV) supplemental rows."""
+    fy2019 = bronze(spark, read_ipps_rows(FIXTURES / "supplemental_fy2019.txt"), 2019)
+    fy2025 = bronze(spark, read_ipps_rows(FIXTURES / "supplemental_fy2025.csv"), 2025)
+    payment, rejected_payment = silver_hrrp_payment(fy2019.unionByName(fy2025))
+    measures, rejected_measures = silver_hrrp_payment_measure(fy2019.unionByName(fy2025))
+    assert rejected_payment.count() == 0 and rejected_measures.count() == 0
+    return payment.cache(), measures.cache()
+
+
+def test_silver_payment_reads_fy2019_capitalized_headers(peer_era):
+    payment, _ = peer_era
+    rows = by_facility(payment, "facility_id", "fiscal_year")
+    assert len(rows) == 24
+    for row in rows.values():
+        assert row.peer_group in {1, 2, 3, 4, 5}
+        assert row.dual_proportion is not None and row.neutrality_modifier is not None
+    # The reduction percentage column starts in FY2022.
+    assert {r.payment_reduction_pct for (_, y), r in rows.items() if y == 2019} == {None}
+    assert rows[("360051", 2025)].payment_reduction_pct == pytest.approx(0.54)
+
+
+def test_silver_payment_measure_reads_fy2025_csv(peer_era):
+    _, measures = peer_era
+    rows = by_facility(measures, "facility_id", "measure", "fiscal_year")
+    hf = rows[("360051", "HF", 2025)]
+    assert (hf.discharges, hf.excess_readmission_ratio, hf.peer_median_err) == (
+        1025,
+        1.0659,
+        0.9955,
+    )
+    assert hf.penalty_indicator is True
+    assert {m for _, m, y in rows if y == 2019} == {"AMI", "HF", "PN", "COPD", "HIP_KNEE", "CABG"}
+    assert all(r.peer_median_err is not None for r in rows.values())
+
+
+def test_computed_paf_is_within_rounding_of_published_fy2019_and_fy2025_factors(peer_era):
+    payment, measures = peer_era
+    published = by_facility(payment, "facility_id", "fiscal_year")
+    computed = by_facility(computed_paf(measures, payment), "facility_id", "fiscal_year")
+    assert len(computed) == 24
+    for key, row in computed.items():
+        assert row.computed_paf == pytest.approx(
+            published[key].payment_adjustment_factor, abs=1e-4
+        ), key
+
+
 def test_silver_ipps_impact_reads_the_years_own_grouper_columns(impact):
     rows = by_facility(impact, "facility_id", "fiscal_year")
     # FY2027 correction notice: CASETA44 and TACMIV44, not the V43 columns beside them.

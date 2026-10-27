@@ -133,7 +133,7 @@ GOLD_FEATURES_SCHEMA = T.StructType(
         field(
             "label_cutoff_is_approximate",
             T.BooleanType(),
-            "The FY T cutoff is the 1.0 stand-in for a peer group median",
+            "The FY T cutoff is the 1.0 stand-in for a peer group median CMS did not publish",
         ),
     ]
 )

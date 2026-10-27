@@ -9,8 +9,14 @@
 # MAGIC does differently is listed under Deviations from plan at the end.
 # MAGIC
 # MAGIC Design: a sharp regression discontinuity at the penalty cutoff. For a hospital-condition
-# MAGIC whose excess readmission ratio (ERR) in fiscal year t is just above 1.0, how much does its
-# MAGIC ERR change by the next non-overlapping window, compared with one just below?
+# MAGIC whose excess readmission ratio (ERR) in fiscal year t is just above the cutoff (1.0 to
+# MAGIC FY2018, the peer group median from FY2019), how much does its ERR change by the next
+# MAGIC non-overlapping window, compared with one just below?
+# MAGIC
+# MAGIC The primary sample is every year t with an exact cutoff and an outcome: FY2013 to FY2023 and
+# MAGIC FY2025, now that the FY2019 to FY2026 peer medians are loaded. The FY2013 to FY2018 sample
+# MAGIC the plan pre-registered, when those were the only exact years, is rerun beside it for
+# MAGIC comparison (Deviations, item 7).
 # MAGIC
 # MAGIC Sections:
 # MAGIC 1. Sample
@@ -56,16 +62,18 @@ CATALOG = "workspace"
 SCHEMA = "readmission"
 MEASURES = ["AMI", "HF", "PN", "COPD", "HIP_KNEE", "CABG"]
 
-# docs/analysis-plan.md, sections 3 to 6.
-PRIMARY_YEARS = range(2013, 2019)
-APPROXIMATE_YEARS = [2019, 2020, 2021, 2022, 2023, 2025]
+# docs/analysis-plan.md, sections 3 to 6. Every year from FY2013 has an exact cutoff since the
+# FY2019 to FY2026 peer medians were loaded; FY2024 and FY2026 have no outcome window yet, so
+# they drop out on their own. EXACT_ONLY_YEARS is the pre-registered primary sample of FY2013 to
+# FY2018, kept as a comparison.
+PRIMARY_YEARS = range(2013, 2027)
+EXACT_ONLY_YEARS = range(2013, 2019)
 DID_YEARS = range(2016, 2019)
 CUTOFF = 1.0
 BANDWIDTH_MULTIPLES = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]
 PLACEBO_BELOW = [0.90, 0.95]
 PLACEBO_ABOVE = [1.05, 1.10]
 DONUT = 0.005
-APPROXIMATE_DONUT = 0.02
 DID_WINDOW = 0.10
 SMALLEST_EFFECT = 0.02
 MDE_FACTOR = 2.80
@@ -129,7 +137,8 @@ def benjamini_hochberg(p: pd.Series) -> pd.Series:
 # MAGIC ## 1. Sample
 # MAGIC
 # MAGIC One row per facility, measure and fiscal year t. The running variable is ERR(t) minus the
-# MAGIC cutoff (1.0 in every primary year). The outcome is the ERR change from window t to the next
+# MAGIC cutoff (1.0 to FY2018, the row's peer group median from FY2019). The outcome is the ERR
+# MAGIC change from window t to the next
 # MAGIC window that shares no discharges with it (year s, usually t+3): Gold's `err_change` on the
 # MAGIC row whose `prior_window_fiscal_year` is t (plan, section 3.2). Rows without an ERR at t or s
 # MAGIC drop out. Secondary outcome: ERR(t+4) minus ERR(t).
@@ -213,14 +222,18 @@ rows["treated"] = rows["x"] > 0
 rows["measure_year"] = rows["measure"] + "_" + rows["t"].astype(str)
 assert (rows["treated"] == rows["above_cutoff"]).all(), "treatment must be Gold's above_cutoff"
 
-primary = rows[rows["t"].isin(PRIMARY_YEARS)].copy()
-approximate = rows[rows["t"].isin(APPROXIMATE_YEARS)].copy()
-assert not primary["cutoff_is_approximate"].any()
-assert (primary["penalty_cutoff"] == CUTOFF).all()
+# A FY2019 or later row whose hospital is missing from that year's supplemental file has no
+# published median and a 1.0 stand-in; it is not exact, so it stays out.
+stand_in = rows["cutoff_is_approximate"]
+primary = rows[rows["t"].isin(PRIMARY_YEARS) & ~stand_in].copy()
+exact_only = rows[rows["t"].isin(EXACT_ONLY_YEARS)].copy()
+assert not exact_only["cutoff_is_approximate"].any()
+assert (exact_only["penalty_cutoff"] == CUTOFF).all()
+print(f"Rows left out for a 1.0 stand-in cutoff: {int(stand_in.sum()):,}")
 
-# Gold counts a condition only when its ERR is strictly above the cutoff, so an ERR of exactly
-# 1.0 is untreated. rdrobust treats x >= c as treated; evaluating at half the smallest positive
-# running value puts the rows at exactly 0 on the untreated side and moves nothing else.
+# Gold counts a condition only when its ERR is strictly above the cutoff, so an ERR exactly at
+# the cutoff is untreated. rdrobust treats x >= c as treated; evaluating at half the smallest
+# positive running value puts the rows at exactly 0 on the untreated side and moves nothing else.
 C0 = float(primary.loc[primary["x"] > 0, "x"].min()) / 2
 print(
     f"Rows with ERR exactly at the cutoff (untreated): {(primary['x'] == 0).sum():,}; c = {C0:.2e}"
@@ -229,10 +242,15 @@ print(
 sample_counts = (
     rows.groupby("t")
     .agg(rows=("y", "size"), treated=("treated", "mean"), outcome_year=("s", "first"))
-    .assign(role=lambda d: np.where(d.index.isin(PRIMARY_YEARS), "primary", "approximate cutoff"))
+    .assign(
+        role=lambda d: np.where(
+            d.index.isin(EXACT_ONLY_YEARS), "primary, cutoff 1.0", "primary, peer group median"
+        )
+    )
 )
 print(
-    f"Primary sample (t = 2013 to 2018): {len(primary):,} rows, {primary['facility_id'].nunique():,} facilities"
+    f"Primary sample (t = 2013 to 2023 and 2025): {len(primary):,} rows, "
+    f"{primary['facility_id'].nunique():,} facilities"
 )
 sample_counts.round({"treated": 3})
 
@@ -310,7 +328,7 @@ def results_frame(results: list[dict]) -> pd.DataFrame:
 # MAGIC ### 2.1 Density at the cutoff
 # MAGIC
 # MAGIC Cattaneo, Jansson and Ma (2020). CMS computes the ERR from claims, so a hospital cannot place
-# MAGIC itself just below 1.0 and no bunching is expected. Run on the analysis sample and, for
+# MAGIC itself just below the cutoff and no bunching is expected. Run on the analysis sample and, for
 # MAGIC context, on every primary-year row with an ERR (with or without an outcome).
 
 # COMMAND ----------
@@ -329,7 +347,12 @@ def density_test(x: np.ndarray, label: str) -> dict:
     }
 
 
-all_primary_x = facts.loc[facts["fiscal_year"].isin(PRIMARY_YEARS) & facts["err"].notna(), "x"]
+all_primary_x = facts.loc[
+    facts["fiscal_year"].isin(PRIMARY_YEARS)
+    & facts["err"].notna()
+    & ~facts["cutoff_is_approximate"],
+    "x",
+]
 density = pd.DataFrame(
     [
         density_test(primary["x"].to_numpy(), "analysis sample"),
@@ -349,7 +372,7 @@ ax.bar(
     alpha=0.85,
 )
 ax.axvline(C0, color=MUTED, linestyle="--", linewidth=1)
-ax.set_xlabel("ERR(t) minus 1.0, FY2013 to FY2018 (orange: counts toward the penalty)")
+ax.set_xlabel("ERR(t) minus the cutoff, FY2013 to FY2026 (orange: counts toward the penalty)")
 ax.set_ylabel("Rows per 0.005 bin")
 p_density = density.loc["analysis sample", "p"]
 ax.set_title(
@@ -392,18 +415,31 @@ balance[
 # MAGIC %md
 # MAGIC ### 2.3 Placebo cutoffs
 # MAGIC
-# MAGIC The same specification at ERR = 0.90 and 0.95 using only rows not above 1.0, and at 1.05
-# MAGIC and 1.10 using only rows above it, so no placebo window straddles the real cutoff. Nothing
+# MAGIC The same specification at 0.10 and 0.05 below the cutoff using only rows not above it, and
+# MAGIC at 0.05 and 0.10 above using only rows above it, so no placebo window straddles the real
+# MAGIC cutoff (to FY2018, ERR = 0.90, 0.95, 1.05 and 1.10). Nothing
 # MAGIC happens at those values, so a jump there would point at something in the data other than the
 # MAGIC penalty. Benjamini-Hochberg across the four, q = 0.05.
 
 # COMMAND ----------
 
-placebo = pd.DataFrame(
-    [rd(primary[~primary["treated"]], c=v - CUTOFF, label=f"ERR {v:.2f}") for v in PLACEBO_BELOW]
-    + [rd(primary[primary["treated"]], c=v - CUTOFF, label=f"ERR {v:.2f}") for v in PLACEBO_ABOVE]
-).set_index("label")
-placebo["p_bh"] = benjamini_hochberg(placebo["p"])
+
+def placebo_runs(d: pd.DataFrame) -> pd.DataFrame:
+    runs = pd.DataFrame(
+        [
+            rd(d[~d["treated"]], c=v - CUTOFF, label=f"cutoff {v - CUTOFF:+.2f}")
+            for v in PLACEBO_BELOW
+        ]
+        + [
+            rd(d[d["treated"]], c=v - CUTOFF, label=f"cutoff {v - CUTOFF:+.2f}")
+            for v in PLACEBO_ABOVE
+        ]
+    ).set_index("label")
+    runs["p_bh"] = benjamini_hochberg(runs["p"])
+    return runs
+
+
+placebo = placebo_runs(primary)
 placebo["survives_bh"] = placebo["p_bh"] < FDR_Q
 placebo[
     ["estimate", "ci_low", "ci_high", "p", "p_bh", "survives_bh", "h", "n_left", "n_right"]
@@ -414,7 +450,7 @@ placebo[
 # MAGIC %md
 # MAGIC ## 3. Primary estimate
 # MAGIC
-# MAGIC Sharp RDD, FY2013 to FY2018, pooled across measures and years with measure-by-year
+# MAGIC Sharp RDD, FY2013 to FY2023 and FY2025, pooled across measures and years with measure-by-year
 # MAGIC indicators as covariates, local linear, triangular kernel, common MSE-optimal bandwidth
 # MAGIC (`bwselect = "mserd"`), errors clustered by facility. The reported interval is the robust
 # MAGIC bias-corrected 95 percent interval; the point estimate beside it is the conventional one.
@@ -475,8 +511,8 @@ for side, color, grid in [
 ax.axvline(C0, color=MUTED, linestyle="--", linewidth=1)
 ax.axvspan(C0 - H, C0 + H, color=LIGHT_GRAY, alpha=0.4, linewidth=0)
 ax.set_xlabel(
-    "ERR(t) minus 1.0, FY2013 to FY2018 (dots: mean per 0.005 bin; lines: local linear fit "
-    "inside the bandwidth, shaded)"
+    "ERR(t) minus the cutoff, FY2013 to FY2026 (dots: mean per 0.005 bin; lines: local linear "
+    "fit inside the bandwidth, shaded)"
 )
 ax.set_ylabel("ERR change, window t to t+3")
 ax.legend(loc="upper right", fontsize=9)
@@ -576,37 +612,48 @@ per_measure[["estimate", "ci_low", "ci_high", "p", "p_bh", "h", "n_left", "n_rig
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC FY2019 onward at the 1.0 stand-in for the peer group median. The stand-in misclassifies some
-# MAGIC rows near 1.0 and the outcome windows run into COVID, so these runs check the sign, not the
-# MAGIC size, of the effect. The donut drops |ERR - 1.0| below 0.02, the band in which FY2027 shows
-# MAGIC the stand-in and the real cutoff disagreeing.
+# MAGIC The pre-registered primary sample, FY2013 to FY2018 at a cutoff of 1.0, from before the
+# MAGIC FY2019 to FY2026 peer medians were loaded; its rows and cutoffs are unchanged, so this
+# MAGIC reproduces the earlier primary estimate. Beside it, FY2019 onward alone, whose outcome windows
+# MAGIC run into COVID.
 
 # COMMAND ----------
 
-pooled = pd.concat([primary, approximate])
-approx_runs = [
-    rd(approximate, label="approximate years alone"),
-    rd(pooled, label="pooled with primary years"),
-    rd(
-        approximate[(approximate["x"] - C0).abs() >= APPROXIMATE_DONUT],
-        label=f"approximate years, donut {APPROXIMATE_DONUT}",
-    ),
+peer_years = primary[~primary["t"].isin(EXACT_ONLY_YEARS)]
+exact_only_main = rd(exact_only, label="FY2013 to FY2018 (pre-registered sample)")
+exact_only_placebo = placebo_runs(exact_only)
+comparison_runs = [
+    main,
+    exact_only_main,
+    rd(peer_years, label="FY2019 onward alone"),
 ]
-results_frame(approx_runs)
+display_placebo = exact_only_placebo[["estimate", "ci_low", "ci_high", "p", "p_bh"]].round(4)
+print(display_placebo)
+results_frame(comparison_runs)
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC Hospital level: a hospital is penalized at all when its worst ERR is above the cutoff, so
-# MAGIC the running variable is the worst ERR minus 1.0 in year t and the outcome is the mean ERR
-# MAGIC change across its conditions (`gold_penalty_mart.mean_err_change` of the year s row).
+# MAGIC Hospital level: a hospital is penalized at all when any condition's ERR is above its
+# MAGIC cutoff, so the running variable is the largest ERR minus cutoff across its conditions in
+# MAGIC year t (the worst ERR minus 1.0 to FY2018, when every condition shared the cutoff) and the
+# MAGIC outcome is the mean ERR change across its conditions (`gold_penalty_mart.mean_err_change` of
+# MAGIC the year s row).
 
 # COMMAND ----------
 
+margin = (
+    facts[facts["x"].notna() & ~facts["cutoff_is_approximate"]]
+    .groupby(["facility_id", "fiscal_year"])["x"]
+    .max()
+    .rename("worst_margin")
+    .reset_index()
+)
 hospital = (
-    mart[mart["fiscal_year"].isin(PRIMARY_YEARS) & mart["worst_err"].notna()][
-        ["facility_id", "fiscal_year", "worst_err", "penalized"]
+    mart[mart["fiscal_year"].isin(PRIMARY_YEARS) & ~mart["cutoff_is_approximate"]][
+        ["facility_id", "fiscal_year", "penalized"]
     ]
+    .merge(margin, on=["facility_id", "fiscal_year"], how="inner")
     .rename(columns={"fiscal_year": "t"})
     .merge(
         mart[mart["prior_window_fiscal_year"].notna()][
@@ -616,7 +663,7 @@ hospital = (
         how="inner",
     )
 )
-hospital["x"] = hospital["worst_err"] - CUTOFF
+hospital["x"] = hospital["worst_margin"]
 assert ((hospital["x"] > 0) == hospital["penalized"]).all()
 hospital_run = rd(hospital, covs="t", label="hospital level (worst ERR)")
 results_frame([hospital_run])
@@ -779,12 +826,16 @@ summary = {
     "bandwidth": by_bandwidth.reset_index().to_dict("records"),
     "specifications": specifications,
     "per_measure": per_measure.reset_index().to_dict("records"),
-    "approximate": approx_runs,
+    "comparison": comparison_runs,
+    "exact_only_placebo": exact_only_placebo.reset_index().to_dict("records"),
     "hospital": hospital_run,
     "did": did_runs.reset_index().to_dict("records"),
     "sample": {
         "primary_rows": len(primary),
         "primary_facilities": int(primary["facility_id"].nunique()),
+        "stand_in_rows_left_out": int(stand_in.sum()),
+        "exact_only_rows": len(exact_only),
+        "rows_by_year": sample_counts["rows"].to_dict(),
         "rows_at_cutoff": int((primary["x"] == 0).sum()),
         "c": C0,
         "discharges_median_inside": float(inside["discharges"].median()),
@@ -830,15 +881,15 @@ hospital_err = (
     .unstack()
 )
 status = (
-    mart[mart["fiscal_year"].isin(PRIMARY_YEARS) & (mart["conditions_reported"] > 0)]
+    mart[mart["fiscal_year"].isin(EXACT_ONLY_YEARS) & (mart["conditions_reported"] > 0)]
     .pivot(index="facility_id", columns="fiscal_year", values="penalized")
-    .reindex(columns=list(PRIMARY_YEARS))
+    .reindex(columns=list(EXACT_ONLY_YEARS))
 )
 complete = status.notna().all(axis=1)
 first = (
     status[complete].astype(bool).idxmax(axis=1).where(status[complete].astype(bool).any(axis=1))
 )
-cohorts = first[first > min(PRIMARY_YEARS)].astype(int)
+cohorts = first[first > min(EXACT_ONLY_YEARS)].astype(int)
 never = first[first.isna()].index
 
 event_rows = []
@@ -846,7 +897,7 @@ for e in range(-4, 4):
     stacks = []
     for g in sorted(cohorts.unique()):
         base, year = g - 1, g + e
-        if year == base or year not in hospital_err.columns or year < min(PRIMARY_YEARS):
+        if year == base or year not in hospital_err.columns or year < min(EXACT_ONLY_YEARS):
             continue
         cohort = cohorts.index[cohorts == g]
         ids = hospital_err.index.intersection(cohort.append(never))
@@ -913,7 +964,11 @@ event.round(4)
 # COMMAND ----------
 
 with_err = (
-    facts[facts["fiscal_year"].isin(PRIMARY_YEARS) & facts["err"].notna()]
+    facts[
+        facts["fiscal_year"].isin(PRIMARY_YEARS)
+        & facts["err"].notna()
+        & ~facts["cutoff_is_approximate"]
+    ]
     .rename(columns={"fiscal_year": "t"})
     .merge(outcome[[*KEY, "t"]].assign(has_outcome=1.0), on=[*KEY, "t"], how="left")
     .fillna({"has_outcome": 0.0})
@@ -954,3 +1009,15 @@ print(json.dumps({"attrition": attrition}))
 # MAGIC    import on serverless (a newer matplotlib against the default numpy), so the install cell
 # MAGIC    also requests numpy 1.26 and restarts Python. The versions that ran are printed above. No
 # MAGIC    effect on the analysis.
+# MAGIC 7. **Primary sample extended to FY2019 to FY2026 (2026-10-27).** The plan restricted the
+# MAGIC    primary sample to FY2013 to FY2018 because those were the only years with an exact cutoff
+# MAGIC    (plan, section 3.1). The FY2019 to FY2026 peer group medians are now loaded from the IPPS
+# MAGIC    supplemental files, so every year has its exact cutoff and the primary sample takes every
+# MAGIC    year t with an outcome: FY2013 to FY2023 and FY2025. The specification is unchanged; the
+# MAGIC    running variable was already ERR minus `penalty_cutoff`. Rows still on a 1.0 stand-in (a
+# MAGIC    hospital missing from a year's supplemental file) are left out. The hospital-level run
+# MAGIC    uses the largest ERR minus cutoff instead of the worst ERR minus 1.0, which is the same
+# MAGIC    thing when the cutoff is 1.0. The FY2013 to FY2018 sample is rerun beside it (section 4),
+# MAGIC    and the earlier results had been seen, so this is a change after outcome data; the
+# MAGIC    project owner asked for it. The DiD check (section 5) and the event study (section 8.1)
+# MAGIC    keep their FY2013 to FY2018 years.

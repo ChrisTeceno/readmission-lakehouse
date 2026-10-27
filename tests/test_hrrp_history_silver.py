@@ -17,6 +17,7 @@ from readmission.silver.hrrp_history import (
     silver_from_pdc,
     silver_hrrp_history,
 )
+from readmission.silver.hrrp_payment import silver_hrrp_payment, silver_hrrp_payment_measure
 
 FIXTURES = Path(__file__).parent / "fixtures" / "hrrp_history"
 INGESTED_AT = datetime(2026, 10, 21, 8, 0, 0)
@@ -50,6 +51,12 @@ def ipps_bronze(spark, name, fiscal_year):
 
 def by_key(df):
     return {(r.facility_id, r.measure): r for r in df.collect()}
+
+
+def peer_tables(ipps):
+    """(silver_hrrp_payment, silver_hrrp_payment_measure) rows from IPPS Bronze."""
+    (payment, _), (measures, _) = silver_hrrp_payment(ipps), silver_hrrp_payment_measure(ipps)
+    return payment, measures
 
 
 def test_snake_case_headers():
@@ -159,19 +166,33 @@ def test_ipps_fy2017_six_measures_and_header_typo(spark):
     assert rows[("010005", "CABG")].excess_readmission_ratio is None
 
 
-def test_ipps_fy2027_peer_group_and_thousands_separator(spark):
+def test_ipps_fy2027_thousands_separator(spark):
     rows = by_key(silver_from_ipps(ipps_bronze(spark, "ipps_fy2027.txt", 2027)))
 
     hf = rows[("010001", "HF")]
     assert hf.discharges == 1110
     assert hf.excess_readmission_ratio == pytest.approx(0.9362)
-    assert hf.peer_group == 2
-    assert hf.peer_median_err == pytest.approx(0.9940)
+    # Peer terms come from the payment tables (with_peer_terms), not this unpivot.
+    assert (hf.peer_group, hf.peer_median_err) == (None, None)
     cabg = rows[("010005", "CABG")]
     assert (cabg.discharges, cabg.excess_readmission_ratio) == (None, None)
-    assert cabg.peer_median_err == pytest.approx(0.9837)
     assert rows[("010005", "HIP_KNEE")].excess_readmission_ratio == pytest.approx(1.0291)
     assert len(rows) == 18
+
+
+def test_history_fy2027_peer_terms_from_payment_tables(spark):
+    ipps = ipps_bronze(spark, "ipps_fy2027.txt", 2027)
+    pdc = pdc_bronze(spark, "pdc_fy2022.csv", 2022)
+
+    rows = by_key(silver_hrrp_history(pdc, ipps, *peer_tables(ipps)).where("fiscal_year = 2027"))
+
+    hf = rows[("010001", "HF")]
+    assert hf.peer_group == 2
+    assert hf.peer_median_err == pytest.approx(0.9940)
+    # CMS publishes the median for a condition the hospital has no ERR for.
+    cabg = rows[("010005", "CABG")]
+    assert cabg.excess_readmission_ratio is None
+    assert cabg.peer_median_err == pytest.approx(0.9837)
 
 
 def test_silver_hrrp_history_schema_and_key(spark):
@@ -182,7 +203,7 @@ def test_silver_hrrp_history_schema_and_key(spark):
         ipps_bronze(spark, "ipps_fy2027.txt", 2027)
     )
 
-    silver = silver_hrrp_history(pdc, ipps)
+    silver = silver_hrrp_history(pdc, ipps, *peer_tables(ipps))
 
     assert [(f.name, f.dataType) for f in silver.schema] == [
         (f.name, f.dataType) for f in SILVER_HRRP_HISTORY_SCHEMA
@@ -194,18 +215,39 @@ def test_silver_hrrp_history_schema_and_key(spark):
     )
 
 
-def test_history_keeps_pdc_for_fy2026_and_skips_the_ipps_file(spark):
-    # The FY2026 supplemental file is in Bronze for the payment work; history stays on PDC's
-    # FY2026 rows and their 1.0 cutoff stand-in (ADR 0006).
-    ipps = ipps_bronze(spark, "ipps_fy2027.txt", 2026).unionByName(
+def test_history_keeps_pdc_rows_and_takes_peer_terms_from_the_supplemental_file(spark):
+    # A PDC year's supplemental file adds only the peer group and median: the rows, ERRs and
+    # readmission counts stay PDC's. The FY2027 file stands in for FY2022's here.
+    ipps = ipps_bronze(spark, "ipps_fy2027.txt", 2022).unionByName(
         ipps_bronze(spark, "ipps_fy2027.txt", 2027)
     )
     pdc = pdc_bronze(spark, "pdc_fy2022.csv", 2022)
 
-    silver = silver_hrrp_history(pdc, ipps)
+    silver = silver_hrrp_history(pdc, ipps, *peer_tables(ipps))
 
     years = {r.fiscal_year for r in silver.where("source = 'ipps'").collect()}
     assert years == {2027}
+    rows = by_key(silver.where("fiscal_year = 2022"))
+    assert len(rows) == 12
+    hf = rows[("010001", "HF")]
+    assert (hf.source, hf.readmissions) == ("pdc", 211)
+    assert hf.excess_readmission_ratio == pytest.approx(1.0399)
+    assert (hf.peer_group, hf.peer_median_err) == (2, pytest.approx(0.9940))
+
+
+def test_history_peer_terms_null_without_a_supplemental_row(spark):
+    # A hospital the year's supplemental file does not list keeps null peer terms, and Gold
+    # falls back to 1.0 for it (readmission.gold.facility_condition.with_penalty_cutoff).
+    ipps = ipps_bronze(spark, "ipps_fy2027.txt", 2022).where("record['Hospital CCN'] = '010001'")
+    pdc = pdc_bronze(spark, "pdc_fy2022.csv", 2022)
+
+    rows = by_key(silver_hrrp_history(pdc, ipps, *peer_tables(ipps)))
+
+    assert rows[("010001", "AMI")].peer_median_err == pytest.approx(0.9968)
+    assert (rows[("010005", "AMI")].peer_group, rows[("010005", "AMI")].peer_median_err) == (
+        None,
+        None,
+    )
 
 
 def test_bronze_from_manifest_reads_landed_batch(spark, tmp_path):

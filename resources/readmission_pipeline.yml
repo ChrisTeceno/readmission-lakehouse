@@ -12,7 +12,9 @@
 # All tasks run the project wheel (the `readmission` artifact in databricks.yml) on serverless,
 # and each logs its run to ops_run_log and ops_dq_metrics (readmission.ops).
 # Run it with `databricks bundle run readmission_pipeline -t dev`; add
-# `--params fail_task=<task>` to make that task fail, which tests the failure email.
+# `--params fail_task=<task>` to make that task fail, which tests the failure email, or
+# `--params set_champion=false` to register the retrained model without moving its champion
+# alias (score then runs on the current champion).
 resources:
   jobs:
     readmission_pipeline:
@@ -28,6 +30,8 @@ resources:
       parameters:
         - name: fail_task
           default: ""
+        - name: set_champion
+          default: "true"
       environments:
         - environment_key: readmission
           spec:
@@ -153,6 +157,7 @@ resources:
               - ${var.schema}
               - --experiment
               - /Shared/readmission-penalty
+              - --set-champion={{job.parameters.set_champion}}
               - --job-run-id={{job.run_id}}
               - --fail-task={{job.parameters.fail_task}}
         - task_key: score
