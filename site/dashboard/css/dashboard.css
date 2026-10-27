@@ -1,0 +1,351 @@
+/* Contoso Health readmissions: static dashboard styles. Colors are tokens; dark mode
+   redefines them, and the charts read the same tokens at render time. */
+
+:root {
+  color-scheme: light dark;
+  --bg: #f6f6f3;
+  --surface: #ffffff;
+  --ink: #1f2328;
+  --muted: #5d6570;
+  --line: #e2e2dd;
+  --series-1: #3f4a57;
+  --series-2: #8b95a1;
+  --series-3: #c4cad1;
+  --below: #e4e9ee;
+  --accent: #c2410c;
+  --accent-soft: #fbe6da;
+  --accent-cell: #f4a57e;
+  --focus: #2f6db5;
+  --radius: 10px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #141619;
+    --surface: #1c1f23;
+    --ink: #e7e7e4;
+    --muted: #a0a7b0;
+    --line: #30353b;
+    --series-1: #d3d8de;
+    --series-2: #8a939d;
+    --series-3: #4a525b;
+    --below: #2b3137;
+    --accent: #f28c4f;
+    --accent-soft: #46291b;
+    --accent-cell: #a9471b;
+    --focus: #79aef0;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #141619;
+  --surface: #1c1f23;
+  --ink: #e7e7e4;
+  --muted: #a0a7b0;
+  --line: #30353b;
+  --series-1: #d3d8de;
+  --series-2: #8a939d;
+  --series-3: #4a525b;
+  --below: #2b3137;
+  --accent: #f28c4f;
+  --accent-soft: #46291b;
+  --accent-cell: #a9471b;
+  --focus: #79aef0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  overflow-x: hidden;
+}
+
+a {
+  color: var(--focus);
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.wrap {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+header.site {
+  padding: 28px 0 8px;
+}
+
+header.site h1 {
+  margin: 0 0 4px;
+  font-size: 1.6rem;
+  line-height: 1.25;
+}
+
+.note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+nav.tabs {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+  margin-top: 16px;
+}
+
+nav.tabs .wrap {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+nav.tabs button {
+  flex: none;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.95rem;
+  padding: 12px 10px;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+nav.tabs button[aria-selected="true"] {
+  color: var(--ink);
+  border-bottom-color: var(--ink);
+  font-weight: 600;
+}
+
+main {
+  padding: 20px 0 8px;
+}
+
+section.page[hidden] {
+  display: none;
+}
+
+section.page h2 {
+  margin: 0 0 4px;
+  font-size: 1.35rem;
+}
+
+.question {
+  margin: 0 0 16px;
+  color: var(--muted);
+  max-width: 72ch;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  align-items: center;
+  margin: 0 0 16px;
+}
+
+.controls label {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.controls select {
+  font: inherit;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 8px;
+  margin-left: 6px;
+}
+
+fieldset.checks {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  align-items: center;
+}
+
+fieldset.checks legend {
+  float: left;
+  margin-right: 8px;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+fieldset.checks label {
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.counters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin: 0 0 16px;
+}
+
+.counter {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+}
+
+.counter .value {
+  font-size: 1.6rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.counter .value.accent {
+  color: var(--accent);
+}
+
+.counter .label {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px 14px 10px;
+  margin: 0 0 16px;
+  min-width: 0;
+}
+
+.card h3 {
+  margin: 0 0 2px;
+  font-size: 1rem;
+}
+
+.card .sub {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0 16px;
+}
+
+@media (min-width: 900px) {
+  .grid-2 {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.chart {
+  width: 100%;
+  min-height: 320px;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  max-height: 520px;
+  overflow-y: auto;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.88rem;
+  font-variant-numeric: tabular-nums;
+}
+
+th,
+td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+th {
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  color: var(--muted);
+  font-weight: 600;
+}
+
+td.num,
+th.num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+tr.above td:first-child {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.tag-above {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.caption {
+  color: var(--muted);
+  font-size: 0.9rem;
+  max-width: 80ch;
+  margin: 0 0 16px;
+}
+
+.legend-key {
+  display: inline-block;
+  width: 0.8em;
+  height: 0.8em;
+  border-radius: 2px;
+  vertical-align: -0.05em;
+  margin-right: 4px;
+}
+
+.legend-key.accent {
+  background: var(--accent);
+}
+
+.legend-key.below {
+  background: var(--below);
+  border: 1px solid var(--line);
+}
+
+footer.site {
+  border-top: 1px solid var(--line);
+  padding: 16px 0 32px;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+footer.site p {
+  margin: 0 0 6px;
+}
+
+.error {
+  color: var(--accent);
+}
