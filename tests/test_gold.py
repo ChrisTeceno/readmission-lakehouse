@@ -6,7 +6,7 @@ from pyspark.sql import types as T
 
 from readmission.gold import build as gold_build
 from readmission.gold.contoso_scorecard import gold_contoso_scorecard
-from readmission.gold.facility_condition import gold_facility_condition_year
+from readmission.gold.facility_condition import gold_facility_condition_year, with_penalty_cutoff
 from readmission.gold.features import (
     FEATURE_COLUMNS,
     KEY,
@@ -143,6 +143,32 @@ def test_prior_window_year():
     for year, prior in PRIOR_WINDOW_YEARS.items():
         assert HRRP_PERIODS[prior][1] < HRRP_PERIODS[year][0]
     assert [window_months(y) for y in [2019, 2022, 2024, 2027]] == [36, 30, 30, 24]
+
+
+def test_penalty_cutoff_uses_each_years_peer_median(spark):
+    rows = [
+        history_row("010001", "HF", 2018, 1.02),
+        # FY2022's published peer median, 1.03, is above this ERR: under 1.0 it would count.
+        history_row("010001", "HF", 2022, 1.02, peer_median=1.03),
+        history_row("010001", "AMI", 2022, 0.99, peer_median=0.98),
+        # Not in the FY2022 supplemental file: 1.0 stands in.
+        history_row("010009", "HF", 2022, 1.02),
+    ]
+    df = with_penalty_cutoff(spark.createDataFrame(rows, SILVER_HRRP_HISTORY_SCHEMA))
+    cutoffs = {
+        (r.facility_id, r.measure, r.fiscal_year): (
+            r.penalty_cutoff,
+            r.cutoff_is_approximate,
+            r.above_cutoff,
+        )
+        for r in df.collect()
+    }
+    assert cutoffs == {
+        ("010001", "HF", 2018): (1.0, False, True),
+        ("010001", "HF", 2022): (1.03, False, False),
+        ("010001", "AMI", 2022): (0.98, False, True),
+        ("010009", "HF", 2022): (1.0, True, True),
+    }
 
 
 def test_facility_condition_year(history, facts):

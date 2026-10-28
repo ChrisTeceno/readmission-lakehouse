@@ -45,7 +45,7 @@ GOLD_CONTOSO_SCORECARD_SCHEMA = T.StructType(
         field(
             "cutoff_is_approximate",
             T.BooleanType(),
-            "The cutoff is the 1.0 stand-in for a peer group median (FY2019 to FY2026)",
+            "The cutoff is the 1.0 stand-in for a peer group median CMS did not publish",
         ),
         field("above_cutoff", T.BooleanType(), "ERR above penalty_cutoff"),
         field("err_change", T.DoubleType(), "ERR change from the prior non-overlapping window"),

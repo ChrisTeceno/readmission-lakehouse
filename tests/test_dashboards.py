@@ -148,11 +148,12 @@ def test_datasets_read_only_gold_and_ops_tables_without_a_catalog(dashboard):
         assert referenced <= DASHBOARD_TABLES, (name, referenced - DASHBOARD_TABLES)
 
 
-def test_pages_caption_the_approximate_cutoff_and_the_model(dashboard):
+def test_pages_caption_the_cutoff_rule_and_the_model(dashboard):
     for name in ("Contoso scorecard", "National penalty landscape"):
-        assert "FY2019 to FY2026 are approximate" in page_text(page(dashboard, name))
+        text = page_text(page(dashboard, name))
+        assert "The only rows on a 1.0 stand-in" in text and "FY2023 pneumonia" in text
     predictions = page_text(page(dashboard, "Predictions"))
-    assert "probabilities" in predictions and "0.678" in predictions
+    assert "probabilities" in predictions and "0.679" in predictions
     assert "fictional client" in page_text(page(dashboard, "Contoso scorecard"))
 
 
@@ -221,7 +222,7 @@ def test_genie_sample_questions_are_the_wireframe_questions(genie):
         assert question in wireframe
 
 
-def test_genie_instructions_flag_approximate_cutoffs_and_fiction(genie):
+def test_genie_instructions_flag_stand_in_cutoffs_and_fiction(genie):
     text = genie["instructions"]["text_instructions"][0]["content"][0]
-    assert "FY2019 to FY2026" in text and "cutoff_is_approximate" in text
+    assert "FY2023 pneumonia" in text and "cutoff_is_approximate" in text
     assert "fictional" in text

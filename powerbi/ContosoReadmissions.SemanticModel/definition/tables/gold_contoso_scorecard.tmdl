@@ -14,7 +14,7 @@ table gold_contoso_scorecard
 		formatString: 0.0000
 
 	/// Mean of ERR minus the penalty cutoff at Contoso; above zero means above the
-	/// cutoff (1.0 stand-in for FY2019 to FY2026).
+	/// cutoff (the published peer group median from FY2019).
 	measure 'Contoso ERR vs Peer Cutoff' =
 			AVERAGEX(
 			    FILTER(gold_contoso_scorecard, NOT ISBLANK(gold_contoso_scorecard[excess_readmission_ratio])),
@@ -102,7 +102,7 @@ table gold_contoso_scorecard
 		summarizeBy: none
 		sourceColumn: penalty_cutoff
 
-	/// The cutoff is the 1.0 stand-in for a peer group median (FY2019 to FY2026)
+	/// The cutoff is a 1.0 stand-in because CMS published no peer group median for the row
 	column cutoff_is_approximate
 		dataType: boolean
 		summarizeBy: none

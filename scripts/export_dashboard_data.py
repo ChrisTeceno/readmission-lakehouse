@@ -73,8 +73,7 @@ QUERIES = {
             GROUP BY 1, 2, 3
             ORDER BY 1, 2, 3""",
         "penalized_share": """
-            SELECT fiscal_year, bool_or(cutoff_is_approximate) AS cutoff_is_approximate,
-                   COUNT(*) AS hospitals,
+            SELECT fiscal_year, COUNT(*) AS hospitals,
                    SUM(CASE WHEN penalized THEN 1 ELSE 0 END) AS penalized,
                    round(AVG(CASE WHEN penalized THEN 1.0 ELSE 0.0 END), 3) AS penalized_share
             FROM gold_penalty_mart

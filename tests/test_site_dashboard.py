@@ -180,7 +180,7 @@ def test_page_notes_and_links():
         in HTML
     )
     assert 'href="https://github.com/ChrisTeceno/readmission-lakehouse"' in HTML
-    assert "approximate" in HTML and "1.0 stands in" in HTML
+    assert "1.0 stands in" in HTML and "FY2023 pneumonia" in HTML
     assert "m.gold_job_run_id" in JS and "m.exported_at" in JS
 
 

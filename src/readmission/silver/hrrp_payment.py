@@ -1,11 +1,13 @@
 """HRRP payment inputs: the payment adjustment factor and what CMS computes it from.
 
 - silver_hrrp_payment: one row per facility and fiscal year, every IPPS supplemental year
-  (FY2013 to FY2018, FY2026, FY2027): the payment adjustment factor (PAF) and, from FY2019 on,
-  the dual proportion, peer group and neutrality modifier.
+  (FY2013 to FY2027): the payment adjustment factor (PAF) and, from FY2019 on, the dual
+  proportion, peer group and neutrality modifier.
 - silver_hrrp_payment_measure: one row per facility, condition and fiscal year for the years
-  with peer grouping (FY2026 and FY2027 in the project): eligible discharges, ERR, peer group
-  median ERR, penalty indicator and DRG payment ratio, the per-condition terms of the PAF.
+  with peer grouping (FY2019 to FY2027): eligible discharges, ERR, peer group median ERR,
+  penalty indicator and DRG payment ratio, the per-condition terms of the PAF. It is the one
+  place the supplemental files' per-condition values are parsed: silver_hrrp_history takes its
+  peer medians from here.
 - silver_ipps_impact: one row per facility and fiscal year from the IPPS impact file: the
   inputs to Gold's estimate of base operating DRG payments.
 
@@ -80,7 +82,7 @@ SILVER_HRRP_PAYMENT_SCHEMA = T.StructType(
 SILVER_HRRP_PAYMENT_DOC = TableDoc(
     comment=(
         "HRRP payment adjustment factor per facility and fiscal year, from the CMS.gov IPPS "
-        "final rule supplemental files (FY2013 to FY2018, FY2026, FY2027) via "
+        "final rule supplemental files (FY2013 to FY2027) via "
         "bronze_hrrp_history_ipps. From FY2019 the files add the dual proportion, peer group "
         "and neutrality modifier."
     ),
@@ -124,11 +126,10 @@ SILVER_HRRP_PAYMENT_MEASURE_SCHEMA = T.StructType(
 
 SILVER_HRRP_PAYMENT_MEASURE_DOC = TableDoc(
     comment=(
-        "Per-condition terms of the HRRP payment adjustment factor, FY2026 and FY2027, one row "
+        "Per-condition terms of the HRRP payment adjustment factor, FY2019 to FY2027, one row "
         "per facility, condition and fiscal year: ERR, peer group median, penalty indicator and "
         "DRG payment ratio. From the CMS.gov IPPS supplemental files via "
-        "bronze_hrrp_history_ipps. silver_hrrp_history keeps FY2026 from the PDC archive, with "
-        "the 1.0 cutoff stand-in of ADR 0006."
+        "bronze_hrrp_history_ipps. silver_hrrp_history takes its peer group medians from here."
     ),
     tags=silver_tags("cms", dataset="ipps-supplemental"),
 )
@@ -169,14 +170,15 @@ SILVER_IPPS_IMPACT_DOC = TableDoc(
 )
 
 # Supplemental file headers: `FY 2013  Readmission Payment Adjustment Factor`, `Corrected FY
-# 2015  Readmissions Adjustment Factor`, `Payment adjustment factor` (FY2026 on). Bronze keys are
-# already trimmed (readmission.ingest.hrrp_history.parse_ipps_rows).
+# 2015  Readmissions Adjustment Factor`, `Payment Adjustment Factor` (FY2019, FY2020), `Payment
+# adjustment factor` (FY2021 on). Bronze keys are already trimmed
+# (readmission.ingest.hrrp_history.parse_ipps_rows); every lookup ignores case.
 PAF_PATTERN = r"adjustment factor"
 PAYMENT_FIELDS = [
-    ("payment_reduction_pct", "Payment reduction percentage", "double"),
-    ("dual_proportion", "Dual proportion", "double"),
-    ("peer_group", "Peer group assignment", "int"),
-    ("neutrality_modifier", "Neutrality modifier", "double"),
+    ("payment_reduction_pct", r"^payment reduction percentage$", "double"),
+    ("dual_proportion", r"^dual proportion$", "double"),
+    ("peer_group", r"^peer group assignment$", "int"),
+    ("neutrality_modifier", r"^neutrality modifier$", "double"),
 ]
 MEASURE_FIELD_PATTERNS = [
     ("peer_median_err", r"^peer group median err"),
@@ -210,15 +212,14 @@ def _split(df: DataFrame, rules: list, *, table: str, schema: T.StructType, key:
 def silver_hrrp_payment(bronze_ipps: DataFrame) -> tuple[DataFrame, DataFrame]:
     """Returns (silver_hrrp_payment rows, quarantine rows). FY2022 on write the reduction as a
     percentage with a % sign (`0.04%`)."""
-    record = F.col("record")
     df = latest_batch_per_year(bronze_ipps).select(
         _ccn(),
         "fiscal_year",
         "_batch_id",
         _first_key_value(PAF_PATTERN).alias("_paf"),
         *[
-            F.regexp_replace(record[header], "%", "").alias(f"_{name}")
-            for name, header, _ in PAYMENT_FIELDS
+            F.regexp_replace(_first_key_value(pattern), "%", "").alias(f"_{name}")
+            for name, pattern, _ in PAYMENT_FIELDS
         ],
     )
     df, parse_rules = with_parsed(
@@ -241,7 +242,8 @@ def silver_hrrp_payment_measure(bronze_ipps: DataFrame) -> tuple[DataFrame, Data
 
     Unlike silver_hrrp_history, an ERR is kept wherever CMS reports one, under 25 eligible
     discharges included: the PAF formula skips those conditions, so Gold applies the 25-discharge
-    rule itself.
+    rule itself. FY2021 writes discharge counts with thousands separators (`1,107`), which
+    suppressed_to_null strips.
     """
     bronze = latest_batch_per_year(bronze_ipps).where(F.col("fiscal_year") >= 2019)
     long = bronze.select(

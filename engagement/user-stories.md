@@ -23,8 +23,9 @@ that I can say whether we are getting better or worse than others.
 
 Acceptance:
 - The national penalty landscape page shows the three lines for FY2013 to FY2027 with the
-  approximate-cutoff caption: `src/dashboards/readmission.lvdash.json`, `docs/genie.md` (Q2).
-- Years before FY2027 that use the stand-in cutoff are labelled as such: `docs/gold.md`.
+  cutoff caption: `src/dashboards/readmission.lvdash.json`, `docs/genie.md` (Q2).
+- Rows on the 1.0 stand-in, where CMS published no peer median, are labelled as such:
+  `docs/gold.md`, ADR 0008.
 
 ## US-03 Next cycle
 
@@ -34,9 +35,9 @@ cutoff in FY2028, so that I can plan before CMS publishes.
 Acceptance:
 - `gold_penalty_predictions` holds a probability, rank and decile per pair, scored by the
   `champion` alias: `docs/model-card.md`.
-- The page states the model's weak year: test AUC 0.874 on FY2026 and 0.678 on FY2027
+- The page states the model's weak year: test AUC 0.868 on FY2026 and 0.679 on FY2027
   (`docs/model-card.md`, `engagement/wireframe.md`).
-- 28 Contoso pairs score 0.5 or more (`docs/genie.md`, Q3).
+- 29 Contoso pairs score 0.5 or more (`docs/model-card.md`).
 
 ## US-04 Follow-up completion
 
@@ -58,7 +59,8 @@ Acceptance:
 - The hypotheses and the wording of a null result are fixed before outcomes are examined:
   `docs/analysis-plan.md`.
 - The estimate, interval, validity checks, sensitivity and the DiD check that disagrees in sign
-  are all reported: `docs/causal-findings.md` (+0.0004, interval -0.0027 to +0.0047).
+  are all reported: `docs/causal-findings.md` (+0.0004, interval -0.0027 to +0.0047; the secondary sample
+  through FY2025, added after the pre-registration, +0.0002, -0.0023 to +0.0032).
 - The notebook and its outputs are in the repository: `analysis/02_causal.py`,
   `docs/causal/02_causal.html`.
 

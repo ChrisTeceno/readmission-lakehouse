@@ -13,6 +13,7 @@ from readmission.ingest.hrrp_history import (
     PDC_INDEX_URL,
     PDC_MEMBER_PATTERNS,
     Snapshot,
+    check_ipps_columns,
     fetch_ipps,
     fetch_pdc,
     find_member,
@@ -300,6 +301,157 @@ def test_fetch_ipps_lands_readmissions_file_only(tmp_path):
 def test_ipps_fy2026_pattern_skips_the_case_info_tab():
     names = ["FY2026_HRRP_Supplemental_File.xlsx", "FR FY 2026.txt", "FR FY 2026 Case Info.txt"]
     assert find_member(names, [IPPS_FILES[2026][1]]) == "FR FY 2026.txt"
+
+
+PAYMENT_FIXTURES = Path(__file__).parent / "fixtures" / "hrrp_payment"
+
+# Member names of the FY2019 to FY2025 supplemental zips (downloaded 2026-10-27), with the file
+# each year's pattern must pick: the hospital-level text copy, not the workbook, the case-info
+# tab or a variable description.
+PEER_ERA_MEMBERS = {
+    2019: (
+        [
+            "fy_2019_ipps_final_rule_hrrp_supplemental_file.xlsx",
+            "Section 508 - FR FY 19 - tab - fy_2019_ipps_final_rule_hrrp_supplemental_file.txt",
+            "Section 508 - FR FY Case Info tab - fy_2019_ipps_final_rule_hrrp_supplemental_file.txt",
+            "Section 508 - Variable Description tab - fy_2019_ipps_final_rule_hrrp_supplemental_file.txt",
+        ],
+        1,
+    ),
+    2020: (
+        [
+            "FY2020_IPPS_Final_Rule_HRRP_Supplemental_File tab1.txt",
+            "FY2020_IPPS_Final_Rule_HRRP_Supplemental_File tab2.txt",
+            "FY2020_IPPS_Final_Rule_HRRP_Supplemental_File tab4.txt",
+            "FY2020_IPPS_Final_Rule_HRRP_Supplemental_File.xlsx",
+        ],
+        1,
+    ),
+    2021: (
+        [
+            "FY2021_Final_Rule_Supplemental_File.xlsx",
+            "FY2021_Final_Rule_Supplemental_File_FR FY 2021 Case Info.txt",
+            "FY2021_Final_Rule_Supplemental_File_FR FY 2021.txt",
+            "FY2021_Final_Rule_Supplemental_File_Variable Description.txt",
+        ],
+        2,
+    ),
+    2022: (
+        [
+            "508_Compliant_Version_of_FR FY 2022 Case Info.csv",
+            "508_Compliant_Version_of_FR FY 2022.csv",
+            "508_Compliant_Version_of_Variable Description.csv",
+            "FY2022_Final_Rule_Supplemental_File.xlsx",
+        ],
+        1,
+    ),
+    2023: (
+        [
+            "FY2023_Final_Rule_Supplemental_File FR FY 2023 Case Info.txt",
+            "FY2023_Final_Rule_Supplemental_File.xlsx",
+            "FY2023_FR_Supplemental_File FR FY 2023.txt",
+            "FY2023_FR_Supplemental_File Variable Description.txt",
+        ],
+        2,
+    ),
+    2024: (
+        [
+            "508 version of FY2024_Final_Rule_Supplemental_File Variables tab .txt",
+            "508 version of FY2024_Final_Rule_Supplemental_File Variations FR FY 2024 tab .txt",
+            "508 version of FY2024_Final_Rule_Supplemental_File Variations Variable FR FY 2024 - Case Info tab .txt",
+            "FY2024_Final_Rule_Supplemental_File.xlsx",
+        ],
+        1,
+    ),
+    2025: (
+        [
+            "508-Version-FR-FY-2025-Case-Info.csv",
+            "508-Version-FR-FY-2025.csv",
+            "508-Version-Variable-Description.csv",
+            "FY2025_Final_Rule_Supplemental_File.xlsx",
+        ],
+        1,
+    ),
+}
+
+
+def test_ipps_files_cover_every_fiscal_year():
+    assert sorted(IPPS_FILES) == list(range(2013, 2028))
+
+
+@pytest.mark.parametrize("fiscal_year", sorted(PEER_ERA_MEMBERS))
+def test_ipps_peer_era_pattern_picks_the_hospital_text_file(fiscal_year):
+    names, expected = PEER_ERA_MEMBERS[fiscal_year]
+    assert find_member(names, [IPPS_FILES[fiscal_year][1]]) == names[expected]
+
+
+def test_read_ipps_rows_reads_comma_separated_files():
+    # FY2025's text copy is a CSV with a byte order mark and quoted thousands separators.
+    rows = read_ipps_rows(PAYMENT_FIXTURES / "supplemental_fy2025.csv")
+
+    assert len(rows) == 12
+    ch04 = next(r for r in rows if r["Hospital CCN"] == "360051")
+    assert ch04["Payment adjustment factor"] == "0.9946"
+    assert ch04["Number of eligible discharges for HF"] == "1,025"
+    assert "" not in ch04
+
+
+def test_check_ipps_columns_matches_names_whatever_the_capitalization():
+    fy2019 = read_ipps_rows(PAYMENT_FIXTURES / "supplemental_fy2019.txt")
+    assert "Peer Group Assignment" in fy2019[0]
+    check_ipps_columns(fy2019, 2019)
+    check_ipps_columns(read_ipps_rows(PAYMENT_FIXTURES / "supplemental_fy2025.csv"), 2025)
+    # Before peer grouping there is nothing to check.
+    check_ipps_columns(read_ipps_rows(FIXTURES / "ipps_fy2013.txt"), 2013)
+
+
+def test_check_ipps_columns_fails_on_a_missing_column():
+    rows = read_ipps_rows(PAYMENT_FIXTURES / "supplemental_fy2019.txt")
+    without_median = [
+        {k: v for k, v in r.items() if k != "Peer Group Median ERR for HF"} for r in rows
+    ]
+    without_group = [{k: v for k, v in r.items() if k != "Peer Group Assignment"} for r in rows]
+
+    with pytest.raises(ValueError, match="peer group median err for hf"):
+        check_ipps_columns(without_median, 2019)
+    with pytest.raises(ValueError, match="peer group assignment"):
+        check_ipps_columns(without_group, 2019)
+    with pytest.raises(ValueError, match="no data rows"):
+        check_ipps_columns([], 2020)
+
+
+def test_fetch_ipps_lands_a_csv_under_its_own_extension(tmp_path):
+    data = (PAYMENT_FIXTURES / "supplemental_fy2025.csv").read_bytes()
+    url = "https://www.cms.gov" + IPPS_FILES[2025][0]
+    body = zip_bytes(
+        {
+            "508-Version-FR-FY-2025.csv": data,
+            "508-Version-FR-FY-2025-Case-Info.csv": b"case info",
+            "FY2025_Final_Rule_Supplemental_File.xlsx": b"spreadsheet",
+        }
+    )
+    client = httpx.Client(transport=range_server({url: body}))
+
+    landed = fetch_ipps(
+        client, LocalLander(str(tmp_path / "landing")), "b1", tmp_path / "work", [2025]
+    )
+
+    assert (landed[0]["name"], landed[0]["row_count"]) == ("ipps_fy2025.csv", 12)
+    assert Path(landed[0]["path"]).read_bytes() == data
+    assert len(read_ipps_rows(landed[0]["path"])) == 12
+
+
+def test_fetch_ipps_refuses_a_file_without_peer_medians(tmp_path):
+    text = (PAYMENT_FIXTURES / "supplemental_fy2019.txt").read_text()
+    data = text.replace("Peer Group Median ERR for AMI", "Median ERR for AMI").encode()
+    url = "https://www.cms.gov" + IPPS_FILES[2019][0]
+    body = zip_bytes({"Section 508 - FR FY 19 - tab - fy_2019.txt": data})
+    client = httpx.Client(transport=range_server({url: body}))
+    lander = LocalLander(str(tmp_path / "landing"))
+
+    with pytest.raises(ValueError, match="peer group median err for ami"):
+        fetch_ipps(client, lander, "b1", tmp_path / "work", [2019])
+    assert list_manifests(str(tmp_path / "landing"), "hrrp_history_ipps") == []
 
 
 def test_fetch_ipps_impact_lands_the_correction_notice(tmp_path):

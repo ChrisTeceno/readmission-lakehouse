@@ -103,8 +103,9 @@ enforces Delta CHECK constraints. Rows that fail to parse or would break a const
 comments, tags and the analyst grant are applied here (`docs/governance.md`).
 
 **Gold.** `gold` builds the facility-condition-year fact, the penalty mart, the Contoso
-scorecard and the leakage-safe feature table, and flags anomalies. Penalty cutoffs for FY2019 to
-FY2026 are approximate and marked so (`docs/gold.md`).
+scorecard and the leakage-safe feature table, and flags anomalies. Penalty cutoffs are CMS's published
+values: 1.0 to FY2018, each year's peer group median from FY2019; the few rows CMS published no
+median for use 1.0 and are marked so (`docs/gold.md`, ADR 0008).
 
 **ML.** `train` compares a naive rule, logistic regression and LightGBM on `gold_features`
 with a time-based split, logs to MLflow and sets the `champion` alias on the registered

@@ -1,16 +1,16 @@
 {
 "run_summary":[
-  {"job_run_id":"104268890219876","run_started":"2026-10-28T17:06:13.885Z","run_ended":"2026-10-28T17:18:32.497Z","run_status":"succeeded","task_attempts":3,"failed_attempts":0,"hours_since_run_ended":0.0,"failed_dq_checks":1}
+  {"job_run_id":"603727360031743","run_started":"2026-10-28T17:39:40.546Z","run_ended":"2026-10-28T17:53:54.026Z","run_status":"succeeded","task_attempts":3,"failed_attempts":0,"hours_since_run_ended":0.0,"failed_dq_checks":1}
 ],
 "task_latest":[
   {"task":"llm_extract","status":"succeeded","started_at":"2026-10-21T19:41:04.900Z","ended_at":"2026-10-21T19:44:24.064Z","minutes":3.3,"rows_written":100,"error":null,"job_run_id":"739440262802758"},
   {"task":"bronze","status":"succeeded","started_at":"2026-10-27T15:21:34.816Z","ended_at":"2026-10-27T15:22:36.547Z","minutes":1.0,"rows_written":21491,"error":null,"job_run_id":"1074163289288573"},
   {"task":"train","status":"succeeded","started_at":"2026-10-27T15:35:22.597Z","ended_at":"2026-10-27T15:35:59.173Z","minutes":0.6,"rows_written":0,"error":null,"job_run_id":"1074163289288573"},
-  {"task":"score","status":"succeeded","started_at":"2026-10-28T16:59:54.389Z","ended_at":"2026-10-28T17:01:07.007Z","minutes":1.2,"rows_written":17472,"error":null,"job_run_id":"1029407131887935"},
   {"task":"fetch","status":"failed","started_at":"2026-10-28T17:04:54.339Z","ended_at":"2026-10-28T17:04:54.551Z","minutes":0.0,"rows_written":0,"error":"CmsApiError: GET (url) returned HTTP 403 with a non-JSON body:","job_run_id":"62249925098095"},
   {"task":"contoso","status":"succeeded","started_at":"2026-10-28T17:06:13.885Z","ended_at":"2026-10-28T17:06:37.032Z","minutes":0.4,"rows_written":5562,"error":null,"job_run_id":"104268890219876"},
-  {"task":"silver","status":"succeeded","started_at":"2026-10-28T17:07:07.188Z","ended_at":"2026-10-28T17:14:41.387Z","minutes":7.6,"rows_written":695637,"error":null,"job_run_id":"104268890219876"},
-  {"task":"gold","status":"succeeded","started_at":"2026-10-28T17:15:08.017Z","ended_at":"2026-10-28T17:18:32.497Z","minutes":3.4,"rows_written":609598,"error":null,"job_run_id":"104268890219876"}
+  {"task":"silver","status":"succeeded","started_at":"2026-10-28T17:39:40.546Z","ended_at":"2026-10-28T17:48:39.447Z","minutes":9.0,"rows_written":695637,"error":null,"job_run_id":"603727360031743"},
+  {"task":"gold","status":"succeeded","started_at":"2026-10-28T17:49:13.211Z","ended_at":"2026-10-28T17:52:59.034Z","minutes":3.8,"rows_written":609598,"error":null,"job_run_id":"603727360031743"},
+  {"task":"score","status":"succeeded","started_at":"2026-10-28T17:53:33.317Z","ended_at":"2026-10-28T17:53:54.026Z","minutes":0.4,"rows_written":17472,"error":null,"job_run_id":"603727360031743"}
 ],
 "task_durations":[
   {"job_run_id":"697101166209254","run_started":"2026-10-21T15:35:41.368Z","task":"bronze","status":"succeeded","minutes":0.4},
@@ -78,7 +78,10 @@
   {"job_run_id":"62249925098095","run_started":"2026-10-28T17:02:03.380Z","task":"fetch","status":"failed","minutes":0.0},
   {"job_run_id":"104268890219876","run_started":"2026-10-28T17:06:13.885Z","task":"contoso","status":"succeeded","minutes":0.4},
   {"job_run_id":"104268890219876","run_started":"2026-10-28T17:06:13.885Z","task":"gold","status":"succeeded","minutes":3.4},
-  {"job_run_id":"104268890219876","run_started":"2026-10-28T17:06:13.885Z","task":"silver","status":"succeeded","minutes":7.6}
+  {"job_run_id":"104268890219876","run_started":"2026-10-28T17:06:13.885Z","task":"silver","status":"succeeded","minutes":7.6},
+  {"job_run_id":"603727360031743","run_started":"2026-10-28T17:39:40.546Z","task":"gold","status":"succeeded","minutes":3.8},
+  {"job_run_id":"603727360031743","run_started":"2026-10-28T17:39:40.546Z","task":"score","status":"succeeded","minutes":0.4},
+  {"job_run_id":"603727360031743","run_started":"2026-10-28T17:39:40.546Z","task":"silver","status":"succeeded","minutes":9.0}
 ],
 "dq_failed":[
   {"job_run_id":"1119069845046775","task":"gold","table_name":"workspace.readmission.gold_facility_condition_year","metric":"anomaly_rate","value":0.05030827437734587,"threshold":0.05,"measured_at":"2026-10-21T15:47:12.166Z"}

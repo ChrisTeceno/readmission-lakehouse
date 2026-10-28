@@ -55,7 +55,7 @@ GOLD_PENALTY_MART_SCHEMA = T.StructType(
         field(
             "cutoff_is_approximate",
             T.BooleanType(),
-            "Any condition's cutoff is the 1.0 stand-in for a peer group median (FY2019 to FY2026)",
+            "Any condition's cutoff is the 1.0 stand-in for an unpublished peer group median",
             nullable=False,
         ),
         field(
@@ -95,7 +95,7 @@ GOLD_PENALTY_MART_DOC = TableDoc(
     comment=(
         "HRRP penalty view per hospital and fiscal year, FY2013 to FY2027: conditions above the "
         "cutoff, worst ERR, trend against the prior non-overlapping window and the Contoso "
-        "flag. Cutoffs for FY2019 to FY2026 are the 1.0 stand-in for the peer group median (see "
+        "flag. Cutoffs from FY2019 are the peer group medians (see "
         "gold_facility_condition_year). Built from gold_facility_condition_year and "
         "silver_contoso_facilities."
     ),

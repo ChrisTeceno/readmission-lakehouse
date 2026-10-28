@@ -35,9 +35,10 @@ uv run python scripts/export_dashboard_data.py [--profile readmission]
 The script runs one SQL query per dataset on the Serverless Starter Warehouse and rewrites
 `site/dashboard/data/*.json` (about 470 KB in all). Each query aggregates in SQL and selects only
 what the page shows. `meta.json` records the export time and the job run whose `gold` task last
-succeeded; the page footer shows both. Rerun it after any pipeline run (for example once the
-FY2019 to FY2026 peer medians replace the 1.0 stand-in) and commit the JSON; the captions about
-the approximate cutoff are in `index.html` and need editing by hand when that changes.
+succeeded; the page footer shows both. Rerun it after any pipeline run and commit the JSON; the
+captions about the cutoff rule and the model's AUC are in `index.html` and need editing by hand
+when those change. The snapshot of 2026-10-28 is the first with the published FY2019 to FY2026
+peer medians and model version 7 (ADR 0008).
 
 Names: only Contoso rows carry a name, as the Contoso id and invented name with the real CCN.
 `gold_facility_condition_year.facility_name` (the CMS hospital name) is never selected, and the

@@ -1,6 +1,8 @@
 # ADR 0006: Use 1.0 as the penalty cutoff for FY2019 to FY2026 and flag every such row
 
-Status: accepted (2026-10-21)
+Status: superseded by [ADR 0008](0008-published-peer-median-cutoffs.md) (2026-10-28); accepted
+2026-10-21. Kept as the record of the earlier decision; the figures below describe the pipeline
+before ADR 0008.
 
 ## Context
 

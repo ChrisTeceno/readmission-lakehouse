@@ -23,16 +23,16 @@ its penalty, what would reduce it, and whether being penalized makes hospitals i
   2025 and is already fixed. Between the two years, heart attack care improved at Dogwood and hip
   and knee at Birch, while bypass surgery got worse at Alder and Hawthorn. FY2028 is mostly
   decided too; what Contoso does now first shows up around FY2029 to FY2031.
-- **Next year will look much like this year.** Our forecast expects 28 facility-condition pairs
-  over the line next year, against 25 this year, led by Oak (hip and knee, heart failure) and
-  Hawthorn (bypass surgery). The forecast ranks well where Medicare's rule was approximated
-  (correct order about 87 times in 100) but less well on the one recent year with Medicare's
-  exact rule (about 68 times in 100), so treat it as a list of where to look first, not a
-  promise.
+- **Next year will look much like this year.** Our forecast expects 29 facility-condition pairs
+  over the line next year, against 25 this year, led by Oak (hip and knee, heart failure),
+  Hawthorn and Alder (bypass surgery). Tested on past years it put pairs in the right order
+  about 87 times in 100 for FY2026 but only about 68 times in 100 for FY2027, the year next
+  year most resembles, so treat it as a list of where to look first, not a promise.
 - **Being penalized does not by itself make hospitals improve.** Comparing hospitals just over
   the line with near-identical ones just under it, their readmissions moved the same way
   afterwards. The data could have spotted an effect a quarter of the size that would matter, so
-  this is a clear "no", for hospitals near the line. Hospitals far over the line were not
+  this is a clear "no", for hospitals near the line; a later check that added seven more years
+  gave the same answer. Hospitals far over the line were not
   studied. One consequence: a facility whose numbers improve the year after a penalty may just
   be returning to normal, so programs need a comparison group to show they work.
 - **Clinical notes can add risk factors Medicare data lacks.** An AI model run inside Contoso's

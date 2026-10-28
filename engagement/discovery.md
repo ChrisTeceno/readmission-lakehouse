@@ -59,7 +59,8 @@ Restated so the data can answer it (`docs/analysis-plan.md`, section 1):
 - **No PHI.** Nothing in the engagement is patient data (`engagement/phi-note.md`).
 - **Cutoff is not fully observable.** From FY2019 CMS compared each hospital with its
   dual-eligibility peer group median, which no file before FY2027 carries. Gold uses 1.0 as a
-  stand-in and flags the rows (ADR 0006).
+  stand-in and flags the rows (ADR 0006). Superseded 2026-10-28: the FY2019 to FY2025 files
+  were found and loaded, and 1.0 stands in only where CMS published no median (ADR 0008).
 - **No dollar amounts.** The payment adjustment factor and base payments are not loaded, so the
   work ranks where to look and does not size the penalty (`engagement/wireframe.md`).
 - **Operational history is short.** Only FY2026 and FY2027 windows have Contoso operational

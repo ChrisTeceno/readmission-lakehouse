@@ -263,4 +263,12 @@ size and whether it clears the practical threshold, including the ones that do n
 
 ## Deviations
 
-None yet.
+The plan above is left as committed. Deviations from it are listed in section 9 of the causal
+notebook and in `docs/causal-findings.md`. One changes what this plan says about the data:
+
+- **2026-10-28, FY2019 to FY2026 cutoffs now exact.** CMS's published peer group medians for
+  FY2019 to FY2026 were loaded after the primary results had been seen (ADR 0008), so section
+  3.1's "no file here carries it" no longer holds. The primary sample stays FY2013 to FY2018 as
+  pre-registered, with unchanged results. A secondary sample of every year with a published
+  cutoff and an outcome (FY2013 to FY2023 and FY2025) replaces the stand-in sensitivity runs of
+  section 4.4 and is reported beside the primary result, never in place of it.
