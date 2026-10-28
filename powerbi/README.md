@@ -58,10 +58,10 @@ Measures, each with a one-line description in the model:
 | Follow-up Within 72h Rate, Calls Completed per Attempt | `gold_contoso_scorecard` | completed within 72 hours over discharges; completed over attempted |
 | Predicted Conditions Above Cutoff, Average Penalty Probability | `gold_penalty_predictions` | rows scored at 0.5 or higher; mean probability |
 
-"Peer cutoff" is exact only for FY2013 to FY2018 (1.0, the rule then) and FY2027 (the
-published peer group median). For FY2019 to FY2026 it is 1.0 standing in for a median no public
-file carries, so those years' cutoffs are approximate (`docs/gold.md`). Both report pages say so
-in their caption.
+"Peer cutoff" is 1.0 for FY2013 to FY2018 (the rule then) and the published peer group median
+from FY2019 (ADR 0008). Where CMS published no median (FY2023 pneumonia, hospitals missing from
+a year's file) 1.0 stands in and `cutoff_is_approximate` is true (`docs/gold.md`). Both report
+pages say so in their caption.
 
 ## Report pages
 

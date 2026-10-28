@@ -148,11 +148,12 @@ def test_datasets_read_only_gold_and_ops_tables_without_a_catalog(dashboard):
         assert referenced <= DASHBOARD_TABLES, (name, referenced - DASHBOARD_TABLES)
 
 
-def test_pages_caption_the_approximate_cutoff_and_the_model(dashboard):
+def test_pages_caption_the_cutoff_rule_and_the_model(dashboard):
     for name in ("Contoso scorecard", "National penalty landscape"):
-        assert "FY2019 to FY2026 are approximate" in page_text(page(dashboard, name))
+        text = page_text(page(dashboard, name))
+        assert "The only rows on a 1.0 stand-in" in text and "FY2023 pneumonia" in text
     predictions = page_text(page(dashboard, "Predictions"))
-    assert "probabilities" in predictions and "0.678" in predictions
+    assert "probabilities" in predictions and "0.679" in predictions
     assert "fictional client" in page_text(page(dashboard, "Contoso scorecard"))
 
 
@@ -160,7 +161,7 @@ def test_penalty_dollars_page_labels_estimates_and_keeps_the_ledgers_apart(dashb
     p = page(dashboard, "Penalty dollars and follow-up calls")
     text = page_text(p)
     assert "estimate" in text and "Table 1B" in text and "fictional client" in text
-    assert "never added" in text and "0.36 to 0.71" in text and "3.82" in text
+    assert "never added" in text and "0.53 to 1.05" in text and "3.44" in text
     kinds = [w["spec"]["widgetType"] for w in widgets(p) if "spec" in w]
     assert kinds.count("bar") == 2 and kinds.count("table") == 2 and kinds.count("counter") == 4
     assert "names the year the penalty is paid" in text and "FY2029 to FY2031" in text
@@ -221,7 +222,7 @@ def test_genie_sample_questions_are_the_wireframe_questions(genie):
         assert question in wireframe
 
 
-def test_genie_instructions_flag_approximate_cutoffs_and_fiction(genie):
+def test_genie_instructions_flag_stand_in_cutoffs_and_fiction(genie):
     text = genie["instructions"]["text_instructions"][0]["content"][0]
-    assert "FY2019 to FY2026" in text and "cutoff_is_approximate" in text
+    assert "FY2023 pneumonia" in text and "cutoff_is_approximate" in text
     assert "fictional" in text

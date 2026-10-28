@@ -1,9 +1,13 @@
 # Causal findings: does the HRRP penalty change hospital behavior?
 
 For the readout. Source: `analysis/02_causal` run on serverless on 2026-10-21 over that day's Gold
-tables (export with outputs: `docs/causal/02_causal.html`). The design, every check and the
+tables, and rerun on 2026-10-28 after the FY2019 to FY2026 peer group medians were loaded (ADR
+0008); export with outputs: `docs/causal/02_causal.html`. The design, every check and the
 wording of a null result were fixed beforehand in `docs/analysis-plan.md`; everything the plan
-asked for is reported below, including the checks that came out against the design.
+asked for is reported below, including the checks that came out against the design. The rerun
+reproduces every primary number exactly: the primary sample's years, FY2013 to FY2018, always
+had a cutoff of 1.0. It adds one secondary sample, which the plan did not have (see Secondary
+sample).
 
 ## Pre-registration
 
@@ -121,9 +125,6 @@ caveat on this result (see Limitations).
 | Excluding anomaly-flagged rows | +0.0007 | -0.0024 to +0.0052 |
 | Outcome at t+4 (secondary) | +0.0009 | -0.0023 to +0.0054 |
 | Hospital level (worst ERR) | +0.0018 | -0.0037 to +0.0078 |
-| FY2019 to FY2023 and FY2025 at the 1.0 stand-in | -0.0020 | -0.0054 to +0.0012 |
-| Those years pooled with the primary years | -0.0008 | -0.0033 to +0.0020 |
-| FY2019 to FY2023 and FY2025, donut 0.02 | -0.0041 | -0.0127 to +0.0063 |
 
 Per condition (secondary, BH across six): AMI +0.003, HF -0.004, pneumonia -0.001, COPD
 +0.006, hip/knee +0.006, CABG -0.005; none is distinguishable from zero (smallest adjusted p
@@ -131,6 +132,38 @@ Per condition (secondary, BH across six): AMI +0.003, HF -0.004, pneumonia -0.00
 
 Every interval includes zero and every one except the per-condition hip/knee and CABG runs lies
 inside +/-0.02. None of these is promoted to the headline.
+
+The plan also listed FY2019 to FY2023 and FY2025 at the 1.0 stand-in as a sensitivity check.
+The first run reported it (-0.0020, -0.0054 to +0.0012); with the published medians loaded
+those years have their exact cutoff, so the secondary sample below replaces it.
+
+## Secondary sample: every year with a published cutoff (added after the pre-registration)
+
+The plan restricted the primary sample to FY2013 to FY2018 because those were the only years
+whose cutoff the data carried. The FY2019 to FY2026 peer group medians were loaded on 2026-10-28,
+after the primary results had been seen (ADR 0008). The same specification was then run on every
+year t with a published cutoff and an outcome: FY2013 to FY2023 and FY2025, the running variable
+ERR(t) minus the row's own cutoff (1.0 to FY2018, the peer group median after). Rows still on a
+1.0 stand-in are left out (3,610 with an outcome: FY2023 pneumonia, and hospitals missing from a
+year's supplemental file). Because it was added after the outcomes were seen, it is reported
+beside the primary result and does not replace it.
+
+| | Primary (FY2013 to FY2018) | Secondary (FY2013 to FY2023 and FY2025) |
+|---|---|---|
+| Estimate | +0.0004 | +0.0002 |
+| Robust 95% interval | -0.0027 to +0.0047 | -0.0023 to +0.0032 |
+| p | 0.60 | 0.75 |
+| Minimum detectable effect, 80% power | 0.0053 | 0.0039 |
+| Equivalence against +/-0.02 | p < 0.001 | p < 0.001 |
+| Bandwidth | 0.061 | 0.052 |
+| Effective rows, below / above | 20,819 / 18,423 | 37,687 / 34,314 |
+| Sample | 69,163 rows, 3,268 hospitals | 138,043 rows, 3,341 hospitals |
+| Placebos 0.10 and 0.05 below the cutoff | -0.0002, +0.0037 (BH p 0.75, 0.61) | +0.0010, +0.0013 (BH p 1.00, 0.86) |
+| Placebos 0.05 and 0.10 above the cutoff | -0.0056, +0.0032 (BH p 0.61, 0.63) | -0.0062, +0.0013 (BH p 0.18, 0.86) |
+
+The secondary sample doubles the rows and narrows the interval; the answer is the same null.
+FY2019 onward alone gives -0.0004 (-0.0037 to +0.0029, MDE 0.0047); those outcome windows run
+into COVID.
 
 ## Difference-in-differences check (plan section 4.5)
 
@@ -180,9 +213,10 @@ and with 64 control hospitals it is imprecise.
 - **Dilution in the outcome window.** About 13 of the 36 months in the t+3 window are discharges
   from before the hospital learned its FY t status, which dilutes a real effect by roughly a
   third. The t+4 outcome, which starts one month before the announcement, gives the same null.
-- **Exact years only, early conditions weighted.** FY2013 to FY2018 had a 1.0 cutoff; later years
-  used peer group medians not in this data. AMI, heart failure and pneumonia are present in every
-  primary year and carry more weight than COPD, hip/knee and CABG.
+- **Early years, early conditions weighted.** The primary sample is FY2013 to FY2018, the years
+  the plan could use when it was written. AMI, heart failure and pneumonia are present in every
+  primary year and carry more weight than COPD, hip/knee and CABG. The secondary sample adds
+  FY2019 to FY2025 and gives the same answer.
 - **Persistence.** A row just above 1.0 at t is more likely to be above it again at t+1 and t+2,
   so this is the effect of being penalized at t including the later penalties it makes more
   likely.
@@ -206,3 +240,7 @@ Listed in full in section 9 of the notebook:
 6. The install cell also requests numpy 1.26 and restarts Python, because the packages broke
    the default matplotlib import on serverless. `rdrobust` 2.1.1 and `rddensity` 3.0 ran; the
    hand-rolled fallback the plan allows was not needed.
+7. The secondary sample (FY2013 to FY2023 and FY2025, at each year's published cutoff) was added
+   on 2026-10-28, after the primary results had been seen, once the FY2019 to FY2026 peer
+   medians were loaded. It replaces the plan's stand-in sensitivity runs and does not change the
+   primary result.

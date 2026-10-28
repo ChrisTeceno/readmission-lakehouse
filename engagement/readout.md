@@ -59,9 +59,9 @@ The ERR compares a hospital's readmissions with what CMS expects for its patient
 
 Two limits shape every answer:
 
-- **The cutoff is exact only for FY2013 to FY2018 and FY2027.** For FY2019 to FY2026 CMS used
-  peer group medians no file here carries; 1.0 stands in, and in FY2027, where both are known,
-  6.2 percent of rows land on different sides of the two.
+- **The cutoff is CMS's published value.** 1.0 for FY2013 to FY2018, each year's peer group
+  median from FY2019. 1.0 stands in only where CMS published no median: FY2023 pneumonia, which
+  CMS left out of that year's program, and hospitals missing from a year's file.
 - **Dollars are estimates.** CMS publishes each hospital's payment adjustment factor but not the
   base payments it applies to; the base is estimated from CMS's own IPPS impact file
   (`docs/penalty-dollars.md`).
@@ -72,23 +72,25 @@ Two limits shape every answer:
 
 # What drives Contoso's penalty
 
-FY2026 ERR by facility and condition (bold: above 1.0, the stand-in cutoff for that year)
+FY2026 ERR by facility and condition (bold: above that year's cutoff, the peer group median)
 
 | Facility | AMI | HF | PN | COPD | Hip/knee | CABG |
 |---|---|---|---|---|---|---|
 | Alder | 0.961 | 0.952 | 0.897 | **1.008** | **1.074** | **1.043** |
 | Birch | **1.131** | **1.077** | **1.090** | 0.996 | **1.161** | |
 | Dogwood | **1.184** | **1.021** | **1.065** | 0.993 | **1.190** | 0.970 |
-| Hawthorn | **1.068** | **1.044** | **1.025** | 0.999 | **1.630** | **1.061** |
+| Hawthorn | **1.068** | **1.044** | **1.025** | **0.999** | **1.630** | **1.061** |
 | Oak | | **1.128** | **1.087** | **1.006** | **1.006** | |
 
-The other seven facilities (Cedar, Elm, Fir, Juniper, Linden, Maple, Spruce) have 11 pairs above
-1.0 between them, at most three each. 31 Contoso pairs were above 1.0 in FY2026.
+The other seven facilities (Cedar, Elm, Fir, Juniper, Linden, Maple, Spruce) have 12 pairs above
+the cutoff between them, at most three each. 33 Contoso pairs were above the cutoff in FY2026.
+Peer medians sit just below or above 1.0, so a ratio of 0.999 can count (Hawthorn COPD, against
+a median of 0.9935).
 
 - **Hip and knee replacement is the widest driver:** 8 of the 9 Contoso facilities that report it
-  are above 1.0. Nationally hip/knee also has the widest spread of any condition.
-- **Four facilities carry most of it:** Birch, Dogwood, Hawthorn and Oak are above 1.0 on four or
-  more conditions each, 17 of the 31 pairs. Hawthorn's hip/knee ratio, 1.630, is the highest of
+  are above the cutoff. Nationally hip/knee also has the widest spread of any condition.
+- **Four facilities carry most of it:** Birch, Dogwood, Hawthorn and Oak are above the cutoff on
+  four or more conditions each, 18 of the 33 pairs. Hawthorn's hip/knee ratio, 1.630, is the highest of
   any hospital in the country that year.
 
 ---
@@ -137,9 +139,10 @@ payments estimated from CMS's IPPS impact file and Table 1B.
 The penalty model gives, for every hospital and condition, the probability that the ERR lands
 above the cutoff next year. It is a ranking tool; it does not predict the ERR or the dollars.
 
-- **28 Contoso pairs** have a probability of 0.5 or more for FY2028, against 25 above the cutoff
+- **29 Contoso pairs** have a probability of 0.5 or more for FY2028, against 25 above the cutoff
   in FY2027.
-- Highest: **Oak hip/knee (0.995), Oak heart failure (0.992), Hawthorn CABG (0.983).**
+- Highest: **Oak hip/knee (0.995), Oak heart failure (0.994), Hawthorn CABG (0.987), Alder CABG
+  (0.985).**
 - What it leans on: last year's ERR dominates, then last year's above-cutoff flag, the mean
   prior ERR, the last ERR change and state. County socioeconomics add little.
 
@@ -152,25 +155,27 @@ Hawthorn and Oak, which carry most of the current exposure.
 
 | Held-out year | Carry last year's flag forward | Logistic regression | LightGBM (chosen) |
 |---|---|---|---|
-| FY2026 (approximate cutoff) | AUC 0.772 | 0.869 | **0.874** |
-| FY2027 (exact cutoff) | AUC 0.633 | 0.675 | **0.678** |
+| FY2026 | AUC 0.767 | 0.863 | **0.868** |
+| FY2027 | AUC 0.635 | 0.676 | **0.679** |
 
 - AUC is the chance the model ranks a pair that went above the cutoff over one that did not;
   0.5 is a coin toss. LightGBM's lead over logistic regression is small; the larger step is from
   the carry-forward rule to either model.
-- **FY2027 is the honest test.** Every year from FY2019 to FY2026, training included, uses the
-  1.0 stand-in cutoff, so the model learned a rule close to, but not, the one CMS applies.
-  FY2028 follows FY2027 and is more likely to look like the 0.678 than the 0.874.
-- **Overconfident on FY2027:** pairs given under 0.1 were above the cutoff 22 percent of the
-  time, pairs given over 0.9 only 76 percent. Read the probabilities as an order, not as odds.
+- **FY2027 is the harder test.** Its performance window overlaps FY2026's by one year instead of
+  two, so last year's ratio says less. FY2028 follows FY2027 and is more likely to look like the
+  0.679 than the 0.868. Labels use CMS's published cutoff in every year.
+- **Overconfident on FY2027:** pairs given under 0.1 were above the cutoff 21 percent of the
+  time, pairs given over 0.9 only 75 percent. Read the probabilities as an order, not as odds.
 - A gate stops a new model from replacing the current one if its test AUC is below 0.80 or below
   logistic regression's.
 
 ---
 
+<!-- _class: small -->
+
 # Does the penalty change hospital behavior? No.
 
-Regression discontinuity at the 1.0 cutoff, FY2013 to FY2018 (the exact-cutoff years), outcome
+Regression discontinuity at the 1.0 cutoff, FY2013 to FY2018 (the pre-registered sample), outcome
 the change in ERR to the next non-overlapping three-year window. Design fixed before outcomes
 were examined (`docs/analysis-plan.md`).
 
@@ -179,9 +184,10 @@ were examined (`docs/analysis-plan.md`).
 | Estimate (jump in ERR change at 1.0) | +0.0004 |
 | 95% interval (robust, bias-corrected) | -0.0027 to +0.0047 |
 | Smallest effect the data could detect (80% power) | 0.0053 |
-| Bandwidth | 0.061 either side of 1.0; 0.5x to 2x all include zero |
+| Bandwidth | 0.061 either side; 0.5x to 2x all include zero |
 | Placebo cutoffs at 0.90, 0.95, 1.05, 1.10 | no jump at any (adjusted p 0.61 to 0.75) |
-| Sample | 69,163 hospital-condition-years, 3,268 hospitals |
+| Sample | 69,163 rows, 3,268 hospitals |
+| Added after pre-registration: FY2013 to FY2025 at published cutoffs | +0.0002 (-0.0023 to +0.0032), the same null |
 
 **A precise null.** Hospitals pushed just over the line and publicly counted as penalized ended
 the next window with the same ratio change, within a few tenths of a percent, as hospitals just
@@ -247,13 +253,13 @@ facilities at a time (one larger, one smaller) every three months in an order dr
 |---|---|
 | Facilities | 12, each compared with itself before and after its switch |
 | Duration | 21 months of enrollment, answer one month later |
-| Sample | about 17,885 discharges (synthetic Contoso volumes) |
+| Sample | about 28,672 discharges (synthetic Contoso volumes) |
 | Usual-care readmission rate | 16.9 percent |
-| Detectable at 80% power | a drop of 3.82 points (to about 13.1 percent) |
-| Power for a 2-point drop | 30 percent |
+| Detectable at 80% power | a drop of 3.44 points (to about 13.5 percent) |
+| Power for a 2-point drop | 38 percent |
 
-- 3.82 points is a large effect for a phone call. If the calls work as hoped, the pilot sees it;
-  if they work modestly, it will say the effect is under about 4 points, not whether it is zero.
+- 3.44 points is a large effect for a phone call. If the calls work as hoped, the pilot sees it;
+  if they work modestly, it will say the effect is under about 3.5 points, not whether it is zero.
 - Decisions are fixed now: a clear drop with no rise in ED visits and staff hours within budget
   makes the calls standard; a result that rules out a 2-point drop stops the script.
 - Design under review in PR #13 (`docs/pilot-design.md`).
@@ -265,21 +271,22 @@ facilities at a time (one larger, one smaller) every three months in an order dr
 # Would follow-up calls pay for themselves?
 
 Contoso's own ledger: FY2027 penalty avoided minus the program's cost. Estimates; costs are BLS
-wages plus stated time, setup and management assumptions (central $371K a year, range $201K to
-$724K).
+wages plus stated time, setup and management assumptions (central $525K a year, range $295K to
+$1.01M, for about 16,400 discharges a year).
 
 | Effect on the 30-day rate | Basis | Penalty avoided | Contoso net, central cost |
 |---|---|---|---|
-| 0 points | Pooled RCTs of calls alone (Boggan 2025) | $0 | -$371K |
-| 1.0 point | A judgment | $0.50M to $0.93M | +$132K to +$558K |
-| 3.0 points | Multicomponent bundles (Leppin 2014), not a call alone | $1.20M to $1.64M | +$833K to +$1.27M |
-| 3.82 points | The pilot's detectable effect; more than the evidence supports | $1.36M to $1.74M | +$987K to +$1.37M |
+| 0 points | Pooled RCTs of calls alone (Boggan 2025) | $0 | -$525K |
+| 1.0 point | A judgment | $0.50M to $0.93M | -$22K to +$404K |
+| 3.0 points | Multicomponent bundles (Leppin 2014), not a call alone | $1.20M to $1.64M | +$679K to +$1.12M |
+| 3.44 points | The pilot's detectable effect; more than the evidence supports | $1.29M to $1.71M | +$770K to +$1.19M |
 
 Ranges are 0.5 to 1.0 of the drop reaching each ERR.
 
 - **Trials find no effect from a call alone. The program pays for itself at Contoso at about half
-  a point** (0.36 to 0.71 points at the central cost), which the pilot cannot detect.
-- Medicare and insurers would save about $14,000 per avoided readmission ($1.43M a year at 1
+  a point to a point** (0.53 to 1.05 points at the central cost), which the pilot cannot detect;
+  at the 1-point judgment it about breaks even.
+- Medicare and insurers would save about $14,000 per avoided readmission ($2.30M a year at 1
   point). That is their money, never added to Contoso's.
 - Contoso's upside is capped by the penalty it pays, about $1.75M a year.
 
@@ -289,9 +296,9 @@ Ranges are 0.5 to 1.0 of the drop reaching each ERR.
 
 - Contoso is fictional. Its CMS numbers are real public data for relabeled Ohio hospitals; its
   operations (volumes, follow-up calls) are synthetic and cover only FY2026 and FY2027.
-- FY2019 to FY2026 cutoffs are approximate (1.0 for a peer group median). The model trained on
-  them; the causal analysis uses exact years only.
-- The model is a ranking with AUC 0.678 on the exact-cutoff year and is overconfident there.
+- Cutoffs are CMS's published values; 1.0 stands in only where CMS published no peer median
+  (FY2023 pneumonia, and hospitals missing from a year's file, about 200 rows a year).
+- The model is a ranking with AUC 0.679 on FY2027 and is overconfident there.
 - The causal null applies to hospitals near the cutoff, and carries the retention caveat.
 - Penalty dollars are estimates: the base payments are modelled from CMS's impact file, not
   Contoso's paid claims. Program costs rest on stated assumptions, and the 1-point central
@@ -305,11 +312,9 @@ Ranges are 0.5 to 1.0 of the drop reaching each ERR.
    hip/knee across the network. The dashboard and Genie space answer the five agreed questions.
 2. **Approve the pilot**: confirm staged rollout is possible, which facilities cannot be
    randomized, and the 2-point smallest reduction worth the program (finance).
-3. **Peer group medians**: point us to FY2019 to FY2026 medians if Contoso has them; without
-   them those years' labels stay approximate.
-4. **Azure:** the Key Vault and Data Factory run is done
+3. **Azure:** the Key Vault and Data Factory run is done
    ([evidence](../docs/evidence/azure.md)); the resources are torn down after the readout.
-5. **Ask the DBA** whether the operational database sets `updated_at` on update; the incremental
+4. **Ask the DBA** whether the operational database sets `updated_at` on update; the incremental
    load depends on it.
 
 ---
@@ -318,16 +323,18 @@ Ranges are 0.5 to 1.0 of the drop reaching each ERR.
 
 # Sources
 
-All files are on `main` unless marked; Gold tables and notebook runs are from 2026-10-21, the penalty dollar tables from 2026-10-26.
+All files are on `main` unless marked; Gold tables and notebook runs are from 2026-10-21, the penalty dollar tables from 2026-10-26, the nurse-call economics and pilot power were rerun on 2026-10-28 on corrected synthetic volumes, and the cutoff, model and causal figures are from the 2026-10-27 and 2026-10-28 runs that loaded the FY2019 to FY2026 peer medians (ADR 0008).
 
 - `engagement/discovery.md` (Data available): 266,159 HRRP rows; 5,419 hospitals; ACS 2011 to 2024 vintages; 12 facilities, 1,850 discharge rows, 3,700 call rows; 2,357 notes.
-- `docs/gold.md` (Penalty cutoff): exact years FY2013 to FY2018 and FY2027; 6.2 percent (899 of 14,575) of FY2027 rows on different sides of 1.0 and the peer median.
-- `docs/eda/01_eda.html` (notebook export, section 5, Contoso condition table, CROSS_SECTION_YEAR 2026): every FY2026 facility ERR on slide 4, and counted from that table the 31 pairs above 1.0, 17 of them at Birch, Dogwood, Hawthorn and Oak, 11 at the other seven; Hawthorn hip/knee 1.630 (also the FY2026 hip/knee maximum in section 2); D11 difference in medians -0.0055, BH p 0.868. Summarised in `docs/eda/what-the-data-can-answer.md`: hip/knee 8 of 9, widest spread (3.4 times COPD's), 90.7 percent penalized in FY2027.
-- `docs/genie.md` (Q1 and reworded check): FY2027 10 facilities, 25 of 67 pairs, mean ERR 0.999; FY2026 31 pairs. (Q2): FY2027 mean 0.9992, 0.0092 below Ohio, 0.0029 below national; years above national and Ohio. (Q3): 28 pairs at 0.5 or more, Oak (CH11) hip/knee 0.995 and HF 0.992, Hawthorn (CH07) CABG 0.983, model version 4. Facility ids to names: `src/readmission/ingest/contoso.py`.
-- `docs/model-card.md` (Metrics, Calibration, What the model uses, Metric gate; MLflow experiment `/Shared/readmission-penalty`, run `17d90d5cf89543f7b0e286cfb930ff4d`, job run 303222482315557, model version 4): AUC 0.772, 0.869, 0.874 (FY2026) and 0.633, 0.675, 0.678 (FY2027); 22 and 76 percent calibration; 0.80 gate.
-- `docs/causal-findings.md` (The answer; Validity checks; Sensitivity; Difference-in-differences; Limitations), from `docs/causal/02_causal.html`: +0.0004, -0.0027 to +0.0047, MDE 0.0053, bandwidth 0.061, 0.5x to 2x, threshold 0.02, 1.02 read as 2 percent more readmissions than expected, placebo cutoffs 0.90, 0.95, 1.05 and 1.10 with BH p 0.61 to 0.75, 69,163 rows, 3,268 hospitals, density p 0.009 and 0.91, retention 3.5 points, DiD -0.0030 (-0.0058 to -0.0002).
+- `docs/gold.md` (Penalty cutoff) and `engagement/adr/0008-published-peer-median-cutoffs.md`: 1.0 to FY2018, the published peer median from FY2019; the rows still on 1.0 (FY2023 pneumonia, hospitals missing from a year's file, about 200 rows with an ERR a year).
+- `gold_contoso_scorecard`, FY2026, queried 2026-10-28: 33 pairs above the cutoff, 18 at Birch, Dogwood, Hawthorn and Oak, 12 at the other seven; Hawthorn COPD 0.999 against a peer median of 0.9935; hip/knee above the cutoff at 8 of 9 facilities.
+- `docs/eda/01_eda.html` (notebook export, section 5, Contoso condition table, CROSS_SECTION_YEAR 2026): every FY2026 facility ERR on slide 4; Hawthorn hip/knee 1.630 (also the FY2026 hip/knee maximum in section 2); D11 difference in medians -0.0055, BH p 0.868. Summarised in `docs/eda/what-the-data-can-answer.md`: hip/knee 8 of 9, widest spread (3.4 times COPD's), 90.7 percent penalized in FY2027.
+- `docs/genie.md` (Q1 and reworded check): FY2027 10 facilities, 25 of 67 pairs, mean ERR 0.999; FY2026 31 pairs under the earlier 1.0 stand-in (33 now). (Q2): FY2027 mean 0.9992, 0.0092 below Ohio, 0.0029 below national; years above national and Ohio. (Q3), for model version 4: 28 pairs at 0.5 or more; the version 7 figures on slides 7 and 8 are in `docs/model-card.md`. Facility ids to names: `src/readmission/ingest/contoso.py`.
+- `docs/model-card.md` (Metrics, FY2028 scores, Calibration, What the model uses, Metric gate; MLflow experiment `/Shared/readmission-penalty`, run `f724b6647aa94a2c865810c96846ec4b`, job run 1074163289288573, model version 7): AUC 0.767, 0.863, 0.868 (FY2026) and 0.635, 0.676, 0.679 (FY2027); 29 Contoso pairs at 0.5 or more, Oak (CH11) hip/knee 0.995 and HF 0.994, Hawthorn (CH07) CABG 0.987, Alder (CH01) CABG 0.985; 21 and 75 percent calibration; 0.80 gate.
+- `docs/causal-findings.md` (The answer; Validity checks; Sensitivity; Difference-in-differences; Limitations), from `docs/causal/02_causal.html`: +0.0004, -0.0027 to +0.0047, MDE 0.0053, bandwidth 0.061, 0.5x to 2x, threshold 0.02, 1.02 read as 2 percent more readmissions than expected, placebo cutoffs 0.90, 0.95, 1.05 and 1.10 with BH p 0.61 to 0.75, 69,163 rows, 3,268 hospitals, density p 0.009 and 0.91, retention 3.5 points, DiD -0.0030 (-0.0058 to -0.0002); secondary sample +0.0002 (-0.0023 to +0.0032), MDE 0.0039, 138,043 rows.
 - `engagement/adr/0002-llm-risk-factor-extraction.md` (Results; First job run; MLflow runs rescored on the reviewed labels `e18026f5a77b444db0ecc9fb8163c8bf`, `321fafc2509d4fc09edc42476355f193`, `0fe0fa0c99ce40e4a4232a139c9ecd70`): F1 0.81, 0.70, 0.54; reject rates 4, 4, 28 percent; 4 primary-condition positives, 0.25 swing; 100 notes, 14 rejected. `docs/llm-extraction.md`: all 50 labels drafted and checked by the lead, reviewed by Chris Teceno, a clinician, who decided the four judgment calls; one label changed.
-- `docs/pilot-design.md` (on branch `pf/pilot-experiment-design-post-discharge-follow-up`, PR #13, open; Summary and For the COO; `analysis/03_power.py`, seed 20261021): 72-hour call, 12 facilities, 6 steps of 2 every three months, 21 months plus one month, about 17,885 (17,900) discharges, 16.9 percent usual care, MDE 3.82 points to about 13.1 percent, 30 percent power at 2 points, smaller than about 4 points, 2-point decision threshold. The MDE of 3.82 is also on `main` in `engagement/status-update.md`.
-- `docs/penalty-dollars.md` (Headline; Timeline; What changed; Economics; Break-even), from `gold_penalty_dollars`, `gold_penalty_by_condition`, `gold_penalty_sensitivity` and `gold_nurse_call_economics`: $1,959,057 (FY2026) and $1,764,148 (FY2027); FY2027 windows and publication; condition and facility changes; costs $200,739, $370,724, $724,342; penalty avoided $503,059 and $928,851 at 1 point, $1,203,846 and $1,642,249 at 3, $1,357,498 and $1,740,081 at 3.82; break-even 0.36 and 0.71; payer savings $1,428,000 at 1 point; $14,000 per readmission (Medicare $13,986 per Contoso discharge, DY2024); Boggan 2025, Leppin 2014.
+- `docs/pilot-design.md` (on branch `pf/pilot-experiment-design-post-discharge-follow-up`, PR #13, open; Summary and For the COO; `analysis/03_power.py`, seed 20261021): 72-hour call, 12 facilities, 6 steps of 2 every three months, 21 months plus one month, about 28,672 (28,700) discharges, 16.9 percent usual care, MDE 3.44 points to about 13.5 percent, 38 percent power at 2 points, smaller than about 3.5 points, 2-point decision threshold. Rerun 2026-10-28 on the corrected volumes (all-payer factor 3.2): MDE 3.82 before, 3.44 after; `engagement/status-update.md` keeps the 3.82 it reported on 2026-10-21.
+- `docs/penalty-dollars.md` (Headline; Timeline; What changed; Economics; Break-even), from `gold_penalty_dollars`, `gold_penalty_by_condition`, `gold_penalty_sensitivity` and `gold_nurse_call_economics`: $1,959,057 (FY2026) and $1,764,148 (FY2027); FY2027 windows and publication; condition and facility changes; costs $295,192, $524,714, $1,005,542 for 16,400 discharges a year; penalty avoided $503,059 and $928,851 at 1 point, $1,203,846 and $1,642,249 at 3, $1,294,498 and $1,710,033 at 3.44; net at the central cost -$21,655 and +$404,138 at 1 point; break-even 0.53 and 1.05; payer savings $2,296,000 at 1 point; $14,000 per readmission (Medicare $13,986 per Contoso discharge, DY2024); Boggan 2025, Leppin 2014.
+- `docs/synthetic-data.md` (How it is generated; Realism check; Finding): how Contoso's synthetic volumes and calls were made, seed 20261021; all-payer factor 2.0 against a public estimate of 3.21, so synthetic volumes ran about 38 percent low; corrected to 3.2 on 2026-10-28 (Finding), which moved the pilot MDE from 3.82 to 3.44 points and the central program cost from $371K to $525K.
 - `engagement/status-update.md` (Next; Decisions needed): pending Azure run and screenshots; the four decisions.
-- `engagement/executive-summary.md` rounds the figures above: about 9 in 10 hospitals (90.7 percent); over half (17 of 31 pairs); 87 and 68 times in 100 (AUC 0.874 and 0.678); a quarter of the size that would matter (0.0053 against 0.02); about 18,000 discharges (17,885); about 17 to 13 percent (16.9 percent less 3.82 points).
+- `engagement/executive-summary.md` rounds the figures above: about 9 in 10 hospitals (90.7 percent); over half (18 of 33 pairs); 29 pairs; 87 and 68 times in 100 (AUC 0.868 and 0.679); seven more years (the secondary sample adds FY2019 to FY2025); a quarter of the size that would matter (0.0053 against 0.02); about 29,000 discharges (28,672); about 17 to 13.5 percent (16.9 percent less 3.44 points).

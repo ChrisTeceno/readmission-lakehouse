@@ -10,8 +10,9 @@ Decision, Consequences. An accepted ADR is changed only by a new ADR that supers
 | [0003](0003-medallion-on-free-edition.md) | Medallion on Free Edition: Bronze append-only, Silver and Gold rebuilt each run, one serverless job | accepted 2026-10-21 |
 | [0004](0004-fetch-load-split-with-landing-volume.md) | Fetch and load as separate steps around a landing volume with per-batch manifests | accepted 2026-10-21 |
 | [0005](0005-rdd-on-non-overlapping-windows.md) | Regression discontinuity at the cutoff on non-overlapping windows, exact-cutoff years only, DiD as a check | accepted 2026-10-21 |
-| [0006](0006-approximate-cutoff-stand-in.md) | Use 1.0 as the cutoff for FY2019 to FY2026 and flag those rows `cutoff_is_approximate` | accepted 2026-10-21 |
+| [0006](0006-approximate-cutoff-stand-in.md) | Use 1.0 as the cutoff for FY2019 to FY2026 and flag those rows `cutoff_is_approximate` | superseded by 0008, 2026-10-28 |
 | [0007](0007-penalty-model-time-split-and-gate.md) | Penalty model trained on past years, champion by validation PR-AUC, test AUC gate | accepted 2026-10-21 |
+| [0008](0008-published-peer-median-cutoffs.md) | Use CMS's published peer group median as the cutoff for FY2019 to FY2026; 1.0 only where CMS published no median | accepted 2026-10-28 |
 
 ## Where decisions without an ADR live
 

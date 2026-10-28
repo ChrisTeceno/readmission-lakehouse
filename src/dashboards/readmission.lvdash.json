@@ -91,8 +91,8 @@
       "queryLines": [
         "SELECT\n",
         "  fiscal_year,\n",
-        "  CASE WHEN cutoff_is_approximate THEN 'Approximate cutoff (1.0 stand-in)'\n",
-        "       ELSE 'Exact cutoff' END AS cutoff_basis,\n",
+        "  CASE WHEN fiscal_year < 2019 THEN 'Cutoff 1.0'\n",
+        "       ELSE 'Peer group median' END AS cutoff_basis,\n",
         "  COUNT(*) AS hospitals,\n",
         "  SUM(CASE WHEN penalized THEN 1 ELSE 0 END) AS penalized,\n",
         "  ROUND(AVG(CASE WHEN penalized THEN 1.0 ELSE 0.0 END), 3) AS penalized_share\n",
@@ -980,7 +980,7 @@
             "name": "sc_caption",
             "multilineTextboxSpec": {
               "lines": [
-                "Cutoffs for FY2019 to FY2026 are approximate: CMS compared each hospital with the median ERR of its dual-eligibility peer group, which no file in this project carries, so 1.0 stands in (`cutoff_is_approximate = true`). FY2013 to FY2018 (1.0) and FY2027 (the published peer group median) are exact."
+                "Cutoffs: 1.0 for FY2013 to FY2018; from FY2019, the median ERR of the hospital's dual-eligibility peer group that CMS published in that year's IPPS supplemental file. The only rows on a 1.0 stand-in (`cutoff_is_approximate = true`) are FY2023 pneumonia, which CMS left out of that year's payment program, and hospitals missing from a year's supplemental file."
               ]
             }
           },
@@ -1334,7 +1334,7 @@
             "name": "landscape_caption",
             "multilineTextboxSpec": {
               "lines": [
-                "Cutoffs for FY2019 to FY2026 are approximate: CMS compared each hospital with the median ERR of its dual-eligibility peer group, which no file in this project carries, so 1.0 stands in (`cutoff_is_approximate = true`). FY2013 to FY2018 (1.0) and FY2027 (the published peer group median) are exact. The bar colors show which years rest on the stand-in. A hospital counts as penalized when at least one condition is above the cutoff; the Gold tables carry no payment adjustment factor, so no page estimates the penalty's size."
+                "Cutoffs: 1.0 for FY2013 to FY2018; from FY2019, the median ERR of the hospital's dual-eligibility peer group that CMS published in that year's IPPS supplemental file. The only rows on a 1.0 stand-in (`cutoff_is_approximate = true`) are FY2023 pneumonia, which CMS left out of that year's payment program, and hospitals missing from a year's supplemental file. The bar colors show which cutoff rule each year used. A hospital counts as penalized when at least one condition is above the cutoff; the Gold tables carry no payment adjustment factor, so no page estimates the penalty's size."
               ]
             }
           },
@@ -1794,7 +1794,7 @@
             "name": "pred_caption",
             "multilineTextboxSpec": {
               "lines": [
-                "These are probabilities, not forecasts of the ERR or the penalty amount. The model scored test AUC 0.874 on FY2026, whose labels use the approximate 1.0 cutoff, but only 0.678 on FY2027, the one recent year with the exact peer-median cutoff, and its FY2027 probabilities are overconfident at both ends (rows under 0.1 were above the cutoff 22 percent of the time, rows over 0.9 only 76 percent). FY2028 follows FY2027, so expect accuracy closer to the lower figure. Use the ranking to decide where to look first. See `docs/model-card.md`."
+                "These are probabilities, not forecasts of the ERR or the penalty amount. The model scored test AUC 0.868 on FY2026 but only 0.679 on FY2027, and its FY2027 probabilities are overconfident at both ends (rows under 0.1 were above the cutoff 21 percent of the time, rows over 0.9 only 75 percent). FY2028 follows FY2027, so expect accuracy closer to the lower figure. Use the ranking to decide where to look first. See `docs/model-card.md`."
               ]
             }
           },
@@ -2198,7 +2198,7 @@
             "name": "fu_caption",
             "multilineTextboxSpec": {
               "lines": [
-                "A low follow-up rate beside a condition above the cutoff is a place to look, not evidence that calls lower the ERR: that is the question the follow-up pilot is designed to test. A facility's penalty status counts every condition above the cutoff, including the few Contoso has no call records for, which the table leaves out. FY2026 cutoffs are the approximate 1.0 stand-in; FY2027's are exact."
+                "A low follow-up rate beside a condition above the cutoff is a place to look, not evidence that calls lower the ERR: that is the question the follow-up pilot is designed to test. A facility's penalty status counts every condition above the cutoff, including the few Contoso has no call records for, which the table leaves out. FY2026 and FY2027 cutoffs are the published peer group medians."
               ]
             }
           },
@@ -2914,7 +2914,7 @@
             "name": "pd_caption",
             "multilineTextboxSpec": {
               "lines": [
-                "Trials find no effect from a follow-up call alone (Boggan 2025, risk difference 0.00 across 7 RCTs). The program pays for itself at Contoso if it lowers the 30-day readmission rate by about half a point (0.36 to 0.71 points at the central $371K cost), which the pilot, with a 3.82-point minimum detectable effect, cannot detect. ",
+                "Trials find no effect from a follow-up call alone (Boggan 2025, risk difference 0.00 across 7 RCTs). The program pays for itself at Contoso if it lowers the 30-day readmission rate by about half a point to a point (0.53 to 1.05 points at the central $525K cost), which the pilot, with a 3.44-point minimum detectable effect, cannot detect. ",
                 "Contoso net is the penalty avoided minus the program cost, Contoso's own money. Payer savings ($14,000 per avoided readmission) go to Medicare and insurers and are never added to it. The 1.0-point central effect is a judgment; 3.0 points is a multicomponent bundle (Leppin 2014), not a call alone. ",
                 "Penalty avoided holds FY2027's peer medians, DRG payment ratios and base payments fixed. The change table splits each facility's penalty by each condition's term in the payment adjustment factor formula; the two windows share July 2023 to June 2024."
               ]

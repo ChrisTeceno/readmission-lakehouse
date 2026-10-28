@@ -34,7 +34,7 @@ table 'Fiscal Year'
 
 		annotation UnderlyingDateTimeDataType = Date
 
-	/// True for FY2019 to FY2026, where 1.0 stands in for the peer group median cutoff
+	/// False in every year: each year's cutoff is published; rows without a median carry their own flag
 	column cutoff_is_approximate
 		dataType: boolean
 		summarizeBy: none
@@ -58,10 +58,9 @@ table 'Fiscal Year'
 				            "FY" & Text.From(_),
 				            #date(_ - 1, 10, 1),
 				            #date(_, 9, 30),
-				            _ >= 2019 and _ <= 2026,
+				            false,
 				            if _ <= 2018 then "1.0, the rule at the time"
-				            else if _ <= 2026 then "1.0 stand-in for the peer group median (approximate)"
-				            else if _ = 2027 then "Published peer group median"
+				            else if _ <= 2027 then "Published peer group median"
 				            else "Not published yet"
 				        }
 				    ),

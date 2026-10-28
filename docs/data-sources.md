@@ -155,6 +155,7 @@ in `ops_watermarks` (one row per source table) over JDBC, appends them to Bronze
 keeping the latest version of each key. Setup, credentials and the incremental test:
 `docs/lakebase.md`; connector choice: `engagement/adr/0001-contoso-lakebase-connector.md`.
 Code: `ingest/contoso.py`, `bronze/contoso.py`, `silver/contoso.py`, `scripts/seed_contoso.py`.
+Generation steps, parameters and the realism check against public benchmarks: `docs/synthetic-data.md`.
 
 ## Census ACS county socioeconomics (verified 2026-10-21)
 
@@ -314,7 +315,7 @@ Caveats:
   the fetch retries until length and zip structure check out.
 - No PDC file carries the dual-eligibility peer group or the peer median ERR.
 
-### CMS.gov IPPS supplemental files, FY2013 to FY2018, FY2026 and FY2027 (verified 2026-10-21; FY2026 2026-10-26)
+### CMS.gov IPPS supplemental files, FY2013 to FY2027 (verified 2026-10-21; FY2026 2026-10-26; FY2019 to FY2025 2026-10-27)
 
 Archive page:
 `https://www.cms.gov/medicare/payment/prospective-payment-systems/acute-inpatient-pps/archived-supplemental-data-files`.
@@ -330,6 +331,13 @@ taking the latest correction where CMS published one.
 | 2016 | `https://www.cms.gov/medicare/medicare-fee-for-service-payment/acuteinpatientpps/downloads/fy2016-cms-1632-fr-readmissions.zip` | `FY 2016 IPPS Final Rule Readmissions PUF_readmadj revised 08-04-15.txt` | 3,464 | 07/01/2011 to 06/30/2014 |
 | 2017 | `https://www.cms.gov/medicare/medicare-fee-for-service-payment/acuteinpatientpps/downloads/fy2017-cms-1655-fr-hospital-readmissions.zip` | `FY 2017 IPPS Final Rule Readmissions PUF (FY17 data).txt` | 3,448 | 07/01/2012 to 06/30/2015 |
 | 2018 | `https://www.cms.gov/medicare/medicare-fee-for-service-payment/acuteinpatientpps/downloads/fy2018-fr-hospital-readmissions.zip` | `FY 2018 IPPS Final Rule Readmissions PUF (FY18 data).txt` | 3,414 | 07/01/2013 to 06/30/2016 |
+| 2019 | `https://www.cms.gov/medicare/medicare-fee-for-service-payment/acuteinpatientpps/downloads/fy2019-cms-1694-fr-hospital-readmissions.zip` | `Section 508 - FR FY 19 - tab - *.txt` | 3,173 | 07/01/2014 to 06/30/2017 |
+| 2020 | `https://www.cms.gov/files/zip/fy-2020-ipps-final-rule-hospital-readmissions-reduction-program-supplemental-data-file.zip` | `*Supplemental_File tab2.txt` | 3,130 | 07/01/2015 to 06/30/2018 |
+| 2021 | `https://www.cms.gov/files/zip/fy-2021-ipps-final-rule-hospital-readmissions-reduction-program-supplemental-data-file.zip` | `*_FR FY 2021.txt` | 3,080 | 07/01/2016 to 06/30/2019 |
+| 2022 | `https://www.cms.gov/files/zip/fy-2022-ipps-final-rule-hospital-readmissions-reduction-program-supplemental-data-file.zip` | `508_Compliant_Version_of_FR FY 2022.csv` | 3,047 | 07/01/2017 to 12/01/2019 |
+| 2023 | `https://www.cms.gov/files/zip/fy-2023-ipps-final-rule-hospital-readmissions-reduction-program-supplemental-data-file.zip` | `*FR FY 2023.txt` | 3,044 | 07/01/2018 to 06/30/2021, January to June 2020 excluded |
+| 2024 | `https://www.cms.gov/files/zip/fy-2024-ipps-final-rule-hospital-readmissions-reduction-program-supplemental-data-file.zip` | `*Variations FR FY 2024 tab .txt` | 3,037 | 07/01/2019 to 06/30/2022, January to June 2020 excluded |
+| 2025 | `https://www.cms.gov/files/zip/fy-2025-ipps-final-rule-hospital-readmissions-reduction-program-supplemental-data-file.zip` | `508-Version-FR-FY-2025.csv` | 2,980 | 07/01/2020 to 06/30/2023 |
 | 2026 | `https://www.cms.gov/files/zip/fy2026-hospital-readmissions-reduction-program-supplemental-data-file.zip` | `FR FY 2026.txt` | 2,945 | 07/01/2021 to 06/30/2024 |
 | 2027 | `https://www.cms.gov/files/zip/fy-2027-hospital-readmissions-reduction-program-supplemental-data-file.zip` | `FY2027_HRRP_Supplemental_File - FR FY 2027 Tab.txt` | 2,912 | 07/01/2023 to 06/30/2025 |
 
@@ -337,10 +345,14 @@ Periods come from the variable description file in each zip. The archived page i
 years: its FY2026 entry links the FY2025 zip and its FY2023 entry has no zip link. The FY2026 URL
 above is the one on the FY2026 final rule home page
 (`https://www.cms.gov/medicare/payment/prospective-payment-systems/acute-inpatient-pps/fy-2026-ipps-final-rule-home-page`),
-and its file reports the FY2026 period. FY2026 is on the PDC archive too: `silver_hrrp_history`
-keeps PDC's FY2026 rows, and the supplemental file feeds only the payment tables (see
-`docs/penalty-dollars.md`). The FY2019 to FY2025 supplemental files also exist (URLs in
-`docs/penalty-dollars.md`) and are not loaded; see ADR 0006.
+and its file reports the FY2026 period. FY2019 to FY2026 are on the PDC archive too: `silver_hrrp_history`
+keeps PDC's rows for those years and takes only `peer_group` and `peer_median_err` from the
+supplemental files, through `silver_hrrp_payment` and `silver_hrrp_payment_measure` (ADR 0008).
+From FY2019 each zip holds an xlsx workbook and a text copy for accessibility ("Section 508");
+the fetch lands the text copy, which is comma-separated for FY2022 and FY2025 and tab-separated
+otherwise. Every value in the text copies matched the workbooks to the four decimals CMS
+prints (checked 2026-10-27). Columns are matched by name in lower case with single spaces, since
+capitalization changes by year, and a file missing a required column is refused.
 
 Caveats:
 - Tab-separated, cp1252, CRLF. One to four title rows above the header (FY2013 has four) and
@@ -358,9 +370,10 @@ Caveats:
   to null. FY2018 and FY2027 write `.` for missing values and report ERRs for some hospitals
   under 25 cases.
 - FY2027 quotes discharge counts over 999 with a thousands separator (`"1,110"`).
-- Peer groups: FY2026 and FY2027 carry `Peer group assignment` (dual-eligibility quintile 1 to
-  5) and `Peer group median ERR for <M>`. FY2013 to FY2018 predate peer grouping (it began in
-  FY2019). FY2026 and FY2027 also have dual proportion, neutrality modifier, penalty indicator
+- Peer groups: FY2019 to FY2027 carry `Peer group assignment` (dual-eligibility quintile 1 to
+  5; `Peer Group Assignment` in FY2019 and FY2020) and `Peer group median ERR for <M>`. FY2013
+  to FY2018 predate peer grouping (it began in FY2019). The FY2023 file has no pneumonia
+  columns: CMS left pneumonia out of the FY2023 payment program. FY2019 to FY2027 also have dual proportion, neutrality modifier, penalty indicator
   and DRG payment ratio columns; `silver_hrrp_payment` and `silver_hrrp_payment_measure` carry
   them, with the payment adjustment factor for every IPPS year.
 - The payment adjustment factor header changes by year: `FY 2013  Readmission Payment
@@ -399,7 +412,7 @@ Caveats:
 `silver_hrrp_history` columns: `facility_id`, `measure` (`AMI`, `HF`, `PN`, `COPD`, `HIP_KNEE`,
 `CABG`), `fiscal_year`, `discharges`, `readmissions` (null for IPPS years),
 `excess_readmission_ratio`, `predicted_rate` and `expected_rate` (null for IPPS years),
-`peer_group` and `peer_median_err` (FY2027 only), `period_start`, `period_end`, `source` (`pdc`
+`peer_group` and `peer_median_err` (FY2019 on, joined from the payment tables), `period_start`, `period_end`, `source` (`pdc`
 or `ipps`). CCNs are left-padded to 6 characters; `N/A`, `Not Available`, `Too Few to Report`,
 `.` and blank become null; thousands separators are stripped. Periods come from a constant per
 fiscal year, not from the files.

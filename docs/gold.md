@@ -29,16 +29,29 @@ A condition counts toward a hospital's HRRP payment reduction when its excess re
 | Fiscal years | Cutoff | `cutoff_is_approximate` |
 |---|---|---|
 | FY2013 to FY2018 | 1.0 | false: this was the rule |
-| FY2019 to FY2026 | 1.0 | true: CMS used the median ERR of the hospital's dual-eligibility peer group, which `silver_hrrp_history` does not carry (FY2026's is in `silver_hrrp_payment_measure` for the dollar work only; ADR 0006) |
-| FY2027 | `peer_median_err` from the IPPS supplemental file | false (true for a row with no ERR, where CMS published no median) |
+| FY2019 to FY2027 | `peer_median_err`: the median ERR of the hospital's dual-eligibility peer group, from that year's IPPS supplemental file (ADR 0008) | false where CMS published a median |
+| FY2019 to FY2027, no published median | 1.0 stand-in | true |
 
-For FY2019 to FY2026, 1.0 is a stand-in. Peer group medians sit close to 1.0 (the FY2027
-medians run from 0.9837 to 1.0143, median 0.9955), so most rows land on the same side of
-either cutoff, but a hospital with an ERR near 1.0 can flip: in FY2027, where both are known,
-899 of the 14,575 rows with an ERR (6.2 percent) are on different sides of 1.0 and of their
-peer median. Analysis that depends on the exact cutoff (the regression
-discontinuity in task 2.3) should use FY2013 to FY2018 and FY2027, or filter on
-`cutoff_is_approximate = false`.
+`silver_hrrp_history` joins `peer_group` from `silver_hrrp_payment` and `peer_median_err` from
+`silver_hrrp_payment_measure`, which parse the supplemental files. Recomputing the FY2026
+payment adjustment factor from those terms matches CMS's published factor to 4 decimals for
+2,870 of 2,945 hospitals (97.5 percent) and within 0.0001 for all of them.
+
+Rows still on the 1.0 stand-in, where CMS published no median:
+
+| FY | Rows | With an ERR | Why |
+|---|---|---|---|
+| 2019 to 2022, 2024 to 2026 | 696 to 804 a year | 197 to 224 a year | 116 to 134 CCNs a year are in the PDC but not in that year's supplemental file |
+| 2023 | 3,785 | 2,951 | the same kind of CCNs plus every pneumonia row: CMS left pneumonia out of the FY2023 payment program (COVID), so the file has no pneumonia median, while the PDC still publishes the ERR |
+| 2027 | 0 | 0 | |
+
+Peer group medians sit close to 1.0 (the FY2027 medians run from 0.9837 to 1.0143, median
+0.9955), so most rows land on the same side of either cutoff, but a hospital with an ERR near
+1.0 can flip. Rows with an ERR on different sides of 1.0 and of their peer median: FY2019 708
+(5.0 percent), FY2020 705 (5.1), FY2021 643 (4.7), FY2022 614 (4.7), FY2023 348 (3.5), FY2024
+492 (4.1), FY2025 504 (4.3), FY2026 461 (4.0) and FY2027 899 of 14,575 (6.2). Before ADR 0008,
+1.0 stood in for every FY2019 to FY2026 row (ADR 0006). Analysis that depends on the exact
+cutoff should filter on `cutoff_is_approximate = false`.
 
 ## Non-overlapping windows
 
@@ -137,7 +150,7 @@ hospital names never reach Gold.
   1 - `err_pass_through` x `relative_drop`, for drops of 0 to 4 points by 0.01 (relative to 16.9
   percent) and pass-throughs of 0.5 and 1.0; peer medians, the neutrality modifier, DRG payment
   ratios and base payments stay at FY2027 values. 9,624 rows.
-- `gold_nurse_call_economics`: 24 rows, four effect scenarios (0, 1.0, 3.0 and 3.82 points) x
+- `gold_nurse_call_economics`: 24 rows, four effect scenarios (0, 1.0, 3.0 and 3.44 points) x
   three cost levels x two pass-throughs. `hospital_net` (penalty avoided minus
   `annual_program_cost`) is Contoso's ledger; `payer_savings` and `resource_cost_avoided` are
   other parties' and are never added to it. `break_even_drop_points` is the smallest drop on the
