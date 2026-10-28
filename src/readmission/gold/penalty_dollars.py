@@ -57,7 +57,7 @@ BASELINE_RATE = 16.9
 # predicted rate toward the mean, so less than all of it does, more so at low volume; CMS
 # publishes no closed form, so 0.5 and 1.0 are the bounds.
 ERR_PASS_THROUGH = (0.5, 1.0)
-# Drops from 0 to 4 points in steps of 0.01, which covers the pilot's 3.82-point MDE and gives
+# Drops from 0 to 4 points in steps of 0.01, which covers the pilot's 3.44-point MDE and gives
 # break-even to the nearest 0.01 point.
 DROP_STEPS = 400
 DROP_STEP = 0.01

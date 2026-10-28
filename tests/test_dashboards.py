@@ -160,7 +160,7 @@ def test_penalty_dollars_page_labels_estimates_and_keeps_the_ledgers_apart(dashb
     p = page(dashboard, "Penalty dollars and follow-up calls")
     text = page_text(p)
     assert "estimate" in text and "Table 1B" in text and "fictional client" in text
-    assert "never added" in text and "0.36 to 0.71" in text and "3.82" in text
+    assert "never added" in text and "0.53 to 1.05" in text and "3.44" in text
     kinds = [w["spec"]["widgetType"] for w in widgets(p) if "spec" in w]
     assert kinds.count("bar") == 2 and kinds.count("table") == 2 and kinds.count("counter") == 4
     assert "names the year the penalty is paid" in text and "FY2029 to FY2031" in text

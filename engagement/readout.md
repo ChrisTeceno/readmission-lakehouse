@@ -247,13 +247,13 @@ facilities at a time (one larger, one smaller) every three months in an order dr
 |---|---|
 | Facilities | 12, each compared with itself before and after its switch |
 | Duration | 21 months of enrollment, answer one month later |
-| Sample | about 17,885 discharges (synthetic Contoso volumes) |
+| Sample | about 28,672 discharges (synthetic Contoso volumes) |
 | Usual-care readmission rate | 16.9 percent |
-| Detectable at 80% power | a drop of 3.82 points (to about 13.1 percent) |
-| Power for a 2-point drop | 30 percent |
+| Detectable at 80% power | a drop of 3.44 points (to about 13.5 percent) |
+| Power for a 2-point drop | 38 percent |
 
-- 3.82 points is a large effect for a phone call. If the calls work as hoped, the pilot sees it;
-  if they work modestly, it will say the effect is under about 4 points, not whether it is zero.
+- 3.44 points is a large effect for a phone call. If the calls work as hoped, the pilot sees it;
+  if they work modestly, it will say the effect is under about 3.5 points, not whether it is zero.
 - Decisions are fixed now: a clear drop with no rise in ED visits and staff hours within budget
   makes the calls standard; a result that rules out a 2-point drop stops the script.
 - Design under review in PR #13 (`docs/pilot-design.md`).
@@ -265,21 +265,22 @@ facilities at a time (one larger, one smaller) every three months in an order dr
 # Would follow-up calls pay for themselves?
 
 Contoso's own ledger: FY2027 penalty avoided minus the program's cost. Estimates; costs are BLS
-wages plus stated time, setup and management assumptions (central $371K a year, range $201K to
-$724K).
+wages plus stated time, setup and management assumptions (central $525K a year, range $295K to
+$1.01M, for about 16,400 discharges a year).
 
 | Effect on the 30-day rate | Basis | Penalty avoided | Contoso net, central cost |
 |---|---|---|---|
-| 0 points | Pooled RCTs of calls alone (Boggan 2025) | $0 | -$371K |
-| 1.0 point | A judgment | $0.50M to $0.93M | +$132K to +$558K |
-| 3.0 points | Multicomponent bundles (Leppin 2014), not a call alone | $1.20M to $1.64M | +$833K to +$1.27M |
-| 3.82 points | The pilot's detectable effect; more than the evidence supports | $1.36M to $1.74M | +$987K to +$1.37M |
+| 0 points | Pooled RCTs of calls alone (Boggan 2025) | $0 | -$525K |
+| 1.0 point | A judgment | $0.50M to $0.93M | -$22K to +$404K |
+| 3.0 points | Multicomponent bundles (Leppin 2014), not a call alone | $1.20M to $1.64M | +$679K to +$1.12M |
+| 3.44 points | The pilot's detectable effect; more than the evidence supports | $1.29M to $1.71M | +$770K to +$1.19M |
 
 Ranges are 0.5 to 1.0 of the drop reaching each ERR.
 
 - **Trials find no effect from a call alone. The program pays for itself at Contoso at about half
-  a point** (0.36 to 0.71 points at the central cost), which the pilot cannot detect.
-- Medicare and insurers would save about $14,000 per avoided readmission ($1.43M a year at 1
+  a point to a point** (0.53 to 1.05 points at the central cost), which the pilot cannot detect;
+  at the 1-point judgment it about breaks even.
+- Medicare and insurers would save about $14,000 per avoided readmission ($2.30M a year at 1
   point). That is their money, never added to Contoso's.
 - Contoso's upside is capped by the penalty it pays, about $1.75M a year.
 
@@ -318,7 +319,7 @@ Ranges are 0.5 to 1.0 of the drop reaching each ERR.
 
 # Sources
 
-All files are on `main` unless marked; Gold tables and notebook runs are from 2026-10-21, the penalty dollar tables from 2026-10-26.
+All files are on `main` unless marked; Gold tables and notebook runs are from 2026-10-21, the penalty dollar tables from 2026-10-26, and the nurse-call economics and pilot power were rerun on 2026-10-28 on corrected synthetic volumes.
 
 - `engagement/discovery.md` (Data available): 266,159 HRRP rows; 5,419 hospitals; ACS 2011 to 2024 vintages; 12 facilities, 1,850 discharge rows, 3,700 call rows; 2,357 notes.
 - `docs/gold.md` (Penalty cutoff): exact years FY2013 to FY2018 and FY2027; 6.2 percent (899 of 14,575) of FY2027 rows on different sides of 1.0 and the peer median.
@@ -327,8 +328,8 @@ All files are on `main` unless marked; Gold tables and notebook runs are from 20
 - `docs/model-card.md` (Metrics, Calibration, What the model uses, Metric gate; MLflow experiment `/Shared/readmission-penalty`, run `17d90d5cf89543f7b0e286cfb930ff4d`, job run 303222482315557, model version 4): AUC 0.772, 0.869, 0.874 (FY2026) and 0.633, 0.675, 0.678 (FY2027); 22 and 76 percent calibration; 0.80 gate.
 - `docs/causal-findings.md` (The answer; Validity checks; Sensitivity; Difference-in-differences; Limitations), from `docs/causal/02_causal.html`: +0.0004, -0.0027 to +0.0047, MDE 0.0053, bandwidth 0.061, 0.5x to 2x, threshold 0.02, 1.02 read as 2 percent more readmissions than expected, placebo cutoffs 0.90, 0.95, 1.05 and 1.10 with BH p 0.61 to 0.75, 69,163 rows, 3,268 hospitals, density p 0.009 and 0.91, retention 3.5 points, DiD -0.0030 (-0.0058 to -0.0002).
 - `engagement/adr/0002-llm-risk-factor-extraction.md` (Results; First job run; MLflow runs rescored on the reviewed labels `e18026f5a77b444db0ecc9fb8163c8bf`, `321fafc2509d4fc09edc42476355f193`, `0fe0fa0c99ce40e4a4232a139c9ecd70`): F1 0.81, 0.70, 0.54; reject rates 4, 4, 28 percent; 4 primary-condition positives, 0.25 swing; 100 notes, 14 rejected. `docs/llm-extraction.md`: all 50 labels drafted and checked by the lead, reviewed by Chris Teceno, a clinician, who decided the four judgment calls; one label changed.
-- `docs/pilot-design.md` (on branch `pf/pilot-experiment-design-post-discharge-follow-up`, PR #13, open; Summary and For the COO; `analysis/03_power.py`, seed 20261021): 72-hour call, 12 facilities, 6 steps of 2 every three months, 21 months plus one month, about 17,885 (17,900) discharges, 16.9 percent usual care, MDE 3.82 points to about 13.1 percent, 30 percent power at 2 points, smaller than about 4 points, 2-point decision threshold. The MDE of 3.82 is also on `main` in `engagement/status-update.md`.
-- `docs/penalty-dollars.md` (Headline; Timeline; What changed; Economics; Break-even), from `gold_penalty_dollars`, `gold_penalty_by_condition`, `gold_penalty_sensitivity` and `gold_nurse_call_economics`: $1,959,057 (FY2026) and $1,764,148 (FY2027); FY2027 windows and publication; condition and facility changes; costs $200,739, $370,724, $724,342; penalty avoided $503,059 and $928,851 at 1 point, $1,203,846 and $1,642,249 at 3, $1,357,498 and $1,740,081 at 3.82; break-even 0.36 and 0.71; payer savings $1,428,000 at 1 point; $14,000 per readmission (Medicare $13,986 per Contoso discharge, DY2024); Boggan 2025, Leppin 2014.
-- `docs/synthetic-data.md` (How it is generated; Realism check; Finding): how Contoso's synthetic volumes and calls were made, seed 20261021; all-payer factor 2.0 against a public estimate of 3.21, so synthetic volumes run about 38 percent low (pilot MDE 3.45 points at 3.21 instead of 3.82).
+- `docs/pilot-design.md` (on branch `pf/pilot-experiment-design-post-discharge-follow-up`, PR #13, open; Summary and For the COO; `analysis/03_power.py`, seed 20261021): 72-hour call, 12 facilities, 6 steps of 2 every three months, 21 months plus one month, about 28,672 (28,700) discharges, 16.9 percent usual care, MDE 3.44 points to about 13.5 percent, 38 percent power at 2 points, smaller than about 3.5 points, 2-point decision threshold. Rerun 2026-10-28 on the corrected volumes (all-payer factor 3.2): MDE 3.82 before, 3.44 after; `engagement/status-update.md` keeps the 3.82 it reported on 2026-10-21.
+- `docs/penalty-dollars.md` (Headline; Timeline; What changed; Economics; Break-even), from `gold_penalty_dollars`, `gold_penalty_by_condition`, `gold_penalty_sensitivity` and `gold_nurse_call_economics`: $1,959,057 (FY2026) and $1,764,148 (FY2027); FY2027 windows and publication; condition and facility changes; costs $295,192, $524,714, $1,005,542 for 16,400 discharges a year; penalty avoided $503,059 and $928,851 at 1 point, $1,203,846 and $1,642,249 at 3, $1,294,498 and $1,710,033 at 3.44; net at the central cost -$21,655 and +$404,138 at 1 point; break-even 0.53 and 1.05; payer savings $2,296,000 at 1 point; $14,000 per readmission (Medicare $13,986 per Contoso discharge, DY2024); Boggan 2025, Leppin 2014.
+- `docs/synthetic-data.md` (How it is generated; Realism check; Finding): how Contoso's synthetic volumes and calls were made, seed 20261021; all-payer factor 2.0 against a public estimate of 3.21, so synthetic volumes ran about 38 percent low; corrected to 3.2 on 2026-10-28 (Finding), which moved the pilot MDE from 3.82 to 3.44 points and the central program cost from $371K to $525K.
 - `engagement/status-update.md` (Next; Decisions needed): pending Azure run and screenshots; the four decisions.
-- `engagement/executive-summary.md` rounds the figures above: about 9 in 10 hospitals (90.7 percent); over half (17 of 31 pairs); 87 and 68 times in 100 (AUC 0.874 and 0.678); a quarter of the size that would matter (0.0053 against 0.02); about 18,000 discharges (17,885); about 17 to 13 percent (16.9 percent less 3.82 points).
+- `engagement/executive-summary.md` rounds the figures above: about 9 in 10 hospitals (90.7 percent); over half (17 of 31 pairs); 87 and 68 times in 100 (AUC 0.874 and 0.678); a quarter of the size that would matter (0.0053 against 0.02); about 29,000 discharges (28,672); about 17 to 13.5 percent (16.9 percent less 3.44 points).
