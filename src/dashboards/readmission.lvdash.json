@@ -2914,7 +2914,7 @@
             "name": "pd_caption",
             "multilineTextboxSpec": {
               "lines": [
-                "Trials find no effect from a follow-up call alone (Boggan 2025, risk difference 0.00 across 7 RCTs). The program pays for itself at Contoso if it lowers the 30-day readmission rate by about half a point (0.36 to 0.71 points at the central $371K cost), which the pilot, with a 3.82-point minimum detectable effect, cannot detect. ",
+                "Trials find no effect from a follow-up call alone (Boggan 2025, risk difference 0.00 across 7 RCTs). The program pays for itself at Contoso if it lowers the 30-day readmission rate by about half a point to a point (0.53 to 1.05 points at the central $525K cost), which the pilot, with a 3.44-point minimum detectable effect, cannot detect. ",
                 "Contoso net is the penalty avoided minus the program cost, Contoso's own money. Payer savings ($14,000 per avoided readmission) go to Medicare and insurers and are never added to it. The 1.0-point central effect is a judgment; 3.0 points is a multicomponent bundle (Leppin 2014), not a call alone. ",
                 "Penalty avoided holds FY2027's peer medians, DRG payment ratios and base payments fixed. The change table splits each facility's penalty by each condition's term in the payment adjustment factor formula; the two windows share July 2023 to June 2024."
               ]

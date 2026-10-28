@@ -150,7 +150,7 @@ hospital names never reach Gold.
   1 - `err_pass_through` x `relative_drop`, for drops of 0 to 4 points by 0.01 (relative to 16.9
   percent) and pass-throughs of 0.5 and 1.0; peer medians, the neutrality modifier, DRG payment
   ratios and base payments stay at FY2027 values. 9,624 rows.
-- `gold_nurse_call_economics`: 24 rows, four effect scenarios (0, 1.0, 3.0 and 3.82 points) x
+- `gold_nurse_call_economics`: 24 rows, four effect scenarios (0, 1.0, 3.0 and 3.44 points) x
   three cost levels x two pass-throughs. `hospital_net` (penalty avoided minus
   `annual_program_cost`) is Contoso's ledger; `payer_savings` and `resource_cost_avoided` are
   other parties' and are never added to it. `break_even_drop_points` is the smallest drop on the

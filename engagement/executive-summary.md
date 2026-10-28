@@ -48,11 +48,11 @@ its penalty, what would reduce it, and whether being penalized makes hospitals i
    team agreed on.
 2. **Test nurse follow-up calls before rolling them out.** Switch a structured call within 72
    hours of discharge on two facilities at a time, every three months, over 21 months and about
-   18,000 discharges. It will detect a drop in readmissions from about 17 to 13 percent; smaller
+   29,000 discharges. It will detect a drop in readmissions from about 17 to 13.5 percent; smaller
    gains may be missed. The decision for each outcome is agreed before it starts. The best
-   trials find no effect from a call alone, but the program, at about $371K a year, pays for
-   itself in avoided penalties if it lowers readmissions by about half a percentage point, a
-   gain too small for the pilot to confirm. Medicare's own savings would be larger, but they are
+   trials find no effect from a call alone, but the program, at about $525K a year, pays for
+   itself in avoided penalties if it lowers readmissions by about half a point to a point, and
+   at a 1-point drop it about breaks even, a gain too small for the pilot to confirm. Medicare's own savings would be larger, but they are
    Medicare's, not Contoso's.
 3. **Close two gaps.** Share Medicare's peer-group cutoffs for past
    years if Contoso has them, and approve the short-lived Azure resources (Key Vault and Data

@@ -46,14 +46,15 @@ EFFECT_SCENARIOS: list[tuple[str, float, str]] = [
     ),
     (
         "pilot_mde",
-        3.82,
+        3.44,
         "The pilot's minimum detectable effect; larger than the evidence supports",
     ),
 ]
 
-# HRRP-condition discharges a year across Contoso, all payers: 852 a month, October 2025 to
-# September 2026 (docs/pilot-design.md, section 2). Synthetic, like all of Contoso's data.
-ANNUAL_DISCHARGES = 10_200
+# HRRP-condition discharges a year across Contoso, all payers: 1,366 a month, October 2025 to
+# September 2026 (docs/pilot-design.md, section 2), rounded. Synthetic, like all of Contoso's data;
+# 10,200 before the all-payer factor went from 2.0 to 3.2 (docs/synthetic-data.md, section 7).
+ANNUAL_DISCHARGES = 16_400
 # Ohio registered nurse hourly wage, BLS OEWS May 2025, SOC 29-1141: median $39.67 (series
 # OEUS390000000000029114108), mean $42.18 (OEUS390000000000029114103).
 RN_WAGE = {"low": 39.67, "central": 42.18, "high": 42.18}
@@ -118,7 +119,7 @@ GOLD_NURSE_CALL_ECONOMICS_SCHEMA = T.StructType(
         field(
             "readmissions_avoided",
             T.DoubleType(),
-            "Readmissions avoided a year across 10,200 all-payer discharges",
+            "Readmissions avoided a year across 16,400 all-payer discharges",
             nullable=False,
         ),
         field(

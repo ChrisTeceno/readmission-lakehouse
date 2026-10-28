@@ -153,7 +153,8 @@ def test_penalty_totals_agree_across_datasets_and_docs(data):
     docs = (ROOT / "docs" / "penalty-dollars.md").read_text()
     assert f"${summary['est_penalty_fy2026']:,.0f}" in docs
     assert f"${summary['est_penalty_fy2027']:,.0f}" in docs
-    assert (summary["break_even_full"], summary["break_even_half"]) == (0.36, 0.71)
+    assert (summary["break_even_full"], summary["break_even_half"]) == (0.53, 1.05)
+    assert f"${summary['central_program_cost']:,.0f}" in docs
 
 
 def test_page_keeps_contoso_ledger_and_payer_savings_apart():
