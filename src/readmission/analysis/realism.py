@@ -213,6 +213,15 @@ def checks() -> list[Check]:
 
     network, low, high = all_cause_ratio()
     factor = network_all_payer_factor()
+    # The factor was 2.0 until 2026-10-28, 38 percent below this estimate (off); it was then set
+    # to 3.2 from the estimate itself, so the hospital-level ratio is the independent check left.
+    lowest = min(map(condition_all_payer_factor, MEDICARE_SHARE_2018))
+    if ALL_PAYER_FACTOR < lowest:
+        verdict = OFF
+    elif abs(ALL_PAYER_FACTOR / factor - 1) <= 0.05 and ALL_PAYER_FACTOR < network:
+        verdict = MATCHES
+    else:
+        verdict = PLAUSIBLE
     rows.append(
         Check(
             "All-payer discharges per Medicare FFS discharge, HRRP conditions",
@@ -222,8 +231,8 @@ def checks() -> list[Check]:
             "HCUP SB #277 (2018 payer shares); CMS Medicare Monthly Enrollment (Ohio 2021 to"
             " 2024); CMS cost reports and MedPAR 2023",
             f"{ALL_PAYER_FACTOR:.2f}",
-            f"{ALL_PAYER_FACTOR / factor - 1:+.0%} against the condition estimate",
-            OFF,
+            f"{ALL_PAYER_FACTOR / factor - 1:+.1%} against the condition estimate",
+            verdict,
         )
     )
 

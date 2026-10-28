@@ -31,7 +31,10 @@ SEED_MONTHS = 36
 
 # HRRP discharges count Medicare fee-for-service patients only; Contoso's own systems count every
 # payer, so monthly volumes are the public count spread over its 36-month window times this.
-ALL_PAYER_FACTOR = 2.0
+# 3.2 rounds the public estimate of 3.21 all-payer discharges per fee-for-service discharge for
+# Contoso's condition mix (HCUP 2018 Medicare payer shares and Ohio's Original Medicare share,
+# docs/synthetic-data.md section 6); it replaced a round 2.0 on 2026-10-28.
+ALL_PAYER_FACTOR = 3.2
 HRRP_WINDOW_MONTHS = 36
 
 # Respiratory admissions and heart failure peak in winter; elective joints and CABG do not.

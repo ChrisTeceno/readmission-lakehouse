@@ -284,10 +284,10 @@ def test_sensitivity_starts_at_the_penalty_and_never_rises(sensitivity):
 
 def test_program_cost_ranges():
     costs = {level: annual_program_cost(level) for level in ("low", "central", "high")}
-    # Loaded hourly cost $60.94, $64.79 and $77.75; the report's $201K, $371K and $724K.
-    assert costs["low"] == pytest.approx(200_739, abs=1)
-    assert costs["central"] == pytest.approx(370_724, abs=1)
-    assert costs["high"] == pytest.approx(724_342, abs=1)
+    # Loaded hourly cost $60.94, $64.79 and $77.75; the report's $295K, $525K and $1.01M.
+    assert costs["low"] == pytest.approx(295_192, abs=1)
+    assert costs["central"] == pytest.approx(524_714, abs=1)
+    assert costs["high"] == pytest.approx(1_005_542, abs=1)
 
 
 def test_economics_arithmetic_and_break_even(sensitivity):
@@ -297,18 +297,18 @@ def test_economics_arithmetic_and_break_even(sensitivity):
     assert len(rows) == 4 * 3 * 2
     none = rows[("none", "central", 0.5)]
     assert (none.est_penalty_avoided, none.payer_savings) == (0, 0)
-    assert none.hospital_net == pytest.approx(-370_724, abs=1)
+    assert none.hospital_net == pytest.approx(-524_714, abs=1)
     central = rows[("central", "central", 1.0)]
     assert central.readmissions_avoided == pytest.approx(ANNUAL_DISCHARGES / 100)
-    assert central.payer_savings == pytest.approx(102 * 14_000)
-    assert central.resource_cost_avoided == pytest.approx(102 * 18_100)
+    assert central.payer_savings == pytest.approx(164 * 14_000)
+    assert central.resource_cost_avoided == pytest.approx(164 * 18_100)
     assert central.hospital_net == pytest.approx(
         central.est_penalty_avoided - central.annual_program_cost
     )
-    # The report's break-even drops, central cost: 0.70 points at a 0.5 pass-through, 0.35 at 1.0.
-    assert rows[("central", "central", 0.5)].break_even_drop_points == pytest.approx(0.70, abs=0.02)
-    assert rows[("central", "central", 1.0)].break_even_drop_points == pytest.approx(0.35, abs=0.02)
-    assert rows[("none", "high", 0.5)].break_even_drop_points == pytest.approx(1.51, abs=0.02)
+    # The report's break-even drops, central cost: 1.05 points at a 0.5 pass-through, 0.53 at 1.0.
+    assert rows[("central", "central", 0.5)].break_even_drop_points == pytest.approx(1.05, abs=0.02)
+    assert rows[("central", "central", 1.0)].break_even_drop_points == pytest.approx(0.53, abs=0.02)
+    assert rows[("none", "high", 0.5)].break_even_drop_points == pytest.approx(2.22, abs=0.02)
     # Contoso's upside is capped by the penalty it pays; the payer's is not.
     mde = rows[("pilot_mde", "low", 1.0)]
     assert mde.est_penalty_avoided < 1_753_000 < mde.payer_savings

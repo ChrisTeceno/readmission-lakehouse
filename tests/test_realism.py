@@ -25,22 +25,29 @@ def test_cost_report_title_xviii_is_fee_for_service():
         assert total > title_xviii
 
 
-def test_all_payer_factor_is_below_every_benchmark():
+def test_all_payer_factor_matches_the_estimate_and_stays_below_the_all_cause_ratio():
     share = realism.ohio_ffs_share()
     assert 0.44 < share < 0.51
     factors = [realism.condition_all_payer_factor(c) for c in realism.MEDICARE_SHARE_2018]
-    assert ALL_PAYER_FACTOR < min(factors)
     assert min(factors) < realism.network_all_payer_factor() < max(factors)
+    # 3.2 rounds the condition-level estimate of 3.21 (2.0 until 2026-10-28).
+    assert ALL_PAYER_FACTOR == pytest.approx(realism.network_all_payer_factor(), abs=0.05)
+    # All conditions is an upper bound for the six HRRP conditions; one uniform factor sits below
+    # the network's ratio but above the lowest hospital's (CH11 Oak, 2.70).
     network, low, high = realism.all_cause_ratio()
-    assert ALL_PAYER_FACTOR < low <= network <= high
+    assert low < ALL_PAYER_FACTOR < network <= high
+    verdicts = {c.property: c.verdict for c in realism.checks()}
+    assert verdicts["All-payer discharges per Medicare FFS discharge, HRRP conditions"] == (
+        realism.MATCHES
+    )
 
 
 def test_winter_excess_follows_the_generator(generated):
     discharges, _ = generated
     # Pneumonia's amplitude 0.25 gives about 59 percent more in December to February than June to
     # August before noise; AMI has no seasonal term. Hip/knee and CABG have none either, but at
-    # about 24 and 33 discharges a month across the network, noise alone moves the ratio by about
-    # 10 percent per standard deviation.
+    # about 38 and 52 discharges a month across the network, noise alone moves the ratio by about
+    # 8 percent per standard deviation.
     assert 0.5 < realism.winter_excess(discharges, "PN") < 0.7
     assert 0.1 < realism.winter_excess(discharges, "HF") < 0.3
     assert abs(realism.winter_excess(discharges, "AMI")) < 0.05
