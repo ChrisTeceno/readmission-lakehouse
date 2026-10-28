@@ -12,6 +12,8 @@ derby.log
 data/
 # The pilot power notebook's committed baseline extract (public CMS rows, synthetic Contoso).
 !analysis/data/
+# The public dashboard's snapshot of Gold (public CMS figures, synthetic Contoso).
+!site/dashboard/data/
 *.zip
 .DS_Store
 dist/
