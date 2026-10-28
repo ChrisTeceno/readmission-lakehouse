@@ -3,7 +3,10 @@
 Written 2026-10-21, before any pilot data exist (SPEC task 2.6, success criterion 12). Every
 number below comes from `analysis/03_power.py` (fixed seed 20261021), which runs on Databricks
 against the tables and locally from the committed extract in `analysis/data/`; both runs gave
-identical output on 2026-10-21. The simulator is `src/readmission/analysis/power.py`, tested in
+identical output on 2026-10-21. Revised 2026-10-28, still before randomization: Contoso's
+synthetic volumes now use an all-payer factor of 3.2 instead of 2.0 (`docs/synthetic-data.md`
+section 7), so the sample, power and MDE below were rerun locally on the regenerated extract
+(MDE 3.82 points before, 3.44 after). The simulator is `src/readmission/analysis/power.py`, tested in
 `tests/test_power.py`. A change to the design, the outcome or the analysis after randomization is
 recorded under Deviations at the end of this file, with the date and the reason.
 
@@ -14,11 +17,11 @@ heart failure, pneumonia, COPD, hip and knee replacement and bypass patients, by
 two facilities at a time, one larger and one smaller, every three months, in an order drawn by
 lot, until all 12 have it after 18 months; enrollment runs 21 months and the answer comes one
 month later. Comparing each facility with itself before and after its switch, across about
-17,900 discharges, the pilot has an 80 percent chance of detecting a drop in the 30-day
-readmission rate from about 16.9 to 13.1 percent (3.8 points), and a 30 percent chance of
+28,700 discharges, the pilot has an 80 percent chance of detecting a drop in the 30-day
+readmission rate from about 16.9 to 13.5 percent (3.4 points), and a 38 percent chance of
 detecting a 2-point drop. That is a large effect for a phone call, so read the pilot this way:
 if the calls work as well as the program's advocates hope, we will see it; if they work modestly,
-the pilot will tell us the effect is smaller than about 4 points but not whether it is zero. We
+the pilot will tell us the effect is smaller than about 3.5 points but not whether it is zero. We
 commit now to the analysis and to the decision each result leads to: a clear reduction with no
 rise in ED visits and staff hours within budget means the calls become standard everywhere; a
 result that rules out a 2-point reduction means we stop the structured script and give the nurse
@@ -33,14 +36,14 @@ do not count on them in HRRP planning.
 | Design | stepped wedge, 12 facilities, 6 steps of 2, 7 periods of 3 months |
 | Randomization | order of the steps, stratified by size: each step takes one of the six larger and one of the six smaller facilities |
 | Enrollment | 21 months, plus 1 month for the last discharges' 30-day outcome |
-| Sample size | 12 facilities, 84 facility-periods, about 17,885 index discharges, half of the facility-periods on the intervention |
+| Sample size | 12 facilities, 84 facility-periods, about 28,672 index discharges, half of the facility-periods on the intervention |
 | Primary outcome | 30-day all-cause readmission rate after an HRRP-condition discharge, all payers |
 | Primary analysis | discharge-weighted regression of facility-period readmission rates on the intervention with period and facility effects; two-sided permutation test over the stratified randomization, alpha 0.05 |
 | Usual-care rate | 16.9 percent (CMS FY2026 observed rates for Contoso's CCNs, weighted by Contoso's mix) |
-| Power | 80 percent at an absolute reduction of 3.82 points (23 percent relative); 30 percent at 2 points; 60 percent at 3 points |
-| Type I error, simulated | 0.054 (2,000 trials, Monte Carlo standard error 0.005) |
+| Power | 80 percent at an absolute reduction of 3.44 points (20 percent relative); 38 percent at 2 points; 68 percent at 3 points |
+| Type I error, simulated | 0.050 (2,000 trials, Monte Carlo standard error 0.005) |
 | Planning ICC and CAC | 0.01 and 0.7 (section 6) |
-| MDE across ICC 0.005 to 0.05 and CAC 0.5 to 0.9 | 2.98 to 8.08 points |
+| MDE across ICC 0.005 to 0.05 and CAC 0.5 to 0.9 | 2.45 to 7.94 points |
 
 ## 2. Inputs, and what is synthetic
 
@@ -48,15 +51,16 @@ do not count on them in HRRP planning.
   Ohio hospitals' CCNs relabeled CH01 to CH12, and its discharges and follow-up calls are seeded
   by `scripts/seed_contoso.py` (`docs/lakebase.md`). The pilot takes from them only the volumes
   and today's call rates, from the latest 12 months of `silver_contoso_discharges` and
-  `silver_contoso_followup_calls` (October 2025 to September 2026): 852 HRRP-condition discharges
-  a month across the network, from 11 a month at CH12 to 152 at CH03; 42.7 percent of discharges
-  get a completed call within 72 hours today, 31.9 to 57.4 percent by facility.
+  `silver_contoso_followup_calls` (October 2025 to September 2026): 1,366 HRRP-condition discharges
+  a month across the network, from 17 a month at CH12 to 243 at CH03; 42.7 percent of discharges
+  get a completed call within 72 hours today, 31.9 to 57.5 percent by facility. Volumes use an all-payer factor of 3.2 since 2026-10-28
+  (2.0 before; `docs/synthetic-data.md` section 7).
   `tests/test_power.py` regenerates those 12 months from the seed and checks the extract against
   them.
 - **Readmission rates are public CMS data.** Each facility's usual-care rate is its FY2026 CMS
   observed rate per condition (readmissions over discharges, Medicare fee-for-service, 07/2021 to
   06/2024, from `gold_facility_condition_year`), weighted by Contoso's condition mix: 15.2 to
-  22.7 percent by facility, 16.9 percent for the network. The pilot's outcome is all-payer, and
+  22.6 percent by facility, 16.9 percent for the network. The pilot's outcome is all-payer, and
   all-payer rates usually run a little below Medicare's; using Medicare's makes the binomial
   variance, and so the MDE, slightly larger.
 - **Between-hospital variation** comes from all Ohio hospitals in the same table, FY2023 and
@@ -70,8 +74,8 @@ Calls are made by facility staff who also do discharge teaching, and a structure
 how a unit talks to every patient, so patient-level randomization inside a facility would leak:
 nurses who learn the script use it on control patients too, and a control patient who calls the
 unit back reaches the same nurses. Randomizing facilities avoids that contamination. It costs
-power: patient-level randomization of the same 17,885 discharges would detect 1.57 points (normal
-approximation for two proportions, notebook section 7) against 3.82 for the chosen design. If
+power: patient-level randomization of the same 28,672 discharges would detect 1.24 points (normal
+approximation for two proportions, notebook section 7) against 3.44 for the chosen design. If
 Contoso can run calls from one central team that never touches discharge, patient-level
 randomization becomes worth reconsidering, and this document would be revised before launch.
 
@@ -83,10 +87,10 @@ randomization becomes worth reconsidering, and this document would be revised be
 | Rollout | six sites trained at once | two sites a quarter; the call team and the script mature on early sites |
 | Withholding | six facilities never get the program in the trial | every facility gets it; the order is the only thing randomized |
 | Comparison | facilities against other facilities | each facility against itself, period effects removing secular trend and season |
-| MDE, 21 months (planning ICC and CAC) | not reached below 10 points, with or without a baseline period | 3.82 points |
+| MDE, 21 months (planning ICC and CAC) | 8.74 points with a baseline period; not reached below 10 without one | 3.44 points |
 
 With 12 facilities a parallel trial is not viable. Facilities differ in readmission rate (15.2 to
-22.7 percent at baseline) by more than the effects of interest, and with six per arm those
+22.6 percent at baseline) by more than the effects of interest, and with six per arm those
 differences do not average out. Randomized within six size-matched pairs it also has only 64
 possible allocations, and an allocation and its mirror image give estimates of the same size, so
 the smallest attainable two-sided permutation p-value is 1/32; it can only reject at 0.05 when
@@ -110,20 +114,20 @@ MDE at 80 percent power, planning ICC 0.01 and CAC 0.7 (notebook section 4):
 
 | Design | 14 months | 21 months | 28 months |
 |---|---|---|---|
-| Stepped wedge, 4 steps of 3 | 4.75 | 4.36 | 4.13 |
-| Stepped wedge, 6 steps of 2 (chosen) | 4.26 | 3.82 | 3.55 |
-| Stepped wedge, 12 steps of 1 | 3.81 | 3.38 | 3.04 |
-| Parallel with a baseline period | not reached | not reached | 9.51 |
+| Stepped wedge, 4 steps of 3 | 4.29 | 4.01 | 3.83 |
+| Stepped wedge, 6 steps of 2 (chosen) | 3.74 | 3.44 | 3.26 |
+| Stepped wedge, 12 steps of 1 | 3.29 | 2.94 | 2.72 |
+| Parallel with a baseline period | not reached | 8.74 | 8.11 |
 | Parallel, no baseline | not reached | not reached | not reached |
 
 (Percentage points; "not reached" means no effect up to 10 points has 80 percent power.)
 
 Six steps at 3-month periods is the choice. Twelve single-facility steps would lower the MDE by
-about 12 percent, but with one facility per step size cannot be balanced across the order by
+about 15 percent, but with one facility per step size cannot be balanced across the order by
 stratification, and a new site every 7 weeks leaves the call team no time to settle each one.
 Lengthening enrollment helps slowly, because the quarter-to-quarter movement of a facility's rate
-does not shrink with more discharges: 28 months buys 0.27 points over 21 months. Fourteen months
-costs 0.44.
+does not shrink with more discharges: 28 months buys 0.18 points over 21 months. Fourteen months
+costs 0.30.
 
 ### 3.4 Randomization
 
@@ -145,8 +149,8 @@ training.
 - **What the contrast is.** Control facilities already call, so the effect estimated is that of
   the structured program over usual calls, at the facility level, for all discharges whether or
   not the call connects. If the program lifts completion within 72 hours to 80 percent, the
-  facility-level MDE of 3.82 points corresponds to about 10 points for each additional patient
-  reached (3.82 / (0.80 - 0.427)), which is why the MDE should be read as a large effect.
+  facility-level MDE of 3.44 points corresponds to about 9 points for each additional patient
+  reached (3.44 / (0.80 - 0.427)), which is why the MDE should be read as a large effect.
 
 ## 5. Outcomes
 
@@ -235,13 +239,13 @@ MDE in percentage points, 21 months (notebook section 6):
 
 | Design | CAC | ICC 0.005 | 0.01 | 0.02 | 0.03 | 0.05 |
 |---|---|---|---|---|---|---|
-| Stepped wedge, 6 steps | 0.5 | 3.70 | 4.37 | 5.54 | 6.42 | 8.08 |
-| Stepped wedge, 6 steps | 0.7 | 3.40 | **3.82** | 4.61 | 5.33 | 6.61 |
-| Stepped wedge, 6 steps | 0.9 | 2.98 | 3.15 | 3.50 | 3.80 | 4.44 |
-| Parallel, baseline period | 0.5 | 9.93 | not reached | not reached | not reached | not reached |
-| Parallel, baseline period | 0.7 | 9.48 | not reached | not reached | not reached | not reached |
-| Parallel, baseline period | 0.9 | 8.98 | 9.39 | not reached | not reached | not reached |
-| Parallel, no baseline | any | 9.46 | not reached | not reached | not reached | not reached |
+| Stepped wedge, 6 steps | 0.5 | 3.27 | 4.02 | 5.25 | 6.29 | 7.94 |
+| Stepped wedge, 6 steps | 0.7 | 2.90 | **3.44** | 4.29 | 4.99 | 6.30 |
+| Stepped wedge, 6 steps | 0.9 | 2.45 | 2.69 | 3.07 | 3.45 | 4.12 |
+| Parallel, baseline period | 0.5 | 8.43 | 9.92 | not reached | not reached | not reached |
+| Parallel, baseline period | 0.7 | 7.95 | 8.74 | not reached | not reached | not reached |
+| Parallel, baseline period | 0.9 | 7.24 | 7.77 | 8.35 | 9.30 | not reached |
+| Parallel, no baseline | 0.7 | 9.25 | not reached | not reached | not reached | not reached |
 
 At the estimated ICC the design is near its binomial floor; with a CAC of 0.7 or above the MDE
 stays under 5 points for any ICC up to 0.02. The risk is a low CAC combined with a high ICC, a

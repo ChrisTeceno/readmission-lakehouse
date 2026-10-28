@@ -28,6 +28,8 @@ A portfolio project framed as a delivery engagement for the fictional client Con
 
 Contoso Health is fictional. Its operational database (a Lakebase Postgres, [`docs/lakebase.md`](docs/lakebase.md)) is synthetic, seeded by [`scripts/seed_contoso.py`](scripts/seed_contoso.py). Its 12 facilities are real public CMS Certification Numbers from Ohio relabeled with invented names, so Contoso's numbers line up with the public HRRP data; no real hospital's data is altered, and no Contoso number describes a real hospital.
 
+How the synthetic data were made, and how they compare with public benchmarks: [`docs/synthetic-data.md`](docs/synthetic-data.md).
+
 ## How to run
 
 Needs [`uv`](https://docs.astral.sh/uv/), Java 17 for the local Spark tests, and the Databricks CLI logged in to a workspace for the bundle commands.
@@ -50,8 +52,8 @@ The full readout is [`engagement/readout.md`](engagement/readout.md) ([PDF](enga
 2. **The penalty model ranks well on approximate-cutoff years and less well on the exact one:** LightGBM test AUC 0.874 on FY2026 against 0.678 on FY2027, a small lead over logistic regression, and overconfident on FY2027 ([model card](docs/model-card.md)).
 3. **Being penalized does not change a hospital's later readmission ratio:** RDD estimate +0.0004 (95% interval -0.0027 to +0.0047, detectable effect 0.0053), a precise null, with a retention caveat and a DiD check of opposite sign reported ([causal findings](docs/causal-findings.md)).
 4. **Notes extraction:** gpt-oss-120b reaches a mean field F1 of 0.81 on 50 labelled notes against 0.70 and 0.54 for two Llama models, and a local Gemma 4 26B A4B on the Mac reaches 0.85, so keeping note text inside the client's network costs no accuracy here; the lead checked all 50 labels against the written rules and Chris Teceno, a clinician, reviewed all 50 and decided the four judgment calls ([ADR 0002](engagement/adr/0002-llm-risk-factor-extraction.md)).
-5. **Pilot:** a stepped-wedge rollout of follow-up calls across 12 facilities over 21 months (about 17,885 synthetic discharges) detects a 3.82-point drop in readmissions at 80 percent power ([readout](engagement/readout.md), [design](docs/pilot-design.md)).
-6. **Penalty dollars (estimates):** about $1.96M in FY2026 and $1.76M in FY2027 across Contoso's 12 facilities, from CMS's published payment adjustment factors and base payments estimated from the IPPS impact file; a 72-hour nurse-call program at about $371K a year pays for itself on Contoso's ledger at a drop of about half a point (0.36 to 0.71), while pooled trials of calls alone find no effect, so the pilot cannot confirm break-even ([penalty dollars](docs/penalty-dollars.md)).
+5. **Pilot:** a stepped-wedge rollout of follow-up calls across 12 facilities over 21 months (about 28,672 synthetic discharges) detects a 3.44-point drop in readmissions at 80 percent power ([readout](engagement/readout.md), [design](docs/pilot-design.md)).
+6. **Penalty dollars (estimates):** about $1.96M in FY2026 and $1.76M in FY2027 across Contoso's 12 facilities, from CMS's published payment adjustment factors and base payments estimated from the IPPS impact file; a 72-hour nurse-call program at about $525K a year pays for itself on Contoso's ledger at a drop of about half a point to a point (0.53 to 1.05) and about breaks even at the 1-point central judgment, while pooled trials of calls alone find no effect, so the pilot cannot confirm break-even ([penalty dollars](docs/penalty-dollars.md)).
 
 ## Limits
 

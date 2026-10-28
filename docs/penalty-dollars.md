@@ -17,11 +17,14 @@ modelling file.
 
 - **Estimated penalty: about $1.96M in FY2026 and $1.76M in FY2027** across the 12 facilities, on
   about $525M and $534M of estimated base operating DRG payments.
-- **Program cost: about $371K a year** (range $201K to $724K), first year, setup included.
+- **Program cost: about $525K a year** (range $295K to $1.01M), first year, setup included, for
+  about 16,400 HRRP-condition discharges a year (10,200 and $371K before Contoso's synthetic
+  volumes were corrected on 2026-10-28, `docs/synthetic-data.md` section 7).
 - **Trials find no effect from a follow-up call alone.** The program pays for itself on Contoso's
-  own ledger if it lowers the 30-day readmission rate by about half a point (0.36 to 0.71 points
-  at the central cost, depending on how much of the drop reaches the ERR). The pilot's minimum
-  detectable effect is 3.82 points, so the pilot cannot confirm break-even; it can only rule out
+  own ledger if it lowers the 30-day readmission rate by about half a point to a point (0.53 to
+  1.05 points at the central cost, depending on how much of the drop reaches the ERR). At the
+  1-point central judgment it about breaks even: -$22K if half the drop reaches the ERR, +$404K
+  if all of it does. The pilot's minimum detectable effect is 3.44 points, so the pilot cannot confirm break-even; it can only rule out
   large effects.
 - Payer savings are larger than the penalty avoided but are Medicare's and insurers' money, shown
   separately and never added to Contoso's.
@@ -95,8 +98,8 @@ watch in FY2028's forecast and to start the follow-up pilot with.
 - **Start the nurse-call pilot now.** Its results arrive before the windows a program would move.
 - **Focus the review on the facilities and conditions above,** with hip/knee across the network
   (the FY2028 forecast leads with Oak and Hawthorn).
-- **Break-even is about half a point** of the 30-day readmission rate at the central program
-  cost (below), smaller than anything the pilot can detect.
+- **Break-even is about half a point to a point** of the 30-day readmission rate at the central
+  program cost (below), smaller than anything the pilot can detect.
 
 ## Sources
 
@@ -256,7 +259,7 @@ $1,753,757 (the unrounded recomputed PAF, against $1,764,148 with the published 
 | 1.0 | $1,250,698 | $503,059 | $824,906 | $928,851 |
 | 2.0 | $824,906 | $928,851 | $367,814 | $1,385,943 |
 | 3.0 | $549,911 | $1,203,846 | $111,509 | $1,642,249 |
-| 3.82 | $396,259 | $1,357,498 | $13,676 | $1,740,081 |
+| 3.44 | $459,259 | $1,294,498 | $43,724 | $1,710,033 |
 
 Caveats:
 - The pilot outcome is all-payer; HRRP counts Medicare fee-for-service only.
@@ -269,14 +272,14 @@ Caveats:
 
 | Assumption | Low | Central | High | Source |
 |---|---|---|---|---|
-| Discharges a year (HRRP conditions, all payers) | 10,200 | 10,200 | 10,200 | 852 a month, `docs/pilot-design.md` section 2 (synthetic) |
+| Discharges a year (HRRP conditions, all payers) | 16,400 | 16,400 | 16,400 | 1,366 a month, `docs/pilot-design.md` section 2 (synthetic, all-payer factor 3.2) |
 | RN wage, Ohio | $39.67/h (median) | $42.18/h (mean) | $42.18/h | BLS OEWS |
 | Benefits | 34.9% of compensation (x 1.536) | same | same, plus 20% overhead (assumption) | BLS ECEC |
 | Loaded cost | $60.94/h | $64.79/h | $77.75/h | derived |
 | Nurse minutes per discharge, attempts and charting included | 15 (assumption) | 23 (Harrison 2014) | 35 (assumption) | |
 | Setup, first year | $20K | $50K | $100K | **assumption**, no published figure |
 | Program management | 0.2 FTE | 0.5 FTE | 1.0 FTE | **assumption**, 2,080 hours an FTE |
-| **Annual cost** | **$200,739** | **$370,724** | **$724,342** | |
+| **Annual cost** | **$295,192** | **$524,714** | **$1,005,542** | |
 
 No source gives a fully loaded cost per nurse call; the range is built from wage data and time
 assumptions. Usual care already calls 42.7 percent of discharges within 72 hours, so the cost over
@@ -290,7 +293,7 @@ not make.
 | none | 0 | Pooled RCTs of post-discharge calls alone: risk difference 0.00 (Boggan 2025) |
 | central | 1.0 | **A judgment** between the null estimate and its upper confidence bound |
 | high | 3.0 | Leppin 2014 RR 0.82 on 16.9 percent (3.04), a multicomponent bundle, not a call alone |
-| pilot_mde | 3.82 | The pilot's minimum detectable effect; **larger than the evidence supports** |
+| pilot_mde | 3.44 | The pilot's minimum detectable effect; **larger than the evidence supports** |
 
 ## Who saves what
 
@@ -305,14 +308,14 @@ The ledgers are kept apart and never added:
 - **Society:** $18,100 per readmission avoided (HCUP 2020 hospital cost), a resource-cost view
   only (about $21,000 in 2025 prices, BLS PPI hospitals `PCU622---622---`).
 
-## Economics (FY2027 base, central cost $370,724)
+## Economics (FY2027 base, central cost $524,714)
 
 | Scenario | Drop | Readmissions avoided | Penalty avoided, f = 0.5 | Contoso net, f = 0.5 | Penalty avoided, f = 1.0 | Contoso net, f = 1.0 | Payer savings |
 |---|---|---|---|---|---|---|---|
-| none | 0 | 0 | $0 | -$370,724 | $0 | -$370,724 | $0 |
-| central | 1.0 | 102 | $503,059 | $132,335 | $928,851 | $558,128 | $1,428,000 |
-| high | 3.0 | 306 | $1,203,846 | $833,123 | $1,642,249 | $1,271,525 | $4,284,000 |
-| pilot_mde | 3.82 | 390 | $1,357,498 | $986,774 | $1,740,081 | $1,369,357 | $5,454,960 |
+| none | 0 | 0 | $0 | -$524,714 | $0 | -$524,714 | $0 |
+| central | 1.0 | 164 | $503,059 | -$21,655 | $928,851 | $404,138 | $2,296,000 |
+| high | 3.0 | 492 | $1,203,846 | $679,132 | $1,642,249 | $1,117,535 | $6,888,000 |
+| pilot_mde | 3.44 | 564 | $1,294,498 | $769,784 | $1,710,033 | $1,185,319 | $7,898,240 |
 
 Contoso's upside is capped by the penalty it pays, about $1.75M a year; the payer's is not.
 
@@ -322,13 +325,19 @@ The smallest drop, on a 0.01-point grid, at which the penalty avoided covers the
 
 | Program cost | f = 0.5 | f = 1.0 |
 |---|---|---|
-| Low $200,739 | 0.34 | 0.17 |
-| Central $370,724 | 0.71 | 0.36 |
-| High $724,342 | 1.51 | 0.76 |
+| Low $295,192 | 0.54 | 0.27 |
+| Central $524,714 | 1.05 | 0.53 |
+| High $1,005,542 | 2.22 | 1.11 |
 
-All of them sit inside the pooled RCT confidence interval (up to 2 points) and well below the
-pilot's 3.82-point MDE. The plain reading: trials find no effect from a call alone; the program
-pays for itself at Contoso at about half a point, which the pilot cannot detect.
+All but one sit inside the pooled RCT confidence interval (up to 2 points); the high cost at
+half pass-through needs 2.22. All are well below the pilot's 3.44-point MDE. The plain reading:
+trials find no effect from a call alone. At the central cost the program needs half a point to a
+point to pay for itself at Contoso, and at the 1-point central judgment it about breaks even
+(-$21,655 at half pass-through, +$404,138 at full), so it no longer clearly pays for itself at
+that effect. The pilot cannot detect a drop that small. With 10,200 discharges a year (before the
+2026-10-28 volume correction) break-even was 0.36 to 0.71 points and the 1-point net was +$132K to
++$558K; the program costs more now because there are more discharges to call, while the penalty
+it can avoid is unchanged.
 
 ## Tables
 
