@@ -291,8 +291,8 @@ pages.landscape = (() => {
       type: "bar",
       x: share.map((r) => r.fiscal_year),
       y: share.map((r) => r.penalized_share),
-      marker: { color: share.map((r) => (r.cutoff_is_approximate ? t.s3 : t.s1)) },
-      customdata: share.map((r) => [r.penalized, r.hospitals, r.cutoff_is_approximate ? "approximate 1.0 cutoff" : "exact cutoff"]),
+      marker: { color: share.map((r) => (r.fiscal_year < 2019 ? t.s3 : t.s1)) },
+      customdata: share.map((r) => [r.penalized, r.hospitals, r.fiscal_year < 2019 ? "cutoff 1.0" : "peer group median cutoff"]),
       hovertemplate: "FY%{x}: %{y:.1%}<br>%{customdata[0]:,} of %{customdata[1]:,} hospitals<br>%{customdata[2]}<extra></extra>",
     }], {
       height: 320,

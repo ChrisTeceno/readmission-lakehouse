@@ -30,7 +30,7 @@
               {
                 "textRuns": [
                   {
-                    "value": "Contoso Health is a fictional client: its 12 facilities are relabeled public CMS hospitals (real CCNs). FY2019 to FY2026 cutoffs are approximate: 1.0 stands in for the dual-eligibility peer group median, which no public file carries. FY2027 uses the published median.",
+                    "value": "Contoso Health is a fictional client: its 12 facilities are relabeled public CMS hospitals (real CCNs). Cutoffs: 1.0 to FY2018, the published dual-eligibility peer group median from FY2019; 1.0 stands in only for FY2023 pneumonia and hospitals missing from a year's file.",
                     "textStyle": {
                       "fontSize": "10pt"
                     }

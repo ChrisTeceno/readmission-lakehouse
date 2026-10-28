@@ -24,7 +24,7 @@ deployment engine this bundle already uses, so no script was needed. The space b
 Genie API's `serialized_space` version 2: tables, one text instruction, column synonyms, sample
 questions and example SQL, every collection sorted by id or name and every id 32 lowercase hex
 characters (the API rejects anything else). `tests/test_dashboards.py` checks those rules, that
-every dashboard widget reads a dataset and columns that exist, and that the approximate-cutoff,
+every dashboard widget reads a dataset and columns that exist, and that the cutoff,
 fictional-client and model captions are on their pages.
 
 Space id on the dev workspace: `01f1cd785d031b07b67f5e804592b151`. Dashboard id:
@@ -39,8 +39,11 @@ column's Unity Catalog comment (set by the `gold` task, see `docs/gold.md` and
 "follow-up completion", "next cycle") and one text instruction. The instruction says Contoso is
 fictional, that "this year" is the latest fiscal year (FY2027) and "next cycle" is FY2028, that
 the tables carry no dollar amounts, and that any answer counting rows above the cutoff for FY2019
-to FY2026 must include `cutoff_is_approximate` and say those cutoffs are approximate. It also
-carries the model's caveat (test AUC 0.874 on FY2026, 0.678 on FY2027).
+or later must include `cutoff_is_approximate` and name any rows on the 1.0 stand-in (FY2023
+pneumonia, and hospitals missing from a year's supplemental file; ADR 0008). It also carries the
+model's caveat (test AUC 0.868 on FY2026, 0.679 on FY2027). Until 2026-10-28 it said every
+FY2019 to FY2026 cutoff was approximate (ADR 0006); the test rounds below ran under that
+wording.
 
 ## How Genie was tested
 
@@ -58,6 +61,11 @@ Round 2 added the fixes below and reran the five questions plus a reworded versi
 question that had failed, so a fix that only matched the exact sample wording would show.
 Rounds 3 and 4 fixed the two problems round 2 still had. All runs: 2026-10-21, on Gold from the
 job runs of that day.
+
+The figures below are those runs' answers. Since the published peer medians were loaded and
+model version 7 became champion (2026-10-28, ADR 0008), two of them moved: FY2026 has 33 Contoso
+pairs above the cutoff (was 31, all on the 1.0 stand-in then, none now), and FY2028 has 29 pairs
+at 0.5 or more (was 28). FY2027 figures are unchanged.
 
 ## The five questions
 
@@ -95,8 +103,8 @@ job runs of that day.
 
 - **Dashboard:** National penalty landscape. A line per group (Contoso, Ohio, all hospitals) of
   mean ERR by fiscal year with a condition filter; the share of hospitals with a condition above
-  the cutoff per year, colored exact or approximate cutoff; hospitals penalized by state in
-  FY2027. Caption on the approximate cutoffs.
+  the cutoff per year, colored by cutoff rule (1.0 to FY2018, peer group median after); hospitals
+  penalized by state in FY2027. Caption on the cutoff rule and the rows still on 1.0.
 - **Round 1, SQL right, summary wrong.** Genie's three-way `UNION ALL` of yearly means was
   correct, but its summary said Contoso was below both peer groups "except for FY2025 and FY2026".
   Contoso's mean was also above both in FY2023 and FY2024 (1.0071 and 1.0051 against national
@@ -119,7 +127,8 @@ job runs of that day.
   FY2028, 25 above the cutoff in FY2027, `penalty_model` version 4. The Contoso pairs by
   probability with last year's flag, decile and national rank; mean probability by condition for
   all hospitals. Caption: these are probabilities, test AUC 0.874 on FY2026 against 0.678 on
-  FY2027, overconfident at both ends on FY2027, so expect FY2028 to look like the lower figure.
+  FY2027 (version 4; 0.868 and 0.679 for version 7, the champion from 2026-10-28), overconfident
+  at both ends on FY2027, so expect FY2028 to look like the lower figure.
 - **Round 1, wrong.** Genie joined `gold_penalty_predictions` straight to
   `gold_contoso_scorecard`, which has one row per fiscal year, so every prediction repeated once
   per year (15 times for most pairs). Its answer named one pair (CH11 HIP_KNEE, 0.995) where there are 28.

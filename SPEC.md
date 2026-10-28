@@ -209,7 +209,7 @@ def clean_hrrp(raw: DataFrame) -> DataFrame:
 - 2.2 MLflow penalty model: baseline logistic regression vs gradient boosting, time-based split, registration with a champion alias, metric gate, scheduled batch scoring into `gold_penalty_predictions`.
 - 2.3 Causal: RDD at the penalty cutoff on cycle t, outcome is the change in ERR at cycle t+3, bandwidth sensitivity, placebo cutoffs, DiD check. Two design facts the analysis plan must handle:
   - Performance windows are 3 years and overlap by 2 years between consecutive fiscal years, so t vs t+1 is mostly the same claims. Compare non-overlapping windows (t vs t+3), or say why not.
-  - The cutoff is ERR = 1.0 for FY2013 to FY2018. From FY2019 CMS compares each hospital to the median ERR of its dual-eligibility peer group, so the cutoff becomes that median. Peer group assignments come from the supplemental files; confirm per year which ones carry them.
+  - The cutoff is ERR = 1.0 for FY2013 to FY2018. From FY2019 CMS compares each hospital to the median ERR of its dual-eligibility peer group, so the cutoff becomes that median. Peer group assignments and medians come from each year's IPPS supplemental file, published for every year from FY2019 (ADR 0008); 1.0 stands in only where CMS published no median (FY2023 pneumonia, and hospitals missing from a year's file).
 - 2.4 LLM notes extraction plus 50-note eval, outputs validated against a JSON schema.
 - 2.6 Pilot design: a randomized (or stepped-wedge) trial of post-discharge follow-up calls across Contoso facilities, with power calculation, primary metric, guardrails and analysis plan.
 - 2.5 Census ACS ingestion via Key Vault (needs Azure, 3.1).

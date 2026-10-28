@@ -28,13 +28,14 @@ What each answer has to say, so the build can be checked against it:
   group median, so the answer is exact. The page lists every Contoso facility and condition with
   its ERR, cutoff and above or below, and counts the conditions above the cutoff per facility.
 - **Q2.** A line per group (Contoso, Ohio, all hospitals) of the mean ERR by fiscal year, FY2013
-  to FY2027, and the share of hospitals penalized each year. FY2019 to FY2026 use the 1.0
-  stand-in cutoff (`cutoff_is_approximate`), so any above-cutoff count for those years carries
-  that caption on the page.
+  to FY2027, and the share of hospitals penalized each year. From FY2019 the cutoff is the
+  published peer group median; the few rows CMS published no median for use 1.0
+  (`cutoff_is_approximate`), and the page's caption names them (ADR 0008; until 2026-10-28
+  every FY2019 to FY2026 row used 1.0, ADR 0006).
 - **Q3.** The FY2028 probability per Contoso facility and condition from the `penalty_model`
   champion, sorted highest first, with last year's above-cutoff flag beside it. The page says
-  these are probabilities, that the model is weakest on the exact-cutoff year (test AUC 0.874
-  on FY2026, 0.678 on FY2027, `docs/model-card.md`), and that FY2028 is likelier to look like
+  these are probabilities, that the model is weaker on FY2027 (test AUC 0.868
+  on FY2026, 0.679 on FY2027, `docs/model-card.md`), and that FY2028 is likelier to look like
   FY2027.
 - **Q4.** Completed follow-up calls over discharges per facility and condition, lowest first,
   with calls within 72 hours beside it and the FY2027 above-cutoff flag. Contoso's records start
@@ -71,8 +72,8 @@ top of a page and apply to every widget on it.
 | Facility | Condition | ERR | Cutoff | Approx. cutoff? | Above? | ERR change|
 | ...table, above-cutoff rows first...                                      |
 +--------------------------------------------------------------------------+
-| Caption: FY2019 to FY2026 cutoffs are the 1.0 stand-in for the peer group |
-| median; FY2027 uses the published median.                                 |
+| Caption: 1.0 to FY2018, the published peer group median from FY2019;     |
+| 1.0 stands in only where CMS published no median.                         |
 +--------------------------------------------------------------------------+
 ```
 
@@ -91,8 +92,8 @@ top of a page and apply to every widget on it.
 | Share of hospitals penalized by FY   | Hospitals penalized by state,     |
 | (bar)                                | latest year (table, top states)   |
 +-------------------------------------+------------------------------------+
-| Caption: FY2019 to FY2026 shares use the 1.0 stand-in cutoff              |
-| (cutoff_is_approximate = true).                                           |
+| Caption: bars colored by cutoff rule (1.0 to FY2018, peer median after);  |
+| rows still on a 1.0 stand-in are named.                                   |
 +--------------------------------------------------------------------------+
 ```
 
@@ -112,8 +113,8 @@ top of a page and apply to every widget on it.
 +--------------------------------------------------------------------------+
 | Predicted probability by condition, all hospitals (bar of mean P)         |
 +--------------------------------------------------------------------------+
-| Caption: test AUC 0.874 on FY2026 (approximate cutoff), 0.678 on FY2027   |
-| (exact cutoff); FY2028 follows FY2027, so expect the lower figure.        |
+| Caption: test AUC 0.868 on FY2026, 0.679 on FY2027; FY2028 follows        |
+| FY2027, so expect the lower figure.                                       |
 +--------------------------------------------------------------------------+
 ```
 
@@ -183,7 +184,9 @@ whether follow-up calls would pay for themselves (`docs/penalty-dollars.md`).
   team share the same Gold tables, and the pipeline-health page tells the quality lead whether
   the other four are current.
 - Q1 uses FY2027 by default because it is the one recent year with the exact cutoff. Earlier
-  years stay selectable, with the approximate-cutoff flag shown as a column.
+  years stay selectable, with the approximate-cutoff flag shown as a column. Updated
+  2026-10-28: every year from FY2019 now has its published cutoff (ADR 0008); FY2027 stays the
+  default as the latest year, and the flag marks only the rows CMS published no median for.
 - No dollar amounts. The Gold tables carry ERRs and above-cutoff flags, not the payment
   adjustment factor, so the dashboard does not estimate the penalty's size. Superseded
   2026-10-26: the penalty dollars page shows estimated dollars from the published payment

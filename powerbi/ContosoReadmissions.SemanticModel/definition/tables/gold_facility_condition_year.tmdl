@@ -1,9 +1,9 @@
 /// HRRP results per facility, condition and fiscal year, FY2013 to FY2027, with
 /// the penalty cutoff, the change from the prior non-overlapping window and
-/// anomaly flags. Cutoff: 1.0 for FY2013 to FY2018 (exact), the peer group
-/// median ERR for FY2027 (exact), and 1.0 as a stand-in for FY2019 to FY2026,
-/// where CMS used the peer group median but no file here carries it
-/// (cutoff_is_approximate = true). Hospital attributes are the current Hospital
+/// anomaly flags. Cutoff: 1.0 for FY2013 to FY2018, and from FY2019 the peer
+/// group median ERR CMS published in that year's supplemental file; 1.0 stands
+/// in where CMS published no median (cutoff_is_approximate = true): FY2023
+/// pneumonia and hospitals missing from a year's file. Hospital attributes are the current Hospital
 /// General Information snapshot. Built from silver_hrrp_history and
 /// silver_hospital_info.
 table gold_facility_condition_year
@@ -26,8 +26,8 @@ table gold_facility_condition_year
 	measure 'Average ERR' = AVERAGE(gold_facility_condition_year[excess_readmission_ratio])
 		formatString: 0.0000
 
-	/// Mean of ERR minus the penalty cutoff; above zero means above the cutoff (1.0
-	/// stand-in for FY2019 to FY2026).
+	/// Mean of ERR minus the penalty cutoff; above zero means above the cutoff (the
+	/// published peer group median from FY2019).
 	measure 'ERR vs Peer Cutoff' =
 			AVERAGEX(
 			    FILTER(gold_facility_condition_year, NOT ISBLANK(gold_facility_condition_year[excess_readmission_ratio])),

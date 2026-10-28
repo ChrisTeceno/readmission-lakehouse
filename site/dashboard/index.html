@@ -53,7 +53,7 @@
         <h3>Every facility and condition</h3>
         <div class="table-wrap" id="sc-table"></div>
       </div>
-      <p class="caption">An ERR above the cutoff means more readmissions than CMS expected for that hospital's patients, and the hospital's Medicare payments are cut. Cutoffs for FY2019 to FY2026 are approximate: CMS compared each hospital with the median ERR of its peer group (hospitals with a similar share of patients on both Medicare and Medicaid), which no file in this project carries, so 1.0 stands in. FY2013 to FY2018 (1.0) and FY2027 (the published peer group median) are exact.</p>
+      <p class="caption">An ERR above the cutoff means more readmissions than CMS expected for that hospital's patients, and the hospital's Medicare payments are cut. The cutoff is 1.0 for FY2013 to FY2018. From FY2019 CMS compares each hospital with the median ERR of its peer group (hospitals with a similar share of patients on both Medicare and Medicaid), published each year in its supplemental file. The only rows where 1.0 stands in for a median CMS did not publish are FY2023 pneumonia, which CMS left out of that year's payment program, and hospitals missing from a year's file; the table marks them.</p>
       <p class="caption">Contoso's 12 facilities are real public Ohio CMS Certification Numbers (CCNs) relabeled with invented names; no Contoso number describes a real hospital.</p>
     </section>
 
@@ -71,7 +71,7 @@
       <div class="grid-2">
         <div class="card">
           <h3>Share of hospitals with a condition above the cutoff</h3>
-          <p class="sub">All conditions. Lighter bars are years that rest on the approximate 1.0 cutoff.</p>
+          <p class="sub">All conditions. Lighter bars are years with a cutoff of 1.0; darker bars, from FY2019, use the peer group median.</p>
           <div class="chart" id="ls-share"></div>
         </div>
         <div class="card">
@@ -85,7 +85,7 @@
         <p class="sub">A hospital counts as penalized when at least one condition is above the cutoff. Highest share first.</p>
         <div class="table-wrap" id="ls-state"></div>
       </div>
-      <p class="caption">Counts and distributions only: no hospital outside Contoso is named. Cutoffs for FY2019 to FY2026 are approximate (1.0 stands in for the peer group median); FY2013 to FY2018 and FY2027 are exact.</p>
+      <p class="caption">Counts and distributions only: no hospital outside Contoso is named. Cutoffs are 1.0 for FY2013 to FY2018 and the published peer group median from FY2019; 1.0 stands in only for FY2023 pneumonia and for hospitals missing from a year's supplemental file.</p>
     </section>
 
     <section class="page" id="predictions" role="tabpanel" aria-labelledby="tab-predictions" hidden>
@@ -110,7 +110,7 @@
         <h3>Mean FY2028 probability by condition, all hospitals</h3>
         <div class="chart" id="pr-measure-bar"></div>
       </div>
-      <p class="caption">These are probabilities, not forecasts of the ERR or the penalty amount. The model scored an AUC of 0.874 on FY2026, whose labels use the approximate 1.0 cutoff, but only 0.678 on FY2027, the one recent year with the exact cutoff, and its FY2027 probabilities are overconfident at both ends (pairs under 0.1 were above the cutoff 22 percent of the time, pairs over 0.9 only 76 percent). FY2028 follows FY2027, so expect accuracy closer to the lower figure. Use the ranking to decide where to look first.</p>
+      <p class="caption">These are probabilities, not forecasts of the ERR or the penalty amount. The model scored an AUC of 0.868 on FY2026 but only 0.679 on FY2027, and its FY2027 probabilities are overconfident at both ends (pairs under 0.1 were above the cutoff 21 percent of the time, pairs over 0.9 only 75 percent). FY2028 follows FY2027, so expect accuracy closer to the lower figure. Use the ranking to decide where to look first.</p>
     </section>
 
     <section class="page" id="followup" role="tabpanel" aria-labelledby="tab-followup" hidden>
@@ -128,7 +128,7 @@
         <h3>Calls by facility and condition</h3>
         <div class="table-wrap" id="fu-table"></div>
       </div>
-      <p class="caption">Contoso's operational data is synthetic and starts in September 2023, so only FY2026 (10 months) and FY2027 (22 months) have it. A low follow-up rate beside a condition above the cutoff is a place to look, not evidence that calls lower the ERR: that is the question the follow-up pilot is designed to test. A facility's penalty status counts every condition above the cutoff, including the few Contoso has no call records for, which the table leaves out. FY2026 cutoffs are the approximate 1.0 stand-in; FY2027's are exact.</p>
+      <p class="caption">Contoso's operational data is synthetic and starts in September 2023, so only FY2026 (10 months) and FY2027 (22 months) have it. A low follow-up rate beside a condition above the cutoff is a place to look, not evidence that calls lower the ERR: that is the question the follow-up pilot is designed to test. A facility's penalty status counts every condition above the cutoff, including the few Contoso has no call records for, which the table leaves out. FY2026 and FY2027 cutoffs are the published peer group medians.</p>
     </section>
 
     <section class="page" id="penalty" role="tabpanel" aria-labelledby="tab-penalty" hidden>

@@ -131,21 +131,13 @@ links its FY2026 entry to the FY2025 zip, and its FY2023 entry has no zip link. 
 rule home page links the correct FY2026 file (data period 07/01/2021 to 06/30/2024; Contoso's
 discharge counts match the PDC FY2026 values, for example CH01 AMI 214). The fetch uses that link.
 
-### Files that exist and are not loaded
+### FY2019 to FY2025
 
-The FY2019 to FY2025 supplemental files are public and carry peer group medians, dual
-proportions, neutrality modifiers and DRG payment ratios:
-
-| FY | URL (prefix `https://www.cms.gov`) |
-|---|---|
-| 2019 | `/medicare/medicare-fee-for-service-payment/acuteinpatientpps/downloads/fy2019-cms-1694-fr-hospital-readmissions.zip` |
-| 2020 to 2025 | `/files/zip/fy-<year>-ipps-final-rule-hospital-readmissions-reduction-program-supplemental-data-file.zip` |
-
-FY2022 and FY2025 ship only as xlsx. Loading them would make the FY2019 to FY2025 cutoffs exact
-and retire the 1.0 stand-in of ADR 0006 (`engagement/adr/0006-approximate-cutoff-stand-in.md`).
-That touches the model labels, the causal sample and the dashboard captions, so it is a separate
-task; this one adds only the FY2026 file, and `silver_hrrp_history` keeps its FY2026 rows from the
-PDC archive with the stand-in.
+The FY2019 to FY2025 supplemental files are loaded too since ADR 0008
+(`engagement/adr/0008-published-peer-median-cutoffs.md`); their URLs and file names are in
+`docs/data-sources.md`. They give every year from FY2019 its published peer group median, which
+`silver_hrrp_history` joins from `silver_hrrp_payment_measure`. The estimates on this page use
+FY2026 and FY2027 only.
 
 ## Method
 

@@ -85,7 +85,9 @@ stand-in and marks those rows `cutoff_is_approximate = true`; `docs/gold.md` mea
 where both cutoffs are known (899 of 14,575 FY2027 rows, 6.2 percent, fall on different sides).
 The dashboard and Genie instructions repeat the caveat.
 
-Outcome: a number kept honest instead of presented as exact.
+Outcome: a number kept honest instead of presented as exact. Superseded on 2026-10-28 (ADR
+0008): research for a later run found the FY2019 to FY2025 supplemental files, which carry every
+year's peer medians, and loading them replaced the stand-in except where CMS published no median.
 
 ### 7. Note-extraction model chosen by field F1, labels reviewed afterwards (PR #12)
 
